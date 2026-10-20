@@ -25,6 +25,7 @@ download.parent.mkdir(parents=True, exist_ok=True)
 with zipfile.ZipFile(download, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as output:
     for path in runtime:
         info = zipfile.ZipInfo(path.relative_to(addon_base).as_posix(), (2026, 10, 20, 0, 0, 0))
+        info.create_system = 0
         info.compress_type = zipfile.ZIP_DEFLATED
         info.external_attr = 0o100644 << 16
         output.writestr(info, path.read_bytes())

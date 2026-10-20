@@ -19,6 +19,7 @@ for name in ("AkionUI","DarkWhisperRaidTools"):
             if path.is_file() and path.suffix in {".lua",".toc",".tga"}:
                 assert not path.is_symlink()
                 entry = zipfile.ZipInfo(path.relative_to(base).as_posix(),(2026,10,20,0,0,0))
+                entry.create_system = 0
                 entry.compress_type = zipfile.ZIP_DEFLATED
                 entry.external_attr = 0o100644 << 16
                 archive.writestr(entry,path.read_bytes())
