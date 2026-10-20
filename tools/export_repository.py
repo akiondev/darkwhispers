@@ -52,7 +52,7 @@ for name,source in sorted(mapping.items()):
     assert target.resolve().is_relative_to(destination.resolve())
     target.parent.mkdir(parents=True,exist_ok=True)
     shutil.copyfile(source,target)
-(destination/".gitattributes").write_text("* text=auto eol=lf\naddons/** -text\n*.tga binary\n*.png binary\n*.ico binary\n*.icns binary\n*.bin binary\n",encoding="utf-8")
+(destination/".gitattributes").write_text("* text=auto eol=lf\naddons/** -text\n*.tga binary\n*.png binary\n*.webp binary\n*.woff2 binary\n*.ico binary\n*.icns binary\n*.bin binary\n",encoding="utf-8")
 (destination/".gitignore").write_text("""/out/
 /release/
 /staging/

@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "version": "0.3.3",
+      "date": "20 Oct 2026",
+      "title": "Darkness, refined",
+      "changes": [
+        "A shared hooded vampire logo, bold gothic wordmark and animated crimson theme across the launcher and website.",
+        "Four clear website choices: launcher, Chrome installation, direct addon ZIP and organized GitHub downloads.",
+        "Compact addon rows retain independent update checks, latest versions, release dates and notes."
+      ]
+    },
+    {
       "version": "0.3.2",
       "date": "20 Oct 2026",
       "title": "Clearer addon updates",

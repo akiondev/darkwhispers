@@ -1,6 +1,6 @@
 # DarkWhispers maintainer review notes
 
-Release: launcher 0.3.2 and DarkWhispers Raid Tool 1.0.2.
+Release: launcher 0.3.3 and DarkWhispers Raid Tool 1.0.2.
 Scope: implementation notes, not an independent audit or security certification.
 The original automated reports, source commit and exact package hashes are in
 the immutable GitHub release and its public workflow.
@@ -21,6 +21,11 @@ versions. The browser installer uses verified staging and temporary copy-based
 rollback; a closed tab or lost permission can still interrupt browser recovery.
 
 ## Desktop behavior
+
+The shared hooded logo, native icons and crimson theme replace the previous
+crystal and crescent/star marks. The gothic font is self-hosted under the SIL
+Open Font License; the runtime makes no external font requests. Website ZIP
+links are populated from the independently verified signed addon catalog.
 
 Addon versions come from the independently signed online catalog. Per-addon checks
 do not use the launcher self-updater. Compact rows show installed/latest versions,

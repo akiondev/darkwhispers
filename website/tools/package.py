@@ -37,6 +37,10 @@ with zipfile.ZipFile(download) as output:
         assert output.read(path.relative_to(addon_base).as_posix()) == path.read_bytes()
 checksum = hashlib.sha256(download.read_bytes()).hexdigest()
 (public / "downloads" / "SHA256SUMS.txt").write_text(f"{checksum}  {download.name}\n", encoding="utf-8")
+home = public / "index.html"
+home.write_text(re.sub(r'id="addon-zip" href="[^"]+"',
+                       f'id="addon-zip" href="/downloads/{download.name}"',
+                       home.read_text(encoding="utf-8")), encoding="utf-8")
 
 # Content-addressed assets prevent browsers retaining a previous design after a deploy.
 for filename in ("browser-install.mjs", "styles.css", "app.js"):

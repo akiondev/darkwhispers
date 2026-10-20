@@ -2,6 +2,8 @@
 addons/** -text
 *.tga binary
 *.png binary
+*.webp binary
+*.woff2 binary
 *.ico binary
 *.icns binary
 *.bin binary

@@ -1,7 +1,9 @@
-# DarkWhispers
+<img src="website/public/assets/vampire-logo.webp" width="96" height="96" alt="DarkWhispers hooded vampire logo">
+
+# DARKWHISPERS
 
 Open source raid tools for World of Warcraft Retail, with a small desktop addon
-manager and a frost-themed download site.
+manager and a gothic download site.
 
 [Website](https://darkwhispers.akion.se/) ·
 [Downloads and complete reports](https://github.com/akiondev/darkwhispers/releases) ·

@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 74 90" fill="none">
-  <defs><linearGradient id="ice" x1="37" y1="0" x2="37" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#f2fbff"/><stop offset=".55" stop-color="#91d5ff"/><stop offset="1" stop-color="#3e729e"/></linearGradient></defs>
-  <path d="M37 3 60 27 54 61 37 86 20 61 14 27Z" stroke="url(#ice)" stroke-width="1.1"/>
-  <path d="m37 12 14 20-14 43-14-43Z" fill="#8ed6ff" fill-opacity=".06" stroke="url(#ice)" stroke-width="1.1"/>
-  <path d="M37 12v63M23 32l14 13 14-13M14 27l23 18 23-18M20 61l17-16 17 16M4 39l8 6-8 6M70 39l-8 6 8 6M27 4l-5 8M47 4l5 8" stroke="url(#ice)" stroke-width=".8"/>
-  <path d="m37 29 6 16-6 16-6-16Z" fill="#bcecff" fill-opacity=".6"/>
-  <circle cx="37" cy="45" r="2.4" fill="#e8faff"/>
-</svg>

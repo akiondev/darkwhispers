@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import shutil
+from release_notes import render_release_notes
 
 root = Path(__file__).resolve().parents[1]
 staging = root/"staging"
@@ -84,21 +85,6 @@ evidence = {
 }
 (release/"release-evidence.json").write_text(json.dumps(evidence,indent=2)+"\n")
 (release/"SHA256SUMS.txt").write_text("".join(hashlib.sha256(path.read_bytes()).hexdigest()+"  "+path.name+"\n" for path in sorted(release.iterdir()) if path.is_file()))
-notes = f"""Built from commit {evidence['commit']} in a public GitHub Actions run:
-{evidence['run_url']}
-
-The release files, complete scan reports, source inventory and checksum list have
-GitHub/Sigstore build-provenance attestations. Release immutability is enabled.
-Verify any downloaded file with:
-
-    {evidence['attestation']['verification_command']}
-
-Defender and ClamAV reported zero detections for every listed package.
-RustSec advisory notes and all Semgrep findings remain in the full reports.
-Open release-evidence.json for exact hashes, source, tool results and limitations.
-
-Attestations prove origin and integrity, not that the software is risk-free.
-Windows installers are unsigned. Linux download targets Debian/Ubuntu x64.
-"""
+notes = render_release_notes(evidence, json.loads((root/"website/public/changelog.json").read_text()))
 (root/"release-notes.md").write_text(notes)
 print(json.dumps({"version":version,"artifacts":len(artifacts),"run":evidence["run_url"]}))

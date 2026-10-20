@@ -88,17 +88,23 @@ function renderAddons() {
     install.addEventListener("click", () => runInstall(addon));
     const zip = document.createElement("a");
     zip.className = "button github-inline";
-    zip.textContent = "Manual ZIP on GitHub ↗";
-    zip.href = "https://github.com/akiondev/darkwhispers/releases/latest";
-    zip.target = "_blank"; zip.rel = "noopener";
+    zip.textContent = "Manual ZIP Download";
+    zip.href = new URL(addon.download_url).pathname;
+    zip.setAttribute("download","");
     buttons.append(install, zip);
     row.append(title, version, buttons);
     $("addon-list").append(row);
   }
   setInstalling(false);
 }
+function renderZipDownload() {
+  const addon = catalog.addons.find(item=>item.id === "DarkWhisperRaidTools");
+  if (!addon) return;
+  $("addon-zip").href = new URL(addon.download_url).pathname;
+  $("zip-detail").textContent = addon.title + " · v" + addon.version;
+}
 $("choose-wow").disabled = !directSupported;
-if (!directSupported) $("browser-support").textContent = "Direct installation needs desktop Chrome or Edge with folder-write support. Use Manual ZIP on GitHub in this browser.";
+if (!directSupported) $("browser-support").textContent = "Direct installation needs desktop Chrome or Edge with folder-write support. Use Manual ZIP Download in this browser.";
 $("choose-wow").addEventListener("click", async () => {
   if (installing) return;
   setInstalling(true);
@@ -254,7 +260,7 @@ async function initialize() {
       selectPlatform(selectedPlatform);
     })().catch(() => { $("download-detail").textContent = "Downloads unavailable. Please reload."; }),
     (async () => {
-      catalog = await loadCatalog(); renderAddons(); renderSecurity();
+      catalog = await loadCatalog(); renderAddons(); renderZipDownload(); renderSecurity();
     })().catch((error) => { $("addon-list").textContent = error.message; installStatus("The addon catalog could not be verified.", true); }),
     (async () => {
       checks = JSON.parse(new TextDecoder().decode(await fetchBytes("/security/release-checks.json", 256 * 1024))); renderSecurity();
@@ -281,10 +287,10 @@ function startWinter() {
     for (const p of particles.slice(0,count)) {
       p.y = (p.y + p.v * delta) % 1;
       const x = (p.x + Math.sin(time*.00012+p.phase)*.032) * width, y = p.y * height;
-      context.fillStyle = "rgba(195,231,255," + p.a + ")";
+      context.fillStyle = "rgba(235,126,146," + p.a + ")";
       context.beginPath(); context.arc(x,y,p.r,0,Math.PI*2); context.fill();
       if (p.r > 1.5) {
-        context.strokeStyle = "rgba(170,222,255," + p.a*.45 + ")"; context.lineWidth = .6;
+        context.strokeStyle = "rgba(210,66,96," + p.a*.45 + ")"; context.lineWidth = .6;
         context.beginPath(); context.moveTo(x-3,y); context.lineTo(x+3,y); context.moveTo(x,y-3); context.lineTo(x,y+3); context.stroke();
       }
     }

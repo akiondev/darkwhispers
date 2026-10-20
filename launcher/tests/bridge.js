@@ -18,7 +18,7 @@ const addon = {
 window.__TAURI__ = {core: {invoke: async (command, args = {}) => {
   await new Promise(resolve => setTimeout(resolve, 150));
   if (failNext) { failNext = false; throw "Test download failed. Nothing was installed."; }
-  if (command === "check_launcher_update") return {current:"0.3.2",available:null,supported:true};
+  if (command === "check_launcher_update") return {current:"0.3.3",available:null,supported:true};
   if (command === "set_auto_update") { autoUpdate = args.enabled; return; }
   if (command === "window_action" || command === "open_resource") return;
   if (command === "get_release_checks") return (await fetch("/build/release-checks.json")).json();
