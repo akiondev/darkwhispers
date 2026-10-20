@@ -1,11 +1,11 @@
 {
-  "version": "0.3.3",
-  "pub_date": "2026-10-20T20:38:55.025880+00:00",
-  "notes": "DarkWhispers launcher 0.3.3",
+  "version": "0.3.4",
+  "pub_date": "2026-10-20T21:03:03.508926+00:00",
+  "notes": "DarkWhispers launcher 0.3.4",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.3/DarkWhispers-Addons-0.3.3-windows-x64-setup.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUbWtEWlZ2RDdlNkFqWG5KZmcwaTByUjZXMUZiT1EwellDcEdENjh4SlJ6SFJkenhlU1pNQW8veUliSDFoa3R6dGJKcW5UK1g3Tm45bmRFMDBSSFlDdUVmQmxjQXRzcXdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNTI4Nzk0CWZpbGU6RGFya1doaXNwZXJzLUFkZG9ucy0wLjMuMy13aW5kb3dzLXg2NC1zZXR1cC5leGUJdmVyc2lvbjowLjMuMwpUZlBRbTl0OG9FZGhpd09GUjlFV29sZzh4L0lFMURTL2Rmc2FsbTdPN3FNOUJjRWtITGNlU0lMcmVBdGtVeDUwV2I5VktQVjJLWC9xN3l6dWJGUWNBQT09Cg=="
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.4/DarkWhispers-Addons-0.3.4-windows-x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUbWtEWlZ2RDdlNk1RT1pGcEo1Si9UV2lrNDdXWGZ3TnZQcWpJUjliN0tKRlk2LzVmYlZDM29vRm1Od0VSZ2srek9DckwwTGRacWU2S2Erd1pqeVFOMXFGZUJ2ejBvQ3dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNTMwMjUxCWZpbGU6RGFya1doaXNwZXJzLUFkZG9ucy0wLjMuNC13aW5kb3dzLXg2NC1zZXR1cC5leGUJdmVyc2lvbjowLjMuNApNd3YxMVcvdUN4dDZtazE4OGdVVDVUeHV4a05mbnRSQXY3M0tRNDlGNW1JRW9NNUJuTGR6TUhBcW5nSkRzK2U5NFIrSFVOcTZpWUZlWFZSdVYwU0dBQT09Cg=="
     }
   }
 }

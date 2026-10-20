@@ -11,23 +11,23 @@
   ],
   "maximum_signature_age_hours": 72,
   "signatures_updated_at": "2026-10-20T08:34:39.0000000Z",
-  "started_at": "2026-10-20T20:38:34.1270306Z",
-  "checked_at": "2026-10-20T20:38:40.9898413Z",
+  "started_at": "2026-10-20T21:02:27.8774365Z",
+  "checked_at": "2026-10-20T21:02:42.4795941Z",
   "artifacts": [
     {
-      "filename": "DarkWhisperRaidTools-1.0.2.zip",
-      "sha256": "5f31d36b333f7abdf37572bce12d25e17f372fdded83a3b429c49259d1535d21",
-      "bytes": 21907
+      "filename": "DarkWhisperRaidTools-1.0.3.zip",
+      "sha256": "135b0312fee6c3f8822cb7176f19bdac724f5ebda2f4fdeb4485266f5596cb41",
+      "bytes": 31447
     },
     {
-      "filename": "DarkWhispers-Addons-0.3.3-linux-amd64.deb",
-      "sha256": "8ceda866e976a8a7ad091a1116e03f2eff5c94391e6d02c0e49c1f89c56d86e1",
-      "bytes": 3095042
+      "filename": "DarkWhispers-Addons-0.3.4-linux-amd64.deb",
+      "sha256": "d147db306909ff960ffb3930c741921785cbf1a9ec267d1ed508dfeda54b7dd1",
+      "bytes": 3104350
     },
     {
-      "filename": "DarkWhispers-Addons-0.3.3-windows-x64-setup.exe",
-      "sha256": "3bbfbe0bd2c54778330b9d522120f25450795fdcd445ac938f5eb4b3eb3376ec",
-      "bytes": 2284091
+      "filename": "DarkWhispers-Addons-0.3.4-windows-x64-setup.exe",
+      "sha256": "524992a436cdf64c1005cceb50aad9cf88f0be720e62864a3d43b54c4163a066",
+      "bytes": 2293085
     }
   ],
   "scope": "All downloaded release packages; custom scan with archive scanning and remediation disabled. No exclusions added."
