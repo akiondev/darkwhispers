@@ -30,7 +30,7 @@ metadata = json.loads(gh("api","repos/"+repo+"/releases/tags/"+tag))
 assert metadata["tag_name"] == tag and metadata["immutable"] and not metadata["draft"], "Only published immutable releases may be mirrored"
 subprocess.run([options.gh,"release","download",tag,"--repo",repo,"--dir",str(directory),"--clobber"],check=True)
 evidence_path = directory/"release-evidence.json"
-evidence = json.loads(evidence_path.read_text())
+evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
 assert evidence["repository"] == repo and evidence["version"] == options.version
 assert re.fullmatch(r"[a-f0-9]{40}",evidence["commit"])
 tag_object = json.loads(gh("api","repos/"+repo+"/git/ref/tags/"+tag))["object"]
@@ -38,7 +38,7 @@ if tag_object["type"] == "tag":
     tag_object = json.loads(gh("api","repos/"+repo+"/git/tags/"+tag_object["sha"]))["object"]
 assert tag_object["type"] == "commit" and tag_object["sha"] == evidence["commit"], "Release tag differs from attested source"
 checksums = {}
-for line in (directory/"SHA256SUMS.txt").read_text().splitlines():
+for line in (directory/"SHA256SUMS.txt").read_text(encoding="utf-8").splitlines():
     digest,name = line.split("  ",1)
     assert re.fullmatch(r"[a-f0-9]{64}",digest) and re.fullmatch(r"[A-Za-z0-9_.-]+",name)
     assert name not in checksums
@@ -98,7 +98,7 @@ report = {
     "scanners":{"clamav":{**clam,"artifacts":[{**item,"status":"passed"} for item in clam["artifacts"]]}},
     "static_analysis":{"status":"completed",**source["semgrep"],"report_url":evidence["reports"]["semgrep.json"]["url"],"summary":"Public GitHub-hosted Semgrep Community Edition scan. All findings are retained; see the original report and workflow logs."},
     "dependencies":{"status":"completed_with_notes" if source["rustsec"]["advisory_notes"] else "passed","vulnerabilities":source["rustsec"]["vulnerabilities"],"warnings":source["rustsec"]["advisory_notes"],"summary":"Public RustSec audit; no ignored advisories. Read all vulnerability entries and informational notes in the full report."},
-    "source_review":{"status":"completed","method":"Developer review with separate public automated checks, not an independent human audit","summary":"Source and test code are public at the exact release commit. Tests and scans ran on GitHub-hosted runners; see the signed original evidence.","report_url":"/security/source-review.md"},
+    "source_review":{"status":"completed","method":"Public automated source analysis, not an independent human audit","summary":"Source and test code are public at the exact release commit. Tests and scans ran on GitHub-hosted runners; see the signed original evidence. Historical developer review is separate.","report_url":"/security/source-review.md"},
     "codeql":evidence["codeql"],
     "provenance":{"repository":repo,"commit":evidence["commit"],"run_url":evidence["run_url"],"source_url":evidence["source_url"],"release_url":evidence["release_url"],"immutable":metadata["immutable"],
                   "report_links":{"defender":prefix+"defender.json","clamav":prefix+"clamav.json","semgrep":prefix+"semgrep.json","rustsec":prefix+"cargo-audit.json","evidence":prefix+"release-evidence.json","codeql":prefix+"codeql-report.sarif"}},

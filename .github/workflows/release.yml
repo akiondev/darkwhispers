@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   source:
-    if: github.ref == 'refs/heads/main'
+    if: github.repository == 'akiondev/darkwhispers' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
@@ -67,7 +67,7 @@ jobs:
           path: reports-source/*
           if-no-files-found: error
   build:
-    if: github.ref == 'refs/heads/main'
+    if: github.repository == 'akiondev/darkwhispers' && github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:
@@ -139,7 +139,7 @@ jobs:
           path: out/binaries/*
           if-no-files-found: error
   codeql:
-    if: github.ref == 'refs/heads/main'
+    if: github.repository == 'akiondev/darkwhispers' && github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:
@@ -235,7 +235,7 @@ jobs:
         with:
           pattern: release-*
           path: staging
-          merge-multiple: true
+          merge-multiple: false
       - name: Bind reports to the scanned file hashes
         run: python3 ci/finalize.py
       - name: Attest the files and complete reports

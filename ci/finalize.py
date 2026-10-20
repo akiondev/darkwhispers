@@ -13,13 +13,40 @@ release.mkdir()
 version = json.loads((root/"launcher/src-tauri/tauri.conf.json").read_text())["version"]
 assert os.environ["GITHUB_REF"] == "refs/heads/main", "Only main can publish"
 base = "https://github.com/akiondev/darkwhispers/releases/download/v"+version+"/"
-defender = json.loads((staging/"defender.json").read_text(encoding="utf-8-sig"))
-clam = json.loads((staging/"clamav.json").read_text())
-source = json.loads((staging/"source-summary.json").read_text())
+groups = {
+    "release-input-windows":{f"DarkWhispers-Addons-{version}-windows-x64-setup.exe"},
+    "release-input-linux":{f"DarkWhispers-Addons-{version}-linux-amd64.deb"},
+    "release-source":{"addon-tests.txt","browser-tests.txt","rust-tests.txt","cargo-audit.json","semgrep.json","source-files.json","source-summary.json"},
+    "release-defender":{"defender.json","defender-console.txt","defender-update.txt"},
+    "release-clamav":{"clamav.json","clamav-started.txt","clamav-update.txt","clamav-version.txt","clamav-console.txt","clamav-exit.txt","clamav-finished.txt"},
+    "release-codeql-python":{"codeql-python.sarif"},
+    "release-codeql-javascript-typescript":{"codeql-javascript-typescript.sarif"},
+}
+import re
+addon_files = set()
+for name in ("AkionUI","DarkWhisperRaidTools"):
+    toc = (root/"addons"/name/(name+".toc")).read_text(encoding="utf-8")
+    addon_version = re.search(r"^## Version:\s*([\d.]+)\s*$",toc,re.M).group(1)
+    addon_files.add(name+"-"+addon_version+".zip")
+groups["release-input-addons"] = addon_files
+assert {path.name for path in staging.iterdir()} == set(groups), "Unexpected artifact group"
+files = {}
+for group,expected in groups.items():
+    folder = staging/group
+    assert folder.is_dir() and not folder.is_symlink()
+    assert {path.name for path in folder.iterdir()} == expected, "Unexpected files in "+group
+    for path in folder.iterdir():
+        assert path.is_file() and not path.is_symlink() and path.name not in files
+        files[path.name] = path
+# Reports are accepted only from their dedicated scanner artifact groups;
+# build/test output cannot overwrite a scanner's result.
+defender = json.loads(files["defender.json"].read_text(encoding="utf-8-sig"))
+clam = json.loads(files["clamav.json"].read_text(encoding="utf-8"))
+source = json.loads(files["source-summary.json"].read_text(encoding="utf-8"))
 assert source["commit"] == os.environ["GITHUB_SHA"]
 assert defender["status"] == clam["status"] == "passed"
 artifacts = []
-for path in sorted(staging.iterdir()):
+for path in sorted(files.values()):
     assert path.is_file() and not path.is_symlink()
     if path.suffix in {".exe",".deb",".zip"}:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
