@@ -350,7 +350,10 @@ fn live_signed_release_installs_and_removes() {
     assert!(before.addons[0].update_available);
     let expected = before.addons[0].addon.version.clone();
     install(&config, "DarkWhisperRaidTools").unwrap();
-    let state = status(&config, false).unwrap();
+    // Compare with the same live channel. During release builds the bundled
+    // catalog may describe the next, not-yet-published addon version.
+    let state = status(&config, true).unwrap();
+    assert!(state.catalog_online);
     assert!(state.addons[0].installed);
     assert!(!state.addons[0].update_available);
     assert_eq!(state.addons[0].installed_version.as_deref(), Some(expected.as_str()));
