@@ -16,7 +16,7 @@ base = "https://github.com/akiondev/darkwhispers/releases/download/v"+version+"/
 groups = {
     "release-input-windows":{f"DarkWhispers-Addons-{version}-windows-x64-setup.exe"},
     "release-input-linux":{f"DarkWhispers-Addons-{version}-linux-amd64.deb"},
-    "release-source":{"addon-tests.txt","browser-tests.txt","rust-tests.txt","cargo-audit.json","semgrep.json","source-files.json","source-summary.json"},
+    "release-source":{"addon-tests.txt","browser-tests.txt","catalog-tests.txt","rust-tests.txt","cargo-audit.json","semgrep.json","source-files.json","source-summary.json"},
     "release-defender":{"defender.json","defender-console.txt","defender-update.txt"},
     "release-clamav":{"clamav.json","clamav-started.txt","clamav-update.txt","clamav-version.txt","clamav-console.txt","clamav-exit.txt","clamav-finished.txt"},
     "release-codeql-python":{"codeql-python.sarif"},

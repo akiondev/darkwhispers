@@ -38,6 +38,7 @@ jobs:
           python ci/prepare.py
           (cd addons && lua5.1 ../tests/smoke.lua) | tee reports-source/addon-tests.txt
           node --test website/tests/browser-installer.test.mjs | tee reports-source/browser-tests.txt
+          node --test launcher/tests/catalog-publisher.test.mjs | tee reports-source/catalog-tests.txt
           rustup toolchain install 1.99.1 --profile minimal
           rustup default 1.99.1
           (cd launcher && cargo test --locked -p darkwhispers-core && cargo test --locked -p darkwhispers-core live_signed_release_installs_and_removes -- --ignored) | tee reports-source/rust-tests.txt
@@ -52,7 +53,7 @@ jobs:
           docker run --rm --cpus=2 --memory=3g -v "$PWD:/src:ro" -v "$PWD/reports-source:/reports" \
             --entrypoint semgrep semgrep/semgrep@sha256:529ee8a277ec8adc5b534d7c74eea0a47e9de21d62852b6ba7ac6ba9566845c3 \
             scan --config p/security-audit --config p/secrets --metrics off --disable-version-check \
-            --no-git-ignore --exclude launcher/target --exclude out --exclude .git --jobs 2 \
+            --no-git-ignore --exclude launcher/target --exclude website/build --exclude website/public/addons --exclude out --exclude .git --jobs 2 \
             --json --output /reports/semgrep.json /src
           python ci/source-summary.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

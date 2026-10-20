@@ -1,4 +1,16 @@
-# DarkWhispers source review — 2026-10-20
+# DarkWhispers source review and public evidence
+
+Current original reports and source revisions are published at
+https://github.com/akiondev/darkwhispers/releases. Public release builds run
+tests, source analysis and malware scans on GitHub-hosted runners. Signed
+provenance makes their exact files and reports independently verifiable.
+See https://github.com/akiondev/darkwhispers/blob/main/docs/VERIFY.md.
+This does not constitute an independent human audit or a safety guarantee.
+
+The following is the maintainer's historical review for 0.1.2. It is retained
+as context, separate from the current public automated reports.
+
+## Historical developer review — 2026-10-20
 
 Release: launcher 0.1.2 and the frost website/browser installer.
 Review type: manual code review by the development assistant, backed by automated

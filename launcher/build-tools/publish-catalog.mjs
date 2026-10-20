@@ -6,21 +6,35 @@ import { gzipSync } from "node:zlib";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const secret = process.env.DARKWHISPERS_SIGNING_KEY || resolve(root, ".tools/launcher-build/catalog-signing-key.pem");
-if (!existsSync(secret)) {
+function readOptional(path) {
+  try { return readFileSync(path); }
+  catch (error) { if (error.code === "ENOENT") return null; throw error; }
+}
+let privateBytes = readOptional(secret);
+if (privateBytes === null) {
   if (!process.argv.includes("--init-key")) throw new Error("Signing key missing. Restore it or explicitly initialize the first key.");
   mkdirSync(dirname(secret), { recursive: true });
   const pair = generateKeyPairSync("ed25519");
-  writeFileSync(secret, pair.privateKey.export({type:"pkcs8",format:"pem"}), {mode:0o600, flag:"wx"});
+  try { writeFileSync(secret, pair.privateKey.export({type:"pkcs8",format:"pem"}), {mode:0o600, flag:"wx"}); }
+  catch (error) { if (error.code !== "EEXIST") throw error; }
+  privateBytes = readFileSync(secret);
 }
-const privateKey = createPrivateKey(readFileSync(secret));
+const privateKey = createPrivateKey(privateBytes);
 const publicKey = createPublicKey(privateKey).export({type:"spki",format:"der"}).subarray(-32);
 const source = resolve(root, "launcher/crates/addon-core/src");
 mkdirSync(source, {recursive:true});
 const keyFile = resolve(source, "catalog-public-key.bin");
-if (existsSync(keyFile) && !readFileSync(keyFile).equals(publicKey)) {
+const trustedKey = readOptional(keyFile);
+if (trustedKey !== null && !trustedKey.equals(publicKey)) {
   throw new Error("Signing key differs from the launcher's trusted key. Do not rotate it accidentally.");
 }
-writeFileSync(keyFile, publicKey);
+if (trustedKey === null) {
+  if (!process.argv.includes("--init-key")) throw new Error("Trusted public key missing. Restore it from the repository; initialize only the first key explicitly.");
+  try { writeFileSync(keyFile, publicKey, {flag:"wx"}); }
+  catch (error) {
+    if (error.code !== "EEXIST" || !readFileSync(keyFile).equals(publicKey)) throw error;
+  }
+}
 const addonBase = existsSync(resolve(root, "addons")) ? resolve(root, "addons") : root;
 const toc = readFileSync(resolve(addonBase,"DarkWhisperRaidTools/DarkWhisperRaidTools.toc"),"utf8");
 const version = toc.match(/^## Version:\s*([0-9.]+)\s*$/m)?.[1];
