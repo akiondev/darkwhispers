@@ -3568,7 +3568,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": ".github/workflows/checks.yml",
+                      "uri": "launcher/tests/bridge.js",
                       "uriBaseId": "%SRCROOT%",
                       "index": 0
                     }
@@ -3597,7 +3597,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/publish-catalog.mjs",
+                      "uri": ".github/workflows/release.yml",
                       "uriBaseId": "%SRCROOT%",
                       "index": 1
                     }
@@ -3626,7 +3626,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": ".github/workflows/release.yml",
+                      "uri": "launcher/build-tools/publish-catalog.mjs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 2
                     }
@@ -3655,7 +3655,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/tests/bridge.js",
+                      "uri": ".github/workflows/checks.yml",
                       "uriBaseId": "%SRCROOT%",
                       "index": 3
                     }
@@ -3887,7 +3887,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tests/browser-installer.test.mjs",
+                      "uri": "website/public/reports.html",
                       "uriBaseId": "%SRCROOT%",
                       "index": 11
                     }
@@ -3916,7 +3916,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tests/opfs-bridge.mjs",
+                      "uri": "website/public/reports.js",
                       "uriBaseId": "%SRCROOT%",
                       "index": 12
                     }
@@ -3945,9 +3945,67 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/check-live-browser-files.mjs",
+                      "uri": "website/tests/browser-installer.test.mjs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 13
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "js/diagnostics/successfully-extracted-files",
+                "index": 0,
+                "toolComponent": {
+                  "index": 0
+                }
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "website/tests/opfs-bridge.mjs",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 14
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "js/diagnostics/successfully-extracted-files",
+                "index": 0,
+                "toolComponent": {
+                  "index": 0
+                }
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "website/tools/check-live-browser-files.mjs",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 15
                     }
                   }
                 }
@@ -3976,7 +4034,7 @@
                     "artifactLocation": {
                       "uri": "tools/export_repository.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 14
+                      "index": 16
                     }
                   }
                 }
@@ -4002,7 +4060,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/collect-clamav.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 15
+                      "index": 17
                     }
                   }
                 }
@@ -4028,7 +4086,7 @@
                     "artifactLocation": {
                       "uri": "ci/collect-clamav.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 16
+                      "index": 18
                     }
                   }
                 }
@@ -4054,7 +4112,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/package.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 17
+                      "index": 19
                     }
                   }
                 }
@@ -4080,7 +4138,7 @@
                     "artifactLocation": {
                       "uri": "ci/source-summary.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 18
+                      "index": 20
                     }
                   }
                 }
@@ -4106,7 +4164,7 @@
                     "artifactLocation": {
                       "uri": "website/deploy/install.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 19
+                      "index": 21
                     }
                   }
                 }
@@ -4132,7 +4190,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/licenses.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 20
+                      "index": 22
                     }
                   }
                 }
@@ -4158,7 +4216,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/test-linux-package.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 21
+                      "index": 23
                     }
                   }
                 }
@@ -4184,7 +4242,7 @@
                     "artifactLocation": {
                       "uri": "ci/stage-binary.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 22
+                      "index": 24
                     }
                   }
                 }
@@ -4210,7 +4268,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/prepare-source-scan.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 23
+                      "index": 25
                     }
                   }
                 }
@@ -4236,7 +4294,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/verify-deployment.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 24
+                      "index": 26
                     }
                   }
                 }
@@ -4262,7 +4320,7 @@
                     "artifactLocation": {
                       "uri": "ci/prepare.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 25
+                      "index": 27
                     }
                   }
                 }
@@ -4288,7 +4346,7 @@
                     "artifactLocation": {
                       "uri": "tools/render_ui_preview.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 26
+                      "index": 28
                     }
                   }
                 }
@@ -4314,7 +4372,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/import-github-release.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 27
+                      "index": 29
                     }
                   }
                 }
@@ -4340,33 +4398,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/prepare.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 28
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "launcher/build-tools/publish-binaries.py",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 29
+                      "index": 30
                     }
                   }
                 }
@@ -4392,32 +4424,6 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/prepare-ui-test.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 30
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "website/tests/prepare-browser-qa.py",
-                      "uriBaseId": "%SRCROOT%",
                       "index": 31
                     }
                   }
@@ -4442,7 +4448,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tests/test_release_validation.py",
+                      "uri": "launcher/build-tools/publish-binaries.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 32
                     }
@@ -4468,7 +4474,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/finalize.py",
+                      "uri": "website/tests/prepare-browser-qa.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 33
                     }
@@ -4494,7 +4500,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/release_validation.py",
+                      "uri": "website/tests/test_release_validation.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 34
                     }
@@ -4520,7 +4526,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "tools/build_compass_assets.py",
+                      "uri": "ci/finalize.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 35
                     }
@@ -4546,7 +4552,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/publish-checks.py",
+                      "uri": "website/tools/release_validation.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 36
                     }
@@ -4572,9 +4578,61 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
+                      "uri": "tools/build_compass_assets.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 37
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "website/tools/publish-checks.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 38
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
                       "uri": "website/tools/check-live-browser-files.mjs",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 13
+                      "index": 15
                     }
                   }
                 }
@@ -4626,7 +4684,7 @@
                     "artifactLocation": {
                       "uri": "website/tests/browser-installer.test.mjs",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 11
+                      "index": 13
                     }
                   }
                 }
@@ -4678,7 +4736,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/publish-catalog.mjs",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 1
+                      "index": 2
                     }
                   }
                 }
@@ -4704,7 +4762,7 @@
                     "artifactLocation": {
                       "uri": "launcher/tests/bridge.js",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 3
+                      "index": 0
                     }
                   }
                 }
@@ -4730,7 +4788,7 @@
                     "artifactLocation": {
                       "uri": "website/tests/opfs-bridge.mjs",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 12
+                      "index": 14
                     }
                   }
                 }
@@ -4806,59 +4864,33 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
+                      "uri": "website/public/reports.js",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 12
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/javascript",
+                "index": 1
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
                       "uri": "launcher/src-tauri/src/main.rs",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 37
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/rust",
-                "index": 2
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "launcher/crates/addon-core/src/tests.rs",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 38
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/rust",
-                "index": 2
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "launcher/src-tauri/build.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 39
                     }
@@ -4884,7 +4916,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/crates/addon-core/src/lib.rs",
+                      "uri": "launcher/src-tauri/src/desktop.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 40
                     }
@@ -4910,7 +4942,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/crates/addon-core/src/recovery.rs",
+                      "uri": "launcher/crates/addon-core/src/tests.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 41
                     }
@@ -4936,9 +4968,87 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/crates/addon-core/src/game_process.rs",
+                      "uri": "launcher/src-tauri/build.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 42
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/rust",
+                "index": 2
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "launcher/crates/addon-core/src/lib.rs",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 43
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/rust",
+                "index": 2
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "launcher/crates/addon-core/src/recovery.rs",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 44
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/rust",
+                "index": 2
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "launcher/crates/addon-core/src/game_process.rs",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 45
                     }
                   }
                 }
@@ -5014,6 +5124,32 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
+                      "uri": "website/public/reports.html",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 11
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/html",
+                "index": 3
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
                       "uri": "launcher/ui/index.html",
                       "uriBaseId": "%SRCROOT%",
                       "index": 6
@@ -5042,7 +5178,7 @@
                     "artifactLocation": {
                       "uri": ".github/workflows/checks.yml",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 0
+                      "index": 3
                     }
                   }
                 }
@@ -5068,7 +5204,7 @@
                     "artifactLocation": {
                       "uri": ".github/workflows/release.yml",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 2
+                      "index": 1
                     }
                   }
                 }
@@ -5092,7 +5228,7 @@
                 "text": ""
               },
               "level": "none",
-              "timeUtc": "2026-10-20T17:08:56.851Z",
+              "timeUtc": "2026-10-20T17:54:20.474Z",
               "descriptor": {
                 "id": "codeql-action/overlay-disabled",
                 "index": 5
@@ -5114,28 +5250,28 @@
       "artifacts": [
         {
           "location": {
-            "uri": ".github/workflows/checks.yml",
+            "uri": "launcher/tests/bridge.js",
             "uriBaseId": "%SRCROOT%",
             "index": 0
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/publish-catalog.mjs",
+            "uri": ".github/workflows/release.yml",
             "uriBaseId": "%SRCROOT%",
             "index": 1
           }
         },
         {
           "location": {
-            "uri": ".github/workflows/release.yml",
+            "uri": "launcher/build-tools/publish-catalog.mjs",
             "uriBaseId": "%SRCROOT%",
             "index": 2
           }
         },
         {
           "location": {
-            "uri": "launcher/tests/bridge.js",
+            "uri": ".github/workflows/checks.yml",
             "uriBaseId": "%SRCROOT%",
             "index": 3
           }
@@ -5191,226 +5327,247 @@
         },
         {
           "location": {
-            "uri": "website/tests/browser-installer.test.mjs",
+            "uri": "website/public/reports.html",
             "uriBaseId": "%SRCROOT%",
             "index": 11
           }
         },
         {
           "location": {
-            "uri": "website/tests/opfs-bridge.mjs",
+            "uri": "website/public/reports.js",
             "uriBaseId": "%SRCROOT%",
             "index": 12
           }
         },
         {
           "location": {
-            "uri": "website/tools/check-live-browser-files.mjs",
+            "uri": "website/tests/browser-installer.test.mjs",
             "uriBaseId": "%SRCROOT%",
             "index": 13
           }
         },
         {
           "location": {
-            "uri": "tools/export_repository.py",
+            "uri": "website/tests/opfs-bridge.mjs",
             "uriBaseId": "%SRCROOT%",
             "index": 14
           }
         },
         {
           "location": {
-            "uri": "website/tools/collect-clamav.py",
+            "uri": "website/tools/check-live-browser-files.mjs",
             "uriBaseId": "%SRCROOT%",
             "index": 15
           }
         },
         {
           "location": {
-            "uri": "ci/collect-clamav.py",
+            "uri": "tools/export_repository.py",
             "uriBaseId": "%SRCROOT%",
             "index": 16
           }
         },
         {
           "location": {
-            "uri": "website/tools/package.py",
+            "uri": "website/tools/collect-clamav.py",
             "uriBaseId": "%SRCROOT%",
             "index": 17
           }
         },
         {
           "location": {
-            "uri": "ci/source-summary.py",
+            "uri": "ci/collect-clamav.py",
             "uriBaseId": "%SRCROOT%",
             "index": 18
           }
         },
         {
           "location": {
-            "uri": "website/deploy/install.py",
+            "uri": "website/tools/package.py",
             "uriBaseId": "%SRCROOT%",
             "index": 19
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/licenses.py",
+            "uri": "ci/source-summary.py",
             "uriBaseId": "%SRCROOT%",
             "index": 20
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/test-linux-package.py",
+            "uri": "website/deploy/install.py",
             "uriBaseId": "%SRCROOT%",
             "index": 21
           }
         },
         {
           "location": {
-            "uri": "ci/stage-binary.py",
+            "uri": "launcher/build-tools/licenses.py",
             "uriBaseId": "%SRCROOT%",
             "index": 22
           }
         },
         {
           "location": {
-            "uri": "website/tools/prepare-source-scan.py",
+            "uri": "launcher/build-tools/test-linux-package.py",
             "uriBaseId": "%SRCROOT%",
             "index": 23
           }
         },
         {
           "location": {
-            "uri": "website/tools/verify-deployment.py",
+            "uri": "ci/stage-binary.py",
             "uriBaseId": "%SRCROOT%",
             "index": 24
           }
         },
         {
           "location": {
-            "uri": "ci/prepare.py",
+            "uri": "website/tools/prepare-source-scan.py",
             "uriBaseId": "%SRCROOT%",
             "index": 25
           }
         },
         {
           "location": {
-            "uri": "tools/render_ui_preview.py",
+            "uri": "website/tools/verify-deployment.py",
             "uriBaseId": "%SRCROOT%",
             "index": 26
           }
         },
         {
           "location": {
-            "uri": "website/tools/import-github-release.py",
+            "uri": "ci/prepare.py",
             "uriBaseId": "%SRCROOT%",
             "index": 27
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/prepare.py",
+            "uri": "tools/render_ui_preview.py",
             "uriBaseId": "%SRCROOT%",
             "index": 28
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/publish-binaries.py",
+            "uri": "website/tools/import-github-release.py",
             "uriBaseId": "%SRCROOT%",
             "index": 29
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/prepare-ui-test.py",
+            "uri": "launcher/build-tools/prepare.py",
             "uriBaseId": "%SRCROOT%",
             "index": 30
           }
         },
         {
           "location": {
-            "uri": "website/tests/prepare-browser-qa.py",
+            "uri": "launcher/build-tools/prepare-ui-test.py",
             "uriBaseId": "%SRCROOT%",
             "index": 31
           }
         },
         {
           "location": {
-            "uri": "website/tests/test_release_validation.py",
+            "uri": "launcher/build-tools/publish-binaries.py",
             "uriBaseId": "%SRCROOT%",
             "index": 32
           }
         },
         {
           "location": {
-            "uri": "ci/finalize.py",
+            "uri": "website/tests/prepare-browser-qa.py",
             "uriBaseId": "%SRCROOT%",
             "index": 33
           }
         },
         {
           "location": {
-            "uri": "website/tools/release_validation.py",
+            "uri": "website/tests/test_release_validation.py",
             "uriBaseId": "%SRCROOT%",
             "index": 34
           }
         },
         {
           "location": {
-            "uri": "tools/build_compass_assets.py",
+            "uri": "ci/finalize.py",
             "uriBaseId": "%SRCROOT%",
             "index": 35
           }
         },
         {
           "location": {
-            "uri": "website/tools/publish-checks.py",
+            "uri": "website/tools/release_validation.py",
             "uriBaseId": "%SRCROOT%",
             "index": 36
           }
         },
         {
           "location": {
-            "uri": "launcher/src-tauri/src/main.rs",
+            "uri": "tools/build_compass_assets.py",
             "uriBaseId": "%SRCROOT%",
             "index": 37
           }
         },
         {
           "location": {
-            "uri": "launcher/crates/addon-core/src/tests.rs",
+            "uri": "website/tools/publish-checks.py",
             "uriBaseId": "%SRCROOT%",
             "index": 38
           }
         },
         {
           "location": {
-            "uri": "launcher/src-tauri/build.rs",
+            "uri": "launcher/src-tauri/src/main.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 39
           }
         },
         {
           "location": {
-            "uri": "launcher/crates/addon-core/src/lib.rs",
+            "uri": "launcher/src-tauri/src/desktop.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 40
           }
         },
         {
           "location": {
-            "uri": "launcher/crates/addon-core/src/recovery.rs",
+            "uri": "launcher/crates/addon-core/src/tests.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 41
           }
         },
         {
           "location": {
-            "uri": "launcher/crates/addon-core/src/game_process.rs",
+            "uri": "launcher/src-tauri/build.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 42
+          }
+        },
+        {
+          "location": {
+            "uri": "launcher/crates/addon-core/src/lib.rs",
+            "uriBaseId": "%SRCROOT%",
+            "index": 43
+          }
+        },
+        {
+          "location": {
+            "uri": "launcher/crates/addon-core/src/recovery.rs",
+            "uriBaseId": "%SRCROOT%",
+            "index": 44
+          }
+        },
+        {
+          "location": {
+            "uri": "launcher/crates/addon-core/src/game_process.rs",
+            "uriBaseId": "%SRCROOT%",
+            "index": 45
           }
         }
       ],
@@ -5437,7 +5594,7 @@
               }
             },
             "ruleId": "js/summary/lines-of-code",
-            "value": 1093
+            "value": 1161
           },
           {
             "rule": {
@@ -5448,8 +5605,8 @@
               }
             },
             "ruleId": "js/summary/lines-of-user-code",
-            "value": 1093,
-            "baseline": 1093
+            "value": 1161,
+            "baseline": 1161
           }
         ],
         "codeqlConfigSummary": {
@@ -5461,7 +5618,7 @@
             }
           ]
         },
-        "jobRunUuid": "9fb85495-2001-4130-81af-2863bb2cac95"
+        "jobRunUuid": "2ea5cb1c-a99e-4289-9d89-caa69f9538cc"
       }
     },
     {
@@ -7337,7 +7494,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "tools/export_repository.py",
+                      "uri": "tools/build_compass_assets.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 0
                     }
@@ -7395,7 +7552,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/deploy/install.py",
+                      "uri": "tools/export_repository.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 2
                     }
@@ -7424,7 +7581,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "tools/build_compass_assets.py",
+                      "uri": "website/deploy/install.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 3
                     }
@@ -7453,7 +7610,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/publish-checks.py",
+                      "uri": "website/tools/verify-deployment.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 4
                     }
@@ -7482,7 +7639,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/verify-deployment.py",
+                      "uri": "ci/finalize.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 5
                     }
@@ -7511,7 +7668,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/collect-clamav.py",
+                      "uri": "website/tools/publish-checks.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 6
                     }
@@ -7540,7 +7697,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/release_validation.py",
+                      "uri": "website/tests/test_release_validation.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 7
                     }
@@ -7569,7 +7726,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/prepare-ui-test.py",
+                      "uri": "ci/collect-clamav.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 8
                     }
@@ -7598,7 +7755,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/prepare-source-scan.py",
+                      "uri": "launcher/build-tools/prepare-ui-test.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 9
                     }
@@ -7627,7 +7784,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/import-github-release.py",
+                      "uri": "ci/prepare.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 10
                     }
@@ -7656,7 +7813,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tests/test_release_validation.py",
+                      "uri": "website/tools/package.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 11
                     }
@@ -7685,7 +7842,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/licenses.py",
+                      "uri": "website/tools/import-github-release.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 12
                     }
@@ -7714,7 +7871,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tests/prepare-browser-qa.py",
+                      "uri": "launcher/build-tools/test-linux-package.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 13
                     }
@@ -7743,7 +7900,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/collect-clamav.py",
+                      "uri": "website/tools/prepare-source-scan.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 14
                     }
@@ -7772,7 +7929,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/publish-binaries.py",
+                      "uri": "website/tools/release_validation.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 15
                     }
@@ -7801,7 +7958,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/source-summary.py",
+                      "uri": "website/tools/collect-clamav.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 16
                     }
@@ -7830,7 +7987,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/test-linux-package.py",
+                      "uri": "launcher/build-tools/publish-binaries.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 17
                     }
@@ -7859,7 +8016,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/prepare.py",
+                      "uri": "ci/stage-binary.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 18
                     }
@@ -7888,7 +8045,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/prepare.py",
+                      "uri": "ci/source-summary.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 19
                     }
@@ -7917,7 +8074,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/package.py",
+                      "uri": "website/tests/prepare-browser-qa.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 20
                     }
@@ -7946,7 +8103,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/stage-binary.py",
+                      "uri": "launcher/build-tools/prepare.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 21
                     }
@@ -7975,7 +8132,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/finalize.py",
+                      "uri": "launcher/build-tools/licenses.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 22
                     }
@@ -8062,137 +8219,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/collect-clamav.py",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 6
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
                       "uri": "tools/export_repository.py",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 0
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "ci/collect-clamav.py",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 14
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "website/tools/package.py",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 20
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "ci/source-summary.py",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 16
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "website/deploy/install.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 2
                     }
@@ -8218,9 +8245,139 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
+                      "uri": "website/tools/collect-clamav.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 16
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "ci/collect-clamav.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 8
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "website/tools/package.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 11
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "ci/source-summary.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 19
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "website/deploy/install.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 3
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
                       "uri": "launcher/build-tools/licenses.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 12
+                      "index": 22
                     }
                   }
                 }
@@ -8246,7 +8403,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/test-linux-package.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 17
+                      "index": 13
                     }
                   }
                 }
@@ -8272,7 +8429,7 @@
                     "artifactLocation": {
                       "uri": "ci/stage-binary.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 21
+                      "index": 18
                     }
                   }
                 }
@@ -8298,7 +8455,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/prepare-source-scan.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 9
+                      "index": 14
                     }
                   }
                 }
@@ -8324,7 +8481,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/verify-deployment.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 5
+                      "index": 4
                     }
                   }
                 }
@@ -8350,7 +8507,7 @@
                     "artifactLocation": {
                       "uri": "ci/prepare.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 18
+                      "index": 10
                     }
                   }
                 }
@@ -8402,7 +8559,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/import-github-release.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 10
+                      "index": 12
                     }
                   }
                 }
@@ -8428,7 +8585,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/prepare.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 19
+                      "index": 21
                     }
                   }
                 }
@@ -8454,7 +8611,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/publish-binaries.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 15
+                      "index": 17
                     }
                   }
                 }
@@ -8480,33 +8637,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/prepare-ui-test.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 8
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "website/tests/prepare-browser-qa.py",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 13
+                      "index": 9
                     }
                   }
                 }
@@ -8532,7 +8663,33 @@
                     "artifactLocation": {
                       "uri": "website/tests/test_release_validation.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 11
+                      "index": 7
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "website/tests/prepare-browser-qa.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 20
                     }
                   }
                 }
@@ -8558,7 +8715,7 @@
                     "artifactLocation": {
                       "uri": "ci/finalize.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 22
+                      "index": 5
                     }
                   }
                 }
@@ -8584,33 +8741,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/release_validation.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 7
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "website/tools/publish-checks.py",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 4
+                      "index": 15
                     }
                   }
                 }
@@ -8636,7 +8767,33 @@
                     "artifactLocation": {
                       "uri": "tools/build_compass_assets.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 3
+                      "index": 0
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "website/tools/publish-checks.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
                     }
                   }
                 }
@@ -8816,7 +8973,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/tests/catalog-publisher.test.mjs",
+                      "uri": "website/tests/opfs-bridge.mjs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 31
                     }
@@ -8842,7 +8999,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tests/opfs-bridge.mjs",
+                      "uri": "launcher/tests/catalog-publisher.test.mjs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 32
                     }
@@ -8894,7 +9051,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/src-tauri/src/main.rs",
+                      "uri": "website/public/reports.js",
                       "uriBaseId": "%SRCROOT%",
                       "index": 34
                     }
@@ -8906,8 +9063,8 @@
               },
               "level": "none",
               "descriptor": {
-                "id": "cli/expected-extracted-files/rust",
-                "index": 2
+                "id": "cli/expected-extracted-files/javascript",
+                "index": 1
               },
               "properties": {
                 "formattedMessage": {
@@ -8920,7 +9077,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/crates/addon-core/src/tests.rs",
+                      "uri": "launcher/src-tauri/src/main.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 35
                     }
@@ -8946,7 +9103,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/src-tauri/build.rs",
+                      "uri": "launcher/src-tauri/src/desktop.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 36
                     }
@@ -8972,7 +9129,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/crates/addon-core/src/lib.rs",
+                      "uri": "launcher/crates/addon-core/src/tests.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 37
                     }
@@ -8998,7 +9155,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/crates/addon-core/src/recovery.rs",
+                      "uri": "launcher/src-tauri/build.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 38
                     }
@@ -9024,7 +9181,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/crates/addon-core/src/game_process.rs",
+                      "uri": "launcher/crates/addon-core/src/lib.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 39
                     }
@@ -9050,9 +9207,61 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/public/404.html",
+                      "uri": "launcher/crates/addon-core/src/recovery.rs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 40
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/rust",
+                "index": 2
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "launcher/crates/addon-core/src/game_process.rs",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 41
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/rust",
+                "index": 2
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "website/public/404.html",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 42
                     }
                   }
                 }
@@ -9078,7 +9287,33 @@
                     "artifactLocation": {
                       "uri": "website/public/index.html",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 41
+                      "index": 43
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/html",
+                "index": 3
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "website/public/reports.html",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 44
                     }
                   }
                 }
@@ -9104,7 +9339,7 @@
                     "artifactLocation": {
                       "uri": "launcher/ui/index.html",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 42
+                      "index": 45
                     }
                   }
                 }
@@ -9180,7 +9415,7 @@
                 "text": ""
               },
               "level": "none",
-              "timeUtc": "2026-10-20T17:08:53.859Z",
+              "timeUtc": "2026-10-20T17:54:22.084Z",
               "descriptor": {
                 "id": "codeql-action/overlay-disabled",
                 "index": 5
@@ -9201,7 +9436,7 @@
                 "markdown": "Internal telemetry for the Python extractor.\n\nNo action needed."
               },
               "level": "note",
-              "timeUtc": "2026-10-20T17:08:57.867888Z",
+              "timeUtc": "2026-10-20T17:54:30.234235Z",
               "descriptor": {
                 "id": "py/extractor/summary",
                 "index": 6
@@ -9225,14 +9460,14 @@
                 "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
               },
               "level": "note",
-              "timeUtc": "2026-10-20T17:08:58.293176Z",
+              "timeUtc": "2026-10-20T17:54:30.864361Z",
               "descriptor": {
                 "id": "py/extractor/parser-statistics",
                 "index": 7
               },
               "properties": {
                 "attributes": {
-                  "old_parser_file_count": 2,
+                  "old_parser_file_count": 5,
                   "tree_sitter_parser_file_count": 0
                 },
                 "visibility": {
@@ -9247,14 +9482,14 @@
                 "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
               },
               "level": "note",
-              "timeUtc": "2026-10-20T17:08:58.271397Z",
+              "timeUtc": "2026-10-20T17:54:30.830237Z",
               "descriptor": {
                 "id": "py/extractor/parser-statistics",
                 "index": 7
               },
               "properties": {
                 "attributes": {
-                  "old_parser_file_count": 8,
+                  "old_parser_file_count": 3,
                   "tree_sitter_parser_file_count": 0
                 },
                 "visibility": {
@@ -9269,14 +9504,14 @@
                 "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
               },
               "level": "note",
-              "timeUtc": "2026-10-20T17:08:58.270501Z",
+              "timeUtc": "2026-10-20T17:54:30.830408Z",
               "descriptor": {
                 "id": "py/extractor/parser-statistics",
                 "index": 7
               },
               "properties": {
                 "attributes": {
-                  "old_parser_file_count": 6,
+                  "old_parser_file_count": 5,
                   "tree_sitter_parser_file_count": 0
                 },
                 "visibility": {
@@ -9291,14 +9526,14 @@
                 "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
               },
               "level": "note",
-              "timeUtc": "2026-10-20T17:08:58.270593Z",
+              "timeUtc": "2026-10-20T17:54:30.830567Z",
               "descriptor": {
                 "id": "py/extractor/parser-statistics",
                 "index": 7
               },
               "properties": {
                 "attributes": {
-                  "old_parser_file_count": 7,
+                  "old_parser_file_count": 10,
                   "tree_sitter_parser_file_count": 0
                 },
                 "visibility": {
@@ -9314,7 +9549,7 @@
       "artifacts": [
         {
           "location": {
-            "uri": "tools/export_repository.py",
+            "uri": "tools/build_compass_assets.py",
             "uriBaseId": "%SRCROOT%",
             "index": 0
           }
@@ -9328,147 +9563,147 @@
         },
         {
           "location": {
-            "uri": "website/deploy/install.py",
+            "uri": "tools/export_repository.py",
             "uriBaseId": "%SRCROOT%",
             "index": 2
           }
         },
         {
           "location": {
-            "uri": "tools/build_compass_assets.py",
+            "uri": "website/deploy/install.py",
             "uriBaseId": "%SRCROOT%",
             "index": 3
           }
         },
         {
           "location": {
-            "uri": "website/tools/publish-checks.py",
+            "uri": "website/tools/verify-deployment.py",
             "uriBaseId": "%SRCROOT%",
             "index": 4
           }
         },
         {
           "location": {
-            "uri": "website/tools/verify-deployment.py",
+            "uri": "ci/finalize.py",
             "uriBaseId": "%SRCROOT%",
             "index": 5
           }
         },
         {
           "location": {
-            "uri": "website/tools/collect-clamav.py",
+            "uri": "website/tools/publish-checks.py",
             "uriBaseId": "%SRCROOT%",
             "index": 6
           }
         },
         {
           "location": {
-            "uri": "website/tools/release_validation.py",
+            "uri": "website/tests/test_release_validation.py",
             "uriBaseId": "%SRCROOT%",
             "index": 7
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/prepare-ui-test.py",
+            "uri": "ci/collect-clamav.py",
             "uriBaseId": "%SRCROOT%",
             "index": 8
           }
         },
         {
           "location": {
-            "uri": "website/tools/prepare-source-scan.py",
+            "uri": "launcher/build-tools/prepare-ui-test.py",
             "uriBaseId": "%SRCROOT%",
             "index": 9
           }
         },
         {
           "location": {
-            "uri": "website/tools/import-github-release.py",
+            "uri": "ci/prepare.py",
             "uriBaseId": "%SRCROOT%",
             "index": 10
           }
         },
         {
           "location": {
-            "uri": "website/tests/test_release_validation.py",
+            "uri": "website/tools/package.py",
             "uriBaseId": "%SRCROOT%",
             "index": 11
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/licenses.py",
+            "uri": "website/tools/import-github-release.py",
             "uriBaseId": "%SRCROOT%",
             "index": 12
           }
         },
         {
           "location": {
-            "uri": "website/tests/prepare-browser-qa.py",
+            "uri": "launcher/build-tools/test-linux-package.py",
             "uriBaseId": "%SRCROOT%",
             "index": 13
           }
         },
         {
           "location": {
-            "uri": "ci/collect-clamav.py",
+            "uri": "website/tools/prepare-source-scan.py",
             "uriBaseId": "%SRCROOT%",
             "index": 14
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/publish-binaries.py",
+            "uri": "website/tools/release_validation.py",
             "uriBaseId": "%SRCROOT%",
             "index": 15
           }
         },
         {
           "location": {
-            "uri": "ci/source-summary.py",
+            "uri": "website/tools/collect-clamav.py",
             "uriBaseId": "%SRCROOT%",
             "index": 16
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/test-linux-package.py",
+            "uri": "launcher/build-tools/publish-binaries.py",
             "uriBaseId": "%SRCROOT%",
             "index": 17
           }
         },
         {
           "location": {
-            "uri": "ci/prepare.py",
+            "uri": "ci/stage-binary.py",
             "uriBaseId": "%SRCROOT%",
             "index": 18
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/prepare.py",
+            "uri": "ci/source-summary.py",
             "uriBaseId": "%SRCROOT%",
             "index": 19
           }
         },
         {
           "location": {
-            "uri": "website/tools/package.py",
+            "uri": "website/tests/prepare-browser-qa.py",
             "uriBaseId": "%SRCROOT%",
             "index": 20
           }
         },
         {
           "location": {
-            "uri": "ci/stage-binary.py",
+            "uri": "launcher/build-tools/prepare.py",
             "uriBaseId": "%SRCROOT%",
             "index": 21
           }
         },
         {
           "location": {
-            "uri": "ci/finalize.py",
+            "uri": "launcher/build-tools/licenses.py",
             "uriBaseId": "%SRCROOT%",
             "index": 22
           }
@@ -9531,14 +9766,14 @@
         },
         {
           "location": {
-            "uri": "launcher/tests/catalog-publisher.test.mjs",
+            "uri": "website/tests/opfs-bridge.mjs",
             "uriBaseId": "%SRCROOT%",
             "index": 31
           }
         },
         {
           "location": {
-            "uri": "website/tests/opfs-bridge.mjs",
+            "uri": "launcher/tests/catalog-publisher.test.mjs",
             "uriBaseId": "%SRCROOT%",
             "index": 32
           }
@@ -9552,65 +9787,86 @@
         },
         {
           "location": {
-            "uri": "launcher/src-tauri/src/main.rs",
+            "uri": "website/public/reports.js",
             "uriBaseId": "%SRCROOT%",
             "index": 34
           }
         },
         {
           "location": {
-            "uri": "launcher/crates/addon-core/src/tests.rs",
+            "uri": "launcher/src-tauri/src/main.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 35
           }
         },
         {
           "location": {
-            "uri": "launcher/src-tauri/build.rs",
+            "uri": "launcher/src-tauri/src/desktop.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 36
           }
         },
         {
           "location": {
-            "uri": "launcher/crates/addon-core/src/lib.rs",
+            "uri": "launcher/crates/addon-core/src/tests.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 37
           }
         },
         {
           "location": {
-            "uri": "launcher/crates/addon-core/src/recovery.rs",
+            "uri": "launcher/src-tauri/build.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 38
           }
         },
         {
           "location": {
-            "uri": "launcher/crates/addon-core/src/game_process.rs",
+            "uri": "launcher/crates/addon-core/src/lib.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 39
           }
         },
         {
           "location": {
-            "uri": "website/public/404.html",
+            "uri": "launcher/crates/addon-core/src/recovery.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 40
           }
         },
         {
           "location": {
-            "uri": "website/public/index.html",
+            "uri": "launcher/crates/addon-core/src/game_process.rs",
             "uriBaseId": "%SRCROOT%",
             "index": 41
           }
         },
         {
           "location": {
-            "uri": "launcher/ui/index.html",
+            "uri": "website/public/404.html",
             "uriBaseId": "%SRCROOT%",
             "index": 42
+          }
+        },
+        {
+          "location": {
+            "uri": "website/public/index.html",
+            "uriBaseId": "%SRCROOT%",
+            "index": 43
+          }
+        },
+        {
+          "location": {
+            "uri": "website/public/reports.html",
+            "uriBaseId": "%SRCROOT%",
+            "index": 44
+          }
+        },
+        {
+          "location": {
+            "uri": "launcher/ui/index.html",
+            "uriBaseId": "%SRCROOT%",
+            "index": 45
           }
         }
       ],
@@ -9631,7 +9887,7 @@
               }
             },
             "ruleId": "py/summary/lines-of-code",
-            "value": 1352
+            "value": 1355
           },
           {
             "rule": {
@@ -9642,8 +9898,8 @@
               }
             },
             "ruleId": "py/summary/lines-of-user-code",
-            "value": 1352,
-            "baseline": 1359
+            "value": 1355,
+            "baseline": 1362
           }
         ],
         "codeqlConfigSummary": {
@@ -9655,7 +9911,7 @@
             }
           ]
         },
-        "jobRunUuid": "a777f2a3-b004-4a19-af4e-ef9e0488c38a"
+        "jobRunUuid": "39d34615-acf3-4795-8b7c-2d74a1c03688"
       }
     }
   ]

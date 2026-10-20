@@ -7,32 +7,30 @@
   "engine_version": "1.1.26090.9",
   "signature_version": "1.461.119.0",
   "update_log": [
-    "Direct MMPC signature update completed."
+    "MMPC update failed: Virus and spyware definitions update was completed with errors.",
+    "Validated Microsoft publisher: CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+    "Definitions package SHA-256: 931a551e20f100d6d25ad47064b8ffd107d16e07577efc39b82bc8b34ef3b66e",
+    "Official offline definitions updater exit: 0"
   ],
   "maximum_signature_age_hours": 72,
   "signatures_updated_at": "2026-10-20T08:34:39.0000000Z",
-  "started_at": "2026-10-20T17:13:19.9789502Z",
-  "checked_at": "2026-10-20T17:13:31.5265893Z",
+  "started_at": "2026-10-20T17:58:02.0676969Z",
+  "checked_at": "2026-10-20T17:58:16.4781293Z",
   "artifacts": [
     {
-      "filename": "AkionUI-0.8.1.zip",
-      "sha256": "c83b2f9f1ca5bd8e397e93726ce89c081829ef66f75bcf34db7ec3197fd30b59",
-      "bytes": 12927
+      "filename": "DarkWhisperRaidTools-1.0.1.zip",
+      "sha256": "608a7e528c6d1ea85a7b861aad30f1d0dd4b0742c3a6d6728f1901827c5c1dde",
+      "bytes": 21791
     },
     {
-      "filename": "DarkWhisperRaidTools-1.0.0.zip",
-      "sha256": "0db555a3519b410400c32560144d93ea515ed767787f4a9666a8c51f2554489f",
-      "bytes": 21778
+      "filename": "DarkWhispers-Addons-0.3.0-linux-amd64.deb",
+      "sha256": "a0734aaab50b00249041b3b3da0a57a3fb356f820d94a747b24ffe4f65530e9c",
+      "bytes": 2952894
     },
     {
-      "filename": "DarkWhispers-Addons-0.2.1-linux-amd64.deb",
-      "sha256": "655b7a2137a089d7ede4c0f317396d93cc7746861b81145eb64275226d5054bb",
-      "bytes": 2842156
-    },
-    {
-      "filename": "DarkWhispers-Addons-0.2.1-windows-x64-setup.exe",
-      "sha256": "7ca09aa6198cd5c07ba794e3e3fbc55c0e1dd86a87344b21b566399cd0ccb967",
-      "bytes": 2147733
+      "filename": "DarkWhispers-Addons-0.3.0-windows-x64-setup.exe",
+      "sha256": "30062ba4f8d85ccd53b7cd0ef86bb018b705226a4eb2fe3c17b01d13c8e9ddce",
+      "bytes": 2184057
     }
   ],
   "scope": "All downloaded release packages; custom scan with archive scanning and remediation disabled. No exclusions added."

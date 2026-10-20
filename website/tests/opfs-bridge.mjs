@@ -1,6 +1,13 @@
 // Only copied to a local QA page, never published. No access to host WoW files.
 import {loadCatalog,sha256} from "/browser-install.mjs";
 let sandbox, retail, token;
+const realFetch = window.fetch.bind(window);
+window.fetch = (input,options) => {
+  const url = new URL(typeof input === "string" ? input : input.url, location.href);
+  if (url.origin === "https://darkwhispers.akion.se" && url.pathname.startsWith("/addons/"))
+    return realFetch(url.pathname,options);
+  return realFetch(input,options);
+};
 window.showDirectoryPicker = async () => {
   if (!retail) throw new Error("Prepare the private browser sandbox first.");
   return retail;
@@ -34,10 +41,9 @@ for (const [name,action] of [
     }
     if(await read(await addons.getDirectoryHandle("OtherAddon"),"Keep.lua")!=="keep")throw new Error("Other addon changed");
     if(await read(await retail.getDirectoryHandle("WTF"),"Keep.lua")!=="settings")throw new Error("Saved settings changed");
-    const backups=await addons.getDirectoryHandle(".darkwhispers-web-backups");let backedUp=false;
-    for await(const [name,handle]of backups.entries())if(name.startsWith(addon.id+"-")&&await read(handle,"Old.lua")==="old")backedUp=true;
-    if(!backedUp)throw new Error("Backup missing");
-    status.textContent="PASS: 7 real browser files match SHA-256; old addon backed up; OtherAddon and WTF preserved.";
+    try { await addons.getDirectoryHandle(".darkwhispers-web-backups"); throw new Error("Retained backup folder"); }
+    catch(error) { if(error.name !== "NotFoundError")throw error; }
+    status.textContent="PASS: 7 real browser files match SHA-256; no retained backup; OtherAddon and WTF preserved.";
   }],
   ["Clean browser sandbox",async()=>{
     if(sandbox&&token)await sandbox.removeEntry(token,{recursive:true});retail=null;status.textContent="Private browser sandbox removed.";

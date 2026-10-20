@@ -31,8 +31,8 @@ async function load() {
     const evidence=JSON.parse(new TextDecoder().decode(evidenceBytes));
     if (!/^\d+\.\d+\.\d+$/.test(evidence.version) || !/^[a-f0-9]{40}$/.test(evidence.commit)) throw new Error("Invalid release evidence.");
     $("report-release").textContent = " / v"+evidence.version;
-    const prefix="https://github.com/akiondev/darkwhispers/releases/download/v"+evidence.version+"/";
-    $("original-report").href=report.original ? prefix+report.original : "https://github.com/akiondev/darkwhispers/blob/main/website/public/security/source-review.md";
+    $("original-report").href=selected === "source" ? "https://github.com/akiondev/darkwhispers/blob/main/website/public/security/source-review.md" : "https://github.com/akiondev/darkwhispers/releases/tag/v"+evidence.version;
+    $("original-report").textContent=selected === "source" ? "Read on GitHub ↗" : "Original release on GitHub ↗";
     const digest=await sha256(bytes), expected=evidence.reports?.[report.original]?.sha256;
     if (expected && expected !== digest) throw new Error("This mirror does not match its release evidence. Read the original on GitHub.");
     $("report-integrity").textContent=(expected ? "Matches the SHA-256 recorded in release evidence. " : selected === "source" ? "Maintainer notes; not an independent audit. " : "Release evidence mirror. Verify its signed original on GitHub. ")+"SHA-256: "+digest;
