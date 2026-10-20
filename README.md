@@ -28,10 +28,13 @@ packages are public.
 ## Trust and verification
 
 Published releases are built on GitHub-hosted runners from a named commit.
-The workflow runs addon/browser/core tests, RustSec, Semgrep Community Edition,
+The workflow runs targeted browser/core checks, RustSec, Semgrep Community Edition,
 CodeQL, Microsoft Defender and ClamAV. It publishes complete reports and exact
 file hashes, with GitHub/Sigstore provenance attestations. Release immutability
 locks published files and their release tag.
+
+Each release records which tests ran. Unchanged addon runtime tests are not
+repeated for launcher-only updates; in-game behavior is checked manually.
 
     gh attestation verify <downloaded-file> --repo akiondev/darkwhispers --signer-workflow akiondev/darkwhispers/.github/workflows/release.yml
 

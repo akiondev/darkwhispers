@@ -210,7 +210,7 @@ function renderSecurity() {
   rows.append(checkRow("Addon integrity", "Verified on install", "Ed25519 catalog signature and SHA-256 checks for every file before it is written.", true));
   const meta = document.createElement("p");
   meta.className = "report-meta";
-  meta.textContent = "Checked: " + (checks.checked_at || "Not recorded") + ". Windows beta installers are unsigned. Source review is not an independent security certification.";
+  meta.textContent = "Checked: " + (checks.checked_at || "Not recorded") + ". Windows installers are unsigned. Source review is not an independent security certification.";
   rows.append(meta);
   const hashes = document.createElement("details");
   const summary = document.createElement("summary"); summary.className = "text-link"; summary.textContent = "Scanned file hashes"; hashes.append(summary);

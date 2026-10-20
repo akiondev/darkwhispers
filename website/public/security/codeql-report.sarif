@@ -3568,7 +3568,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": ".github/workflows/release.yml",
+                      "uri": ".github/workflows/checks.yml",
                       "uriBaseId": "%SRCROOT%",
                       "index": 0
                     }
@@ -3597,7 +3597,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": ".github/workflows/checks.yml",
+                      "uri": "launcher/build-tools/publish-catalog.mjs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 1
                     }
@@ -3626,7 +3626,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/tests/bridge.js",
+                      "uri": ".github/workflows/release.yml",
                       "uriBaseId": "%SRCROOT%",
                       "index": 2
                     }
@@ -3655,7 +3655,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/publish-catalog.mjs",
+                      "uri": "launcher/tests/bridge.js",
                       "uriBaseId": "%SRCROOT%",
                       "index": 3
                     }
@@ -4678,7 +4678,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/publish-catalog.mjs",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 3
+                      "index": 1
                     }
                   }
                 }
@@ -4704,7 +4704,7 @@
                     "artifactLocation": {
                       "uri": "launcher/tests/bridge.js",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 2
+                      "index": 3
                     }
                   }
                 }
@@ -5042,7 +5042,7 @@
                     "artifactLocation": {
                       "uri": ".github/workflows/checks.yml",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 1
+                      "index": 0
                     }
                   }
                 }
@@ -5068,7 +5068,7 @@
                     "artifactLocation": {
                       "uri": ".github/workflows/release.yml",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 0
+                      "index": 2
                     }
                   }
                 }
@@ -5092,7 +5092,7 @@
                 "text": ""
               },
               "level": "none",
-              "timeUtc": "2026-10-20T16:48:13.027Z",
+              "timeUtc": "2026-10-20T17:08:56.851Z",
               "descriptor": {
                 "id": "codeql-action/overlay-disabled",
                 "index": 5
@@ -5114,28 +5114,28 @@
       "artifacts": [
         {
           "location": {
-            "uri": ".github/workflows/release.yml",
+            "uri": ".github/workflows/checks.yml",
             "uriBaseId": "%SRCROOT%",
             "index": 0
           }
         },
         {
           "location": {
-            "uri": ".github/workflows/checks.yml",
+            "uri": "launcher/build-tools/publish-catalog.mjs",
             "uriBaseId": "%SRCROOT%",
             "index": 1
           }
         },
         {
           "location": {
-            "uri": "launcher/tests/bridge.js",
+            "uri": ".github/workflows/release.yml",
             "uriBaseId": "%SRCROOT%",
             "index": 2
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/publish-catalog.mjs",
+            "uri": "launcher/tests/bridge.js",
             "uriBaseId": "%SRCROOT%",
             "index": 3
           }
@@ -5437,7 +5437,7 @@
               }
             },
             "ruleId": "js/summary/lines-of-code",
-            "value": 1081
+            "value": 1093
           },
           {
             "rule": {
@@ -5448,8 +5448,8 @@
               }
             },
             "ruleId": "js/summary/lines-of-user-code",
-            "value": 1081,
-            "baseline": 1081
+            "value": 1093,
+            "baseline": 1093
           }
         ],
         "codeqlConfigSummary": {
@@ -5461,7 +5461,7 @@
             }
           ]
         },
-        "jobRunUuid": "9f7ff584-da4d-482f-b82f-c16a33b40390"
+        "jobRunUuid": "9fb85495-2001-4130-81af-2863bb2cac95"
       }
     },
     {
@@ -7337,7 +7337,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "tools/render_ui_preview.py",
+                      "uri": "tools/export_repository.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 0
                     }
@@ -7366,7 +7366,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "tools/export_repository.py",
+                      "uri": "tools/render_ui_preview.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 1
                     }
@@ -7395,7 +7395,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "tools/build_compass_assets.py",
+                      "uri": "website/deploy/install.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 2
                     }
@@ -7424,7 +7424,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/deploy/install.py",
+                      "uri": "tools/build_compass_assets.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 3
                     }
@@ -7453,7 +7453,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/verify-deployment.py",
+                      "uri": "website/tools/publish-checks.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 4
                     }
@@ -7482,7 +7482,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/test-linux-package.py",
+                      "uri": "website/tools/verify-deployment.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 5
                     }
@@ -7511,7 +7511,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/package.py",
+                      "uri": "website/tools/collect-clamav.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 6
                     }
@@ -7540,7 +7540,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/prepare.py",
+                      "uri": "website/tools/release_validation.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 7
                     }
@@ -7569,7 +7569,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/finalize.py",
+                      "uri": "launcher/build-tools/prepare-ui-test.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 8
                     }
@@ -7598,7 +7598,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/publish-checks.py",
+                      "uri": "website/tools/prepare-source-scan.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 9
                     }
@@ -7627,7 +7627,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/prepare-ui-test.py",
+                      "uri": "website/tools/import-github-release.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 10
                     }
@@ -7656,7 +7656,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/release_validation.py",
+                      "uri": "website/tests/test_release_validation.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 11
                     }
@@ -7685,7 +7685,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/collect-clamav.py",
+                      "uri": "launcher/build-tools/licenses.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 12
                     }
@@ -7714,7 +7714,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tests/test_release_validation.py",
+                      "uri": "website/tests/prepare-browser-qa.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 13
                     }
@@ -7772,7 +7772,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/licenses.py",
+                      "uri": "launcher/build-tools/publish-binaries.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 15
                     }
@@ -7801,7 +7801,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/prepare-source-scan.py",
+                      "uri": "ci/source-summary.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 16
                     }
@@ -7830,7 +7830,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/stage-binary.py",
+                      "uri": "launcher/build-tools/test-linux-package.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 17
                     }
@@ -7859,7 +7859,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/build-tools/publish-binaries.py",
+                      "uri": "ci/prepare.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 18
                     }
@@ -7888,7 +7888,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/prepare.py",
+                      "uri": "launcher/build-tools/prepare.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 19
                     }
@@ -7917,7 +7917,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tests/prepare-browser-qa.py",
+                      "uri": "website/tools/package.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 20
                     }
@@ -7946,7 +7946,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "ci/source-summary.py",
+                      "uri": "ci/stage-binary.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 21
                     }
@@ -7975,7 +7975,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/import-github-release.py",
+                      "uri": "ci/finalize.py",
                       "uriBaseId": "%SRCROOT%",
                       "index": 22
                     }
@@ -8062,9 +8062,9 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "tools/export_repository.py",
+                      "uri": "website/tools/collect-clamav.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 1
+                      "index": 6
                     }
                   }
                 }
@@ -8088,9 +8088,9 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tools/collect-clamav.py",
+                      "uri": "tools/export_repository.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 12
+                      "index": 0
                     }
                   }
                 }
@@ -8142,7 +8142,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/package.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 6
+                      "index": 20
                     }
                   }
                 }
@@ -8168,7 +8168,7 @@
                     "artifactLocation": {
                       "uri": "ci/source-summary.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 21
+                      "index": 16
                     }
                   }
                 }
@@ -8194,7 +8194,7 @@
                     "artifactLocation": {
                       "uri": "website/deploy/install.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 3
+                      "index": 2
                     }
                   }
                 }
@@ -8220,7 +8220,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/licenses.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 15
+                      "index": 12
                     }
                   }
                 }
@@ -8246,7 +8246,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/test-linux-package.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 5
+                      "index": 17
                     }
                   }
                 }
@@ -8272,7 +8272,7 @@
                     "artifactLocation": {
                       "uri": "ci/stage-binary.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 17
+                      "index": 21
                     }
                   }
                 }
@@ -8298,7 +8298,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/prepare-source-scan.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 16
+                      "index": 9
                     }
                   }
                 }
@@ -8324,7 +8324,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/verify-deployment.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 4
+                      "index": 5
                     }
                   }
                 }
@@ -8350,7 +8350,7 @@
                     "artifactLocation": {
                       "uri": "ci/prepare.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 19
+                      "index": 18
                     }
                   }
                 }
@@ -8376,7 +8376,7 @@
                     "artifactLocation": {
                       "uri": "tools/render_ui_preview.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 0
+                      "index": 1
                     }
                   }
                 }
@@ -8402,7 +8402,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/import-github-release.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 22
+                      "index": 10
                     }
                   }
                 }
@@ -8428,7 +8428,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/prepare.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 7
+                      "index": 19
                     }
                   }
                 }
@@ -8454,7 +8454,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/publish-binaries.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 18
+                      "index": 15
                     }
                   }
                 }
@@ -8480,7 +8480,7 @@
                     "artifactLocation": {
                       "uri": "launcher/build-tools/prepare-ui-test.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 10
+                      "index": 8
                     }
                   }
                 }
@@ -8506,7 +8506,7 @@
                     "artifactLocation": {
                       "uri": "website/tests/prepare-browser-qa.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 20
+                      "index": 13
                     }
                   }
                 }
@@ -8532,7 +8532,7 @@
                     "artifactLocation": {
                       "uri": "website/tests/test_release_validation.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 13
+                      "index": 11
                     }
                   }
                 }
@@ -8558,7 +8558,7 @@
                     "artifactLocation": {
                       "uri": "ci/finalize.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 8
+                      "index": 22
                     }
                   }
                 }
@@ -8584,33 +8584,7 @@
                     "artifactLocation": {
                       "uri": "website/tools/release_validation.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 11
-                    }
-                  }
-                }
-              ],
-              "message": {
-                "text": ""
-              },
-              "level": "none",
-              "descriptor": {
-                "id": "cli/expected-extracted-files/python",
-                "index": 0
-              },
-              "properties": {
-                "formattedMessage": {
-                  "text": ""
-                }
-              }
-            },
-            {
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "tools/build_compass_assets.py",
-                      "uriBaseId": "%SRCROOT%",
-                      "index": 2
+                      "index": 7
                     }
                   }
                 }
@@ -8636,7 +8610,33 @@
                     "artifactLocation": {
                       "uri": "website/tools/publish-checks.py",
                       "uriBaseId": "%SRCROOT%",
-                      "index": 9
+                      "index": 4
+                    }
+                  }
+                }
+              ],
+              "message": {
+                "text": ""
+              },
+              "level": "none",
+              "descriptor": {
+                "id": "cli/expected-extracted-files/python",
+                "index": 0
+              },
+              "properties": {
+                "formattedMessage": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "tools/build_compass_assets.py",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 3
                     }
                   }
                 }
@@ -8816,7 +8816,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "website/tests/opfs-bridge.mjs",
+                      "uri": "launcher/tests/catalog-publisher.test.mjs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 31
                     }
@@ -8842,7 +8842,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "launcher/tests/catalog-publisher.test.mjs",
+                      "uri": "website/tests/opfs-bridge.mjs",
                       "uriBaseId": "%SRCROOT%",
                       "index": 32
                     }
@@ -9180,7 +9180,7 @@
                 "text": ""
               },
               "level": "none",
-              "timeUtc": "2026-10-20T16:48:12.666Z",
+              "timeUtc": "2026-10-20T17:08:53.859Z",
               "descriptor": {
                 "id": "codeql-action/overlay-disabled",
                 "index": 5
@@ -9201,7 +9201,7 @@
                 "markdown": "Internal telemetry for the Python extractor.\n\nNo action needed."
               },
               "level": "note",
-              "timeUtc": "2026-10-20T16:48:20.719453Z",
+              "timeUtc": "2026-10-20T17:08:57.867888Z",
               "descriptor": {
                 "id": "py/extractor/summary",
                 "index": 6
@@ -9225,7 +9225,51 @@
                 "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
               },
               "level": "note",
-              "timeUtc": "2026-10-20T16:48:21.642156Z",
+              "timeUtc": "2026-10-20T17:08:58.293176Z",
+              "descriptor": {
+                "id": "py/extractor/parser-statistics",
+                "index": 7
+              },
+              "properties": {
+                "attributes": {
+                  "old_parser_file_count": 2,
+                  "tree_sitter_parser_file_count": 0
+                },
+                "visibility": {
+                  "statusPage": false,
+                  "telemetry": true
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "Internal parser telemetry for the Python extractor.\n\nNo action needed.",
+                "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
+              },
+              "level": "note",
+              "timeUtc": "2026-10-20T17:08:58.271397Z",
+              "descriptor": {
+                "id": "py/extractor/parser-statistics",
+                "index": 7
+              },
+              "properties": {
+                "attributes": {
+                  "old_parser_file_count": 8,
+                  "tree_sitter_parser_file_count": 0
+                },
+                "visibility": {
+                  "statusPage": false,
+                  "telemetry": true
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "Internal parser telemetry for the Python extractor.\n\nNo action needed.",
+                "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
+              },
+              "level": "note",
+              "timeUtc": "2026-10-20T17:08:58.270501Z",
               "descriptor": {
                 "id": "py/extractor/parser-statistics",
                 "index": 7
@@ -9247,58 +9291,14 @@
                 "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
               },
               "level": "note",
-              "timeUtc": "2026-10-20T16:48:21.597250Z",
+              "timeUtc": "2026-10-20T17:08:58.270593Z",
               "descriptor": {
                 "id": "py/extractor/parser-statistics",
                 "index": 7
               },
               "properties": {
                 "attributes": {
-                  "old_parser_file_count": 1,
-                  "tree_sitter_parser_file_count": 0
-                },
-                "visibility": {
-                  "statusPage": false,
-                  "telemetry": true
-                }
-              }
-            },
-            {
-              "message": {
-                "text": "Internal parser telemetry for the Python extractor.\n\nNo action needed.",
-                "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
-              },
-              "level": "note",
-              "timeUtc": "2026-10-20T16:48:21.598664Z",
-              "descriptor": {
-                "id": "py/extractor/parser-statistics",
-                "index": 7
-              },
-              "properties": {
-                "attributes": {
-                  "old_parser_file_count": 6,
-                  "tree_sitter_parser_file_count": 0
-                },
-                "visibility": {
-                  "statusPage": false,
-                  "telemetry": true
-                }
-              }
-            },
-            {
-              "message": {
-                "text": "Internal parser telemetry for the Python extractor.\n\nNo action needed.",
-                "markdown": "Internal parser telemetry for the Python extractor.\n\nNo action needed."
-              },
-              "level": "note",
-              "timeUtc": "2026-10-20T16:48:21.598608Z",
-              "descriptor": {
-                "id": "py/extractor/parser-statistics",
-                "index": 7
-              },
-              "properties": {
-                "attributes": {
-                  "old_parser_file_count": 10,
+                  "old_parser_file_count": 7,
                   "tree_sitter_parser_file_count": 0
                 },
                 "visibility": {
@@ -9314,98 +9314,98 @@
       "artifacts": [
         {
           "location": {
-            "uri": "tools/render_ui_preview.py",
+            "uri": "tools/export_repository.py",
             "uriBaseId": "%SRCROOT%",
             "index": 0
           }
         },
         {
           "location": {
-            "uri": "tools/export_repository.py",
+            "uri": "tools/render_ui_preview.py",
             "uriBaseId": "%SRCROOT%",
             "index": 1
           }
         },
         {
           "location": {
-            "uri": "tools/build_compass_assets.py",
+            "uri": "website/deploy/install.py",
             "uriBaseId": "%SRCROOT%",
             "index": 2
           }
         },
         {
           "location": {
-            "uri": "website/deploy/install.py",
+            "uri": "tools/build_compass_assets.py",
             "uriBaseId": "%SRCROOT%",
             "index": 3
           }
         },
         {
           "location": {
-            "uri": "website/tools/verify-deployment.py",
+            "uri": "website/tools/publish-checks.py",
             "uriBaseId": "%SRCROOT%",
             "index": 4
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/test-linux-package.py",
+            "uri": "website/tools/verify-deployment.py",
             "uriBaseId": "%SRCROOT%",
             "index": 5
           }
         },
         {
           "location": {
-            "uri": "website/tools/package.py",
+            "uri": "website/tools/collect-clamav.py",
             "uriBaseId": "%SRCROOT%",
             "index": 6
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/prepare.py",
+            "uri": "website/tools/release_validation.py",
             "uriBaseId": "%SRCROOT%",
             "index": 7
           }
         },
         {
           "location": {
-            "uri": "ci/finalize.py",
+            "uri": "launcher/build-tools/prepare-ui-test.py",
             "uriBaseId": "%SRCROOT%",
             "index": 8
           }
         },
         {
           "location": {
-            "uri": "website/tools/publish-checks.py",
+            "uri": "website/tools/prepare-source-scan.py",
             "uriBaseId": "%SRCROOT%",
             "index": 9
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/prepare-ui-test.py",
+            "uri": "website/tools/import-github-release.py",
             "uriBaseId": "%SRCROOT%",
             "index": 10
           }
         },
         {
           "location": {
-            "uri": "website/tools/release_validation.py",
+            "uri": "website/tests/test_release_validation.py",
             "uriBaseId": "%SRCROOT%",
             "index": 11
           }
         },
         {
           "location": {
-            "uri": "website/tools/collect-clamav.py",
+            "uri": "launcher/build-tools/licenses.py",
             "uriBaseId": "%SRCROOT%",
             "index": 12
           }
         },
         {
           "location": {
-            "uri": "website/tests/test_release_validation.py",
+            "uri": "website/tests/prepare-browser-qa.py",
             "uriBaseId": "%SRCROOT%",
             "index": 13
           }
@@ -9419,56 +9419,56 @@
         },
         {
           "location": {
-            "uri": "launcher/build-tools/licenses.py",
+            "uri": "launcher/build-tools/publish-binaries.py",
             "uriBaseId": "%SRCROOT%",
             "index": 15
           }
         },
         {
           "location": {
-            "uri": "website/tools/prepare-source-scan.py",
+            "uri": "ci/source-summary.py",
             "uriBaseId": "%SRCROOT%",
             "index": 16
           }
         },
         {
           "location": {
-            "uri": "ci/stage-binary.py",
+            "uri": "launcher/build-tools/test-linux-package.py",
             "uriBaseId": "%SRCROOT%",
             "index": 17
           }
         },
         {
           "location": {
-            "uri": "launcher/build-tools/publish-binaries.py",
+            "uri": "ci/prepare.py",
             "uriBaseId": "%SRCROOT%",
             "index": 18
           }
         },
         {
           "location": {
-            "uri": "ci/prepare.py",
+            "uri": "launcher/build-tools/prepare.py",
             "uriBaseId": "%SRCROOT%",
             "index": 19
           }
         },
         {
           "location": {
-            "uri": "website/tests/prepare-browser-qa.py",
+            "uri": "website/tools/package.py",
             "uriBaseId": "%SRCROOT%",
             "index": 20
           }
         },
         {
           "location": {
-            "uri": "ci/source-summary.py",
+            "uri": "ci/stage-binary.py",
             "uriBaseId": "%SRCROOT%",
             "index": 21
           }
         },
         {
           "location": {
-            "uri": "website/tools/import-github-release.py",
+            "uri": "ci/finalize.py",
             "uriBaseId": "%SRCROOT%",
             "index": 22
           }
@@ -9531,14 +9531,14 @@
         },
         {
           "location": {
-            "uri": "website/tests/opfs-bridge.mjs",
+            "uri": "launcher/tests/catalog-publisher.test.mjs",
             "uriBaseId": "%SRCROOT%",
             "index": 31
           }
         },
         {
           "location": {
-            "uri": "launcher/tests/catalog-publisher.test.mjs",
+            "uri": "website/tests/opfs-bridge.mjs",
             "uriBaseId": "%SRCROOT%",
             "index": 32
           }
@@ -9631,7 +9631,7 @@
               }
             },
             "ruleId": "py/summary/lines-of-code",
-            "value": 1350
+            "value": 1352
           },
           {
             "rule": {
@@ -9642,8 +9642,8 @@
               }
             },
             "ruleId": "py/summary/lines-of-user-code",
-            "value": 1350,
-            "baseline": 1357
+            "value": 1352,
+            "baseline": 1359
           }
         ],
         "codeqlConfigSummary": {
@@ -9655,7 +9655,7 @@
             }
           ]
         },
-        "jobRunUuid": "fbbdbd90-ef67-4af5-ac8a-d51c6212ed5f"
+        "jobRunUuid": "a777f2a3-b004-4a19-af4e-ef9e0488c38a"
       }
     }
   ]
