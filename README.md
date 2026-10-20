@@ -41,7 +41,7 @@ Historical reports produced on the maintainer's own machines are labelled as
 such; committing a report does not turn it into an independent scan.
 
 Windows installers are unsigned. The Linux package is for Debian/Ubuntu x64.
-macOS builds are not published yet. No accounts, telemetry, subscriptions or
+macOS is not supported. No accounts, telemetry, subscriptions or
 paid services are required to use the software.
 
 ## Development

@@ -1,15 +1,25 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "DarkWhispers Addons",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "identifier": "se.akion.darkwhispers.addons",
-  "build": { "frontendDist": "../ui" },
+  "build": {
+    "frontendDist": "../ui"
+  },
   "app": {
     "withGlobalTauri": true,
-    "windows": [{
-      "label": "main", "title": "DarkWhispers Addons", "width": 900, "height": 620,
-      "minWidth": 720, "minHeight": 520, "center": true, "theme": "Dark"
-    }],
+    "windows": [
+      {
+        "label": "main",
+        "title": "DarkWhispers Addons",
+        "width": 900,
+        "height": 620,
+        "minWidth": 720,
+        "minHeight": 520,
+        "center": true,
+        "theme": "Dark"
+      }
+    ],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; frame-src 'none'"
     }
@@ -18,8 +28,30 @@
     "active": true,
     "targets": "all",
     "shortDescription": "A simple addon manager for World of Warcraft Retail.",
-    "resources": ["THIRD-PARTY-NOTICES.txt"],
-    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
-    "windows": { "nsis": { "installMode": "currentUser", "displayLanguageSelector": false } }
+    "resources": [
+      "THIRD-PARTY-NOTICES.txt"
+    ],
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU4REUzRUJDNTUzNjkwRTYKUldUbWtEWlZ2RDdlNkMrNkdqckY5Q2pBc3dkRUFsNE5MK0FLRWFOL3IrdlQxREQwd0d0cE0yOW4K",
+      "endpoints": [
+        "https://darkwhispers.akion.se/launcher/latest.json"
+      ],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

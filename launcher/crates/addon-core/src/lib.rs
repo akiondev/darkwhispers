@@ -14,6 +14,10 @@ pub type Result<T> = std::result::Result<T, String>;
 const CATALOG_URL: &str = "https://darkwhispers.akion.se/api/v1/catalog.json";
 const MAX_DOWNLOAD: u64 = 32 * 1024 * 1024;
 const MAX_UNPACKED: u64 = 128 * 1024 * 1024;
+mod recovery;
+mod game_process;
+pub use recovery::restore_previous;
+pub use game_process::ensure_game_closed;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Addon {
@@ -49,6 +53,7 @@ pub struct AddonStatus {
     pub update_available: bool,
     pub installed: bool,
     pub issue: Option<String>,
+    pub can_restore: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -241,8 +246,7 @@ pub fn validate_game(selected: &Path) -> Result<PathBuf> {
         );
     };
     if candidate.file_name().is_none_or(|n| n != "_retail_")
-        || !(candidate.join("Wow.exe").is_file()
-            || candidate.join("World of Warcraft.app").is_dir())
+        || !candidate.join("Wow.exe").is_file()
     {
         return Err(
             "This is not a WoW Retail installation. Choose the folder containing _retail_.".into(),
@@ -385,7 +389,10 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
     let mut addons = Vec::new();
     for addon in catalog.addons {
         let (version, issue) = if let Some(game) = &game {
-            match installed_version(game, &addon.id) {
+            match recovery::recover_if_needed(game, &addon.id).and_then(|recovered| {
+                if recovered { warning = Some("Recovered an interrupted addon operation. Your files are safe.".into()); }
+                installed_version(game, &addon.id)
+            }) {
                 Ok(version) => (version, None),
                 Err(message) => (None, Some(message)),
             }
@@ -398,6 +405,7 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
             .zip(semver::Version::parse(&addon.version).ok())
             .is_some_and(|(a, b)| a < b);
         addons.push(AddonStatus {
+            can_restore: game.as_ref().and_then(|path| recovery::latest_backup(&path.join("Interface/AddOns"), &addon.id).ok()).flatten().is_some(),
             installed: version.is_some(),
             installed_version: version,
             update_available: update,
@@ -461,6 +469,8 @@ pub fn install_bytes(game: &Path, addon: &Addon, bytes: &[u8]) -> Result<()> {
     let destination = addon_folder(game, &addon.id)?;
     let addons = destination.parent().ok_or("Invalid installation path")?;
     let _lock = acquire_lock(addons)?;
+    ensure_game_closed()?;
+    recovery::recover_locked(addons, &addon.id)?;
     if let Some(version) = installed_version(game, &addon.id)? {
         if semver::Version::parse(&version)
             .ok()
@@ -481,23 +491,7 @@ pub fn install_bytes(game: &Path, addon: &Addon, bytes: &[u8]) -> Result<()> {
     if parse_version(&toc).as_deref() != Some(&addon.version) {
         return Err("The addon version does not match the verified catalog.".into());
     }
-    let backup = if destination.exists() {
-        Some(backup_addon(addons, &destination, &addon.id)?)
-    } else {
-        None
-    };
-    if let Err(e) = fs::rename(&extracted, &destination) {
-        if let Some(backup) = backup {
-            if let Err(restore) = fs::rename(&backup, &destination) {
-                return Err(format!("Install failed ({e}). Your previous addon is safe at {}. Restore failed: {restore}", backup.display()));
-            }
-        }
-        return Err(error(
-            "Installation failed; the previous addon was restored",
-            e,
-        ));
-    }
-    Ok(())
+    recovery::swap_addon(addons, &addon.id, &extracted, &destination)
 }
 
 fn extract_checked(bytes: &[u8], id: &str, staging: &Path) -> Result<()> {
@@ -588,8 +582,7 @@ fn extract_checked(bytes: &[u8], id: &str, staging: &Path) -> Result<()> {
     Ok(())
 }
 
-fn backup_addon(addons: &Path, destination: &Path, id: &str) -> Result<PathBuf> {
-    reject_link(destination)?;
+fn reserve_backup(addons: &Path, id: &str) -> Result<PathBuf> {
     let backup_root = addons.join(".darkwhispers-backups");
     reject_link(&backup_root)?;
     fs::create_dir_all(&backup_root).map_err(|e| error("Could not create addon backup", e))?;
@@ -598,13 +591,19 @@ fn backup_addon(addons: &Path, destination: &Path, id: &str) -> Result<PathBuf> 
         .tempdir_in(&backup_root)
         .map_err(|e| error("Could not create addon backup", e))?;
     let target = backup.path().join(id);
+    let _ = backup.keep();
+    Ok(target)
+}
+
+fn backup_addon(addons: &Path, destination: &Path, id: &str) -> Result<PathBuf> {
+    reject_link(destination)?;
+    let target = reserve_backup(addons, id)?;
     fs::rename(destination, &target).map_err(|e| {
         error(
             "Could not move the existing addon. Close programs using its files",
             e,
         )
     })?;
-    let _ = backup.keep();
     Ok(target)
 }
 
@@ -623,6 +622,8 @@ pub fn remove(config: &Path, id: &str) -> Result<PathBuf> {
     let destination = addon_folder(&game, id)?;
     let addons = destination.parent().ok_or("Invalid addon path")?;
     let _lock = acquire_lock(addons)?;
+    ensure_game_closed()?;
+    recovery::recover_locked(addons, id)?;
     if installed_version(&game, id)?.is_none() {
         return Err("This addon is not installed.".into());
     }

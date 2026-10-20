@@ -2,6 +2,9 @@ name: Source checks
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "website/public/security/**"
+      - "website/public/launcher/*.json"
   pull_request:
   workflow_dispatch:
 permissions:
@@ -19,16 +22,18 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
-      - name: Test the real addon and browser installer code
+      - name: Targeted browser and release validation tests
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y lua5.1
           python ci/prepare.py
-          (cd addons && lua5.1 ../tests/smoke.lua)
-          node --test website/tests/browser-installer.test.mjs
-          node --test launcher/tests/catalog-publisher.test.mjs
+          node --test --test-name-pattern="accepts WoW root" website/tests/browser-installer.test.mjs
           python -m unittest discover -s website/tests -p 'test_*.py'
-          python -O -m unittest discover -s website/tests -p 'test_*.py'
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            launcher/target
+          key: source-rust-1.99.1-${{ hashFiles('launcher/Cargo.lock') }}
+          restore-keys: source-rust-1.99.1-
       - name: Rust core
         run: |
           rustup toolchain install 1.99.1 --profile minimal

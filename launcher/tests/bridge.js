@@ -1,6 +1,7 @@
 // Browser-only QA adapter. This directory is outside Tauri's frontendDist.
 // It performs no downloads and no filesystem operations.
 let installed = false;
+let hasBackup = false;
 let availableUpdate = false;
 let selectedFolder = null;
 let failNext = false;
@@ -14,14 +15,16 @@ const addon = {
 window.__TAURI__ = {core: {invoke: async (command) => {
   await new Promise(resolve => setTimeout(resolve, 150));
   if (failNext) { failNext = false; throw "Test download failed. Nothing was installed."; }
+  if (command === "check_launcher_update") return {current:"0.2.0",available:null,supported:true};
+  if (command === "restore_addon") { installed = true; hasBackup = true; return; }
   if (command === "get_status") return {
     game_path: selectedFolder, warning: null,
     addons: [{addon, installed: folderIssue ? false : installed, installed_version: installed ? (unknownVersion ? "Unknown" : availableUpdate ? "0.9.0" : "1.0.0") : null, update_available: availableUpdate,
-      issue: folderIssue ? "DarkWhisperRaidTools already exists but is not a recognized addon. It was not changed." : null}]
+      can_restore:hasBackup, issue: folderIssue ? "DarkWhisperRaidTools already exists but is not a recognized addon. It was not changed." : null}]
   };
   if (command === "choose_game") { selectedFolder = "C:\\Games\\World of Warcraft\\_retail_"; return true; }
-  if (command === "install_addon") { installed = true; availableUpdate = false; return; }
-  if (command === "remove_addon") { installed = false; return; }
+  if (command === "install_addon") { hasBackup = installed; installed = true; availableUpdate = false; return; }
+  if (command === "remove_addon") { installed = false; hasBackup = true; return; }
   throw `Unexpected command: ${command}`;
 }}};
 document.addEventListener("DOMContentLoaded", () => {

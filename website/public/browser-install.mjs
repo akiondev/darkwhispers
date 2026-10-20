@@ -109,7 +109,7 @@ export async function resolveRetail(selected) {
   if (!retail || retail.name !== "_retail_") throw new Error("Choose World of Warcraft or its _retail_ folder.");
   let executable = false;
   try { await retail.getFileHandle("Wow.exe"); executable = true; } catch (e) { if (e.name !== "NotFoundError") throw e; }
-  if (!executable && !(await maybeDirectory(retail, "World of Warcraft.app"))) throw new Error("This folder is not a WoW Retail installation.");
+  if (!executable) throw new Error("This folder is not a WoW Retail installation.");
   return retail;
 }
 async function directoryAt(root, parts) {

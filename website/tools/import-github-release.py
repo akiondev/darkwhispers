@@ -15,6 +15,8 @@ from release_validation import require, validate_evidence
 args = argparse.ArgumentParser()
 args.add_argument("--version",required=True)
 args.add_argument("--gh",default="gh")
+args.add_argument("--updater-key", help="Local private key path; never uploaded to GitHub")
+args.add_argument("--tauri", default="tauri")
 options = args.parse_args()
 require(re.fullmatch(r"\d+\.\d+\.\d+",options.version), "Invalid release version")
 repo = "akiondev/darkwhispers"
@@ -57,6 +59,26 @@ for name in ["release-evidence.json","SHA256SUMS.txt"]+[item["filename"] for ite
     verification.append({"file":name,"result":result})
 require(checksums["release-evidence.json"] == hashlib.sha256(evidence_path.read_bytes()).hexdigest(), "Evidence changed")
 validate_evidence(evidence, options.version, checksums, directory)
+updater = None
+if options.updater_key:
+    key = Path(options.updater_key).resolve()
+    config = json.loads((site.parent/"launcher/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
+    require(Path(str(key)+".pub").read_text(encoding="utf-8").strip() == config["plugins"]["updater"]["pubkey"],
+            "Local updater key does not match the launcher's pinned public key")
+    name = f"DarkWhispers-Addons-{options.version}-windows-x64-setup.exe"
+    package = directory/name
+    # Only the exact installer already verified against public GitHub provenance
+    # above is signed. The private key remains on this computer.
+    signed = subprocess.run([options.tauri, "signer", "sign", "--private-key-path", str(key),
+                             "--app-version", options.version, str(package)],
+                            capture_output=True, text=True, encoding="utf-8")
+    require(signed.returncode == 0, "Local updater signing failed; no update feed published")
+    signature = Path(str(package)+".sig").read_text(encoding="utf-8").strip()
+    require(0 < len(signature) < 8192, "Invalid updater signature size")
+    updater = {"version":options.version, "pub_date":evidence["checked_at"],
+               "notes":"DarkWhispers launcher "+options.version,
+               "platforms":{"windows-x86_64":{"url":next(item["url"] for item in evidence["artifacts"] if item["filename"]==name),
+                                               "signature":signature}}}
 prefix = "https://github.com/"+repo+"/releases/download/"+tag+"/"
 platforms = {}
 for item in evidence["artifacts"]:
@@ -102,5 +124,7 @@ report = {
     "limitations":evidence["limits"]
 }
 (target/"release-checks.json").write_text(json.dumps(report,indent=2)+"\n")
+if updater:
+    (public/"launcher/latest.json").write_text(json.dumps(updater,indent=2)+"\n", encoding="utf-8")
 (site/"build/github-verification.json").write_text(json.dumps(verification,indent=2)+"\n")
 print("Verified immutable GitHub release",tag,"at",evidence["commit"],"; mirrored exact attested binaries and reports.")

@@ -5,6 +5,18 @@ const invoke = window.__TAURI__?.core.invoke;
 let state = null;
 let busy = false;
 let pendingRemoval = null;
+let launcherVersion = "0.2.0";
+let availableLauncher = null;
+
+function confirmAddon(item, kind) {
+  if (busy) return;
+  pendingRemoval = {item, kind};
+  $("remove-title").textContent = kind === "restore" ? `Restore ${item.addon.title}?` : `Remove ${item.addon.title}?`;
+  $("remove-description").textContent = kind === "restore" ? "Replace the current addon with its most recent backup. Your current version is backed up and saved WoW settings are kept." : "Your saved WoW settings are kept. You can install the addon again anytime.";
+  $("confirm-remove").textContent = kind === "restore" ? "Restore" : "Remove";
+  $("remove-dialog").returnValue = "cancel";
+  $("remove-dialog").showModal();
+}
 
 function message(text, kind = "") {
   $("message").textContent = text;
@@ -21,6 +33,7 @@ function setBusy(value) {
   busy = value;
   $("choose-folder").disabled = value || !invoke;
   $("refresh").disabled = value || !invoke;
+  $("launcher-update").disabled = value || !invoke;
   $("addons").setAttribute("aria-busy", String(value));
   document.querySelectorAll("[data-operation]").forEach((button) => {
     button.disabled = value || !state?.game_path || !invoke;
@@ -72,18 +85,24 @@ function render(next) {
       actions.append(installed);
     }
     if (item.installed && !item.issue) {
+      const repair = document.createElement("button");
+      repair.className = "remove"; repair.dataset.operation = "repair";
+      repair.textContent = "Repair";
+      repair.addEventListener("click", () => installAddon(item, true));
+      actions.append(repair);
       const remove = document.createElement("button");
       remove.className = "remove";
       remove.dataset.operation = "remove";
       remove.textContent = "Remove";
-      remove.addEventListener("click", () => {
-        if (busy) return;
-        pendingRemoval = item;
-        $("remove-title").textContent = `Remove ${item.addon.title}?`;
-        $("remove-dialog").returnValue = "cancel";
-        $("remove-dialog").showModal();
-      });
+      remove.addEventListener("click", () => confirmAddon(item, "remove"));
       actions.append(remove);
+    }
+    if (item.can_restore && !item.issue) {
+      const restore = document.createElement("button");
+      restore.className = "remove"; restore.dataset.operation = "restore";
+      restore.textContent = "Restore previous";
+      restore.addEventListener("click", () => confirmAddon(item, "restore"));
+      actions.append(restore);
     }
     $("addons").append(card);
   }
@@ -117,12 +136,12 @@ async function refresh() {
   });
 }
 
-async function installAddon(item) {
-  await operation(`${item.installed ? "Updating" : "Installing"} ${item.addon.title}…`, async () => {
+async function installAddon(item, repair = false) {
+  await operation(`${repair ? "Repairing" : item.installed ? "Updating" : "Installing"} ${item.addon.title}…`, async () => {
     await invoke("install_addon", {id: item.addon.id});
     const next = await invoke("get_status", {checkUpdates: false});
     render(next);
-    message(`${item.addon.title} ${item.installed ? "updated" : "installed"}. Restart WoW or reload your UI.`);
+    message(`${item.addon.title} ${repair ? "repaired" : item.installed ? "updated" : "installed"}. Start WoW to load the addon.`);
   });
 }
 
@@ -138,18 +157,44 @@ $("choose-folder").addEventListener("click", () => operation("Choose your WoW fo
   }
 }));
 $("remove-dialog").addEventListener("close", () => {
-  const item = pendingRemoval;
+  const pending = pendingRemoval;
   pendingRemoval = null;
-  if ($("remove-dialog").returnValue !== "remove" || !item) return;
-  operation(`Removing ${item.addon.title}…`, async () => {
-    await invoke("remove_addon", {id: item.addon.id});
+  if ($("remove-dialog").returnValue !== "remove" || !pending) return;
+  const {item, kind} = pending;
+  operation(`${kind === "restore" ? "Restoring" : "Removing"} ${item.addon.title}…`, async () => {
+    await invoke(kind === "restore" ? "restore_addon" : "remove_addon", {id: item.addon.id});
     render(await invoke("get_status", {checkUpdates: false}));
-    message(`${item.addon.title} removed. Your saved WoW settings are kept.`);
+    message(`${item.addon.title} ${kind === "restore" ? "restored from backup" : "removed"}. Your saved WoW settings are kept.`);
   });
 });
 
+async function checkLauncher() {
+  const info = await invoke("check_launcher_update");
+  launcherVersion = info.current;
+  availableLauncher = info.available;
+  $("launcher-version").textContent = "v" + info.current;
+  $("launcher-update").hidden = !info.supported;
+  $("launcher-update").textContent = info.available ? "Update launcher · " + info.available : "Check launcher";
+  $("launcher-update").classList.toggle("update-ready", !!info.available);
+  return info;
+}
+$("launcher-update").addEventListener("click", () => operation(availableLauncher ? "Downloading signed launcher update…" : "Checking launcher updates…", async () => {
+  if (availableLauncher) await invoke("install_launcher_update");
+  else { const info = await checkLauncher(); message(info.available ? "A new launcher is ready. Click Update launcher to install and restart." : "Your launcher is up to date."); }
+}));
+$("copy-status").addEventListener("click", async () => {
+  const lines = ["DarkWhispers Addons " + launcherVersion, "WoW folder selected: " + !!state?.game_path];
+  for (const item of state?.addons || []) lines.push(item.addon.id + ": " + (item.installed_version || "not installed") + "; available " + item.addon.version + "; issue " + !!item.issue);
+  try { await navigator.clipboard.writeText(lines.join("\n")); message("Status copied. No personal paths or WoW saved settings included."); }
+  catch { message("Could not copy status. Your launcher version is " + launcherVersion + ".", "warning"); }
+});
+
 if (invoke) {
-  refresh();
+  refresh().then(() => checkLauncher().catch(() => { $("launcher-update").title = "Update check unavailable. Click to retry."; }));
+  window.__TAURI__.event?.listen("launcher-download", ({payload}) => {
+    if (busy) message(payload.total ? "Downloading launcher… " + Math.min(100, Math.round(payload.downloaded / payload.total * 100)) + "%" : "Downloading launcher…", "busy");
+  });
+  window.__TAURI__.event?.listen("launcher-installing", () => message("Signature verified. Installing launcher update and restarting…", "busy"));
 } else {
   render({game_path: null, warning: null, addons: [{
     addon: {id: "DarkWhisperRaidTools", title: "DarkWhisper Raid Tools", description: "Your raid markers. Your north. A standalone compass with custom layouts.", version: "1.0.0"},

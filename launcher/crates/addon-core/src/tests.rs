@@ -209,6 +209,66 @@ fn local_status_uses_verified_catalog_without_network() {
 }
 
 #[test]
+fn recovery_restores_a_crash_between_directory_swaps() {
+    let (temp, game) = game();
+    let config = temp.path().join("config");
+    select_game(&config, &game).unwrap();
+    let (addon, bytes) = package("1.0.0", &[("DarkWhisperRaidTools/Main.lua", "original")]);
+    install_bytes(&game, &addon, &bytes).unwrap();
+    let addons = game.join("Interface/AddOns");
+    let destination = addons.join(&addon.id);
+    let backup = backup_addon(&addons, &destination, &addon.id).unwrap();
+    let name = backup.parent().unwrap().file_name().unwrap().to_str().unwrap();
+    let journal = addons.join(".darkwhispers-pending/DarkWhisperRaidTools.json");
+    write_atomic(&journal, &serde_json::to_vec(&serde_json::json!({"schema":1,"backup_dir":name})).unwrap()).unwrap();
+    let state = status(&config, false).unwrap();
+    assert!(state.addons[0].installed);
+    assert!(state.warning.unwrap().contains("Recovered"));
+    assert_eq!(fs::read(destination.join("Main.lua")).unwrap(), b"original");
+    assert!(!journal.exists());
+}
+
+#[test]
+fn recovery_preserves_committed_install_and_blocks_unsafe_records() {
+    let (temp, game) = game();
+    let config = temp.path().join("config");
+    select_game(&config, &game).unwrap();
+    let (addon, bytes) = package("1.0.0", &[("DarkWhisperRaidTools/Main.lua", "current")]);
+    install_bytes(&game, &addon, &bytes).unwrap();
+    let addons = game.join("Interface/AddOns");
+    let journal = addons.join(".darkwhispers-pending/DarkWhisperRaidTools.json");
+    write_atomic(&journal, br#"{"schema":1,"backup_dir":null}"#).unwrap();
+    assert!(status(&config, false).unwrap().addons[0].installed);
+    assert!(!journal.exists());
+    write_atomic(&journal, br#"{"schema":1,"backup_dir":"DarkWhisperRaidTools-../../OtherAddon"}"#).unwrap();
+    let state = status(&config, false).unwrap();
+    assert!(state.addons[0].issue.as_ref().unwrap().contains("Invalid recovery"));
+    assert!(journal.exists());
+    assert_eq!(fs::read(addons.join("OtherAddon/Other.lua")).unwrap(), b"keep");
+    assert_eq!(fs::read(addons.join("DarkWhisperRaidTools/Main.lua")).unwrap(), b"current");
+}
+
+#[test]
+fn restore_previous_preserves_current_version_as_another_backup() {
+    let (temp, game) = game();
+    let config = temp.path().join("config");
+    select_game(&config, &game).unwrap();
+    let (addon, first) = package("1.0.0", &[("DarkWhisperRaidTools/Main.lua", "first")]);
+    install_bytes(&game, &addon, &first).unwrap();
+    let (addon, second) = package("1.1.0", &[("DarkWhisperRaidTools/Main.lua", "second")]);
+    install_bytes(&game, &addon, &second).unwrap();
+    assert!(status(&config, false).unwrap().addons[0].can_restore);
+    restore_previous(&config, &addon.id).unwrap();
+    assert_eq!(installed_version(&game, &addon.id).unwrap().as_deref(), Some("1.0.0"));
+    let latest = recovery::latest_backup(&game.join("Interface/AddOns"), &addon.id).unwrap().unwrap();
+    assert_eq!(fs::read(latest.join("Main.lua")).unwrap(), b"second");
+    remove(&config, &addon.id).unwrap();
+    restore_previous(&config, &addon.id).unwrap();
+    assert!(installed_version(&game, &addon.id).unwrap().is_some());
+    assert_eq!(fs::read(game.join("WTF/Account/settings.lua")).unwrap(), b"keep settings");
+}
+
+#[test]
 fn status_keeps_folder_errors_attached_to_the_addon() {
     let (temp, game) = game();
     let config = temp.path().join("config");

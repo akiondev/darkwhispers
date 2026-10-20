@@ -1,19 +1,18 @@
-import {loadCatalog, resolveRetail, installAddon, fetchBytes} from "/browser-install.9716a08aff6af6e1.mjs";
+import {loadCatalog, resolveRetail, installAddon, fetchBytes} from "/browser-install.420550aa1e304420.mjs";
 
 const $ = (id) => document.getElementById(id);
 const icons = {
   windows:'<svg viewBox="0 0 24 24"><path d="M2 4.6 10.5 3.4v8H2zm10-1.4L22 1.8v9.6H12zM2 12.8h8.5v8L2 19.6zm10 0h10v9.5l-10-1.4z"/></svg>',
-  macos:'<svg viewBox="0 0 24 24"><path d="M16.6 2c.1 1.3-.5 2.6-1.2 3.5-.8.9-2 1.5-3.1 1.4-.2-1.2.5-2.6 1.2-3.4.8-.9 2.1-1.5 3.1-1.5ZM20 17.2c-.5 1.2-.8 1.7-1.5 2.7-1 1.4-2.3 3.1-3.9 3.1-1.4 0-1.8-.9-3.7-.9s-2.4.9-3.8.9c-1.5 0-2.7-1.5-3.7-2.9C.7 16.3 1 10.7 4.8 8.6c2.7-1.4 4.2-.3 6 .2 1.5.4 3.9-1.7 6.2-.7 1 .4 1.8 1 2.5 1.8-2.8 1.6-2.6 5.6.5 7.3Z"/></svg>',
   linux:'<svg viewBox="0 0 24 24"><path d="m7 5 6 7-6 7-1.6-1.4L10.2 12 5.4 6.4L7 5Zm6 13h8v2h-8z"/></svg>',
   unknown:'<svg viewBox="0 0 24 24"><path d="M3 3h18v13H3zm7 15h4v2h5v2H5v-2h5z"/></svg>'
 };
-const names = {windows:"Windows",macos:"macOS",linux:"Linux",unknown:"Choose a platform"};
+const names = {windows:"Windows",linux:"Linux",unknown:"Choose a platform"};
 function detectedPlatform() {
   const agent = navigator.userAgent || "";
   if (/Android|iPhone|iPad|iPod/i.test(agent) || (/Mac/i.test(navigator.platform) && navigator.maxTouchPoints > 1)) return "unknown";
   const platform = navigator.userAgentData?.platform || navigator.platform || agent;
   if (/Win/i.test(platform)) return "windows";
-  if (/Mac/i.test(platform)) return "macos";
+  if (/Mac/i.test(platform)) return "unknown";
   if (/Linux/i.test(platform)) return "linux";
   return "unknown";
 }

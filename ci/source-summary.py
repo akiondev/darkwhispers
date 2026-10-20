@@ -18,7 +18,7 @@ summary = {
     "schema":1,"commit":os.environ["GITHUB_SHA"],
     "rustsec":{"vulnerabilities":audit["vulnerabilities"]["count"],"advisory_notes":sum(len(items) for items in audit["warnings"].values()),"ignored":[],"database":audit["database"]},
     "semgrep":{"version":analysis["version"],"findings":len(analysis["results"]),"errors":len(analysis.get("errors",[])),"scanned_files":len(analysis["paths"]["scanned"]),"rulesets":["p/security-audit","p/secrets"],"metrics":"off","suppressed_findings":False},
-    "tests":{"lua":"passed","browser_installer":"passed","catalog_publisher":"passed","rust_core":"passed","live_catalog":"passed"},
+    "tests":{"lua":"not_run_unchanged_runtime","browser_installer":"targeted_retail_folder_test_passed","catalog_publisher":"not_run_unchanged_publisher","rust_core":"passed_including_recovery","live_catalog":"not_run_unchanged_download_protocol"},
     "limits":["An attestation proves workflow origin and file integrity, not absence of malicious code or bugs.","Semgrep community rules do not provide whole-program or complete Rust coverage.","RustSec informational advisories remain disclosed in the full report.","Windows installer is unsigned."]
 }
 (reports/"source-summary.json").write_text(json.dumps(summary,indent=2)+"\n")

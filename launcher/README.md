@@ -26,8 +26,12 @@ Saved settings in `WTF` and unrelated addons are never edited. A replaced or rem
 addon is moved into `Interface/AddOns/.darkwhispers-backups/<unique name>/`.
 Backups are retained, not automatically pruned. The live addon folder is replaced
 as a whole so removed files do not linger after updates. If the final rename fails,
-the previous addon is restored; an interrupted process may require restoring the
-backup manually.
+the previous addon is restored. A durable recovery record is written before the
+first rename; the next launch recovers interrupted swaps before allowing changes.
+Repair reinstalls the signed current release. Restore previous explicitly restores
+the newest recognized backup and keeps the displaced version as another backup.
+Addon writes are blocked while WoW is running. Browser installation remains a
+fallback with copy-based rollback; it cannot provide the desktop atomic swap.
 
 ## Build
 
@@ -43,8 +47,7 @@ tauri build
 ```
 
 The workspace `Cargo.lock` pins Rust dependencies. Windows requires MSVC and a
-Windows SDK, or the isolated Linux cross-build described below. macOS requires
-a Mac with Xcode command line tools. Linux requires WebKitGTK 4.1 and the Tauri
+Windows SDK, or the isolated Linux cross-build described below. Linux requires WebKitGTK 4.1 and the Tauri
 system packages. Build on each target operating system for release validation.
 
 For the provided Docker builder:
@@ -96,8 +99,24 @@ catalog changes; older builds can use newly signed online catalogs without rebui
 
 The initial Windows installer is unsigned. Catalog signing is separate from
 Windows Authenticode and does not suppress SmartScreen prompts. No security
-certification or third-party audit is claimed. Launcher self-updates are not
-implemented; download a new launcher release from the website.
+certification or third-party audit is claimed. Windows launcher updates use the
+official Tauri updater, a pinned separate public key and version-bound signatures.
+The update button downloads an immutable GitHub installer, verifies its signature
+and signed version, then installs and restarts. Linux uses normal .deb upgrades.
+macOS is not supported.
+
+The updater private key stays local. After the GitHub release passes its public
+checks, import-github-release.py can sign the verified installer locally with
+--updater-key and --tauri. Only the public signature goes into launcher/latest.json.
+Never upload either private key or commit it. Keep an encrypted offline copy of
+the keys before moving maintenance to another computer. A local DPAPI backup
+protects copies at rest but does not replace an off-device backup.
+
+For a bad release, publish a corrected higher version; automatic downgrades are
+not allowed. To stop new addon installs, publish a correctly signed catalog that
+withdraws the affected addon. For a website failure, restore its previous release
+symlink using the retained deployment directories. Never overwrite an immutable
+GitHub release or replace signing keys silently.
 
 ## Source publication
 
