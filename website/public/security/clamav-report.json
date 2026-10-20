@@ -3,8 +3,8 @@
   "status": "passed",
   "engine": "ClamAV 1.5.4/28159/Tue Oct 20 06:24:12 2026",
   "signatures": 3628175,
-  "started_at": "2026-10-20T19:39:32Z",
-  "checked_at": "2026-10-20T19:39:56Z",
+  "started_at": "2026-10-20T20:38:29Z",
+  "checked_at": "2026-10-20T20:38:44Z",
   "exit_code": 0,
   "detections": 0,
   "artifacts": [
@@ -14,14 +14,14 @@
       "bytes": 21907
     },
     {
-      "filename": "DarkWhispers-Addons-0.3.1-linux-amd64.deb",
-      "sha256": "e3cd44f57c203005cfdcaf6343d732a042493ff1e40d7abeb165e73ca06ab761",
-      "bytes": 2954892
+      "filename": "DarkWhispers-Addons-0.3.3-linux-amd64.deb",
+      "sha256": "8ceda866e976a8a7ad091a1116e03f2eff5c94391e6d02c0e49c1f89c56d86e1",
+      "bytes": 3095042
     },
     {
-      "filename": "DarkWhispers-Addons-0.3.1-windows-x64-setup.exe",
-      "sha256": "77c1da4315f83f43348aaec8f541f3954503e3345b1fa012c78f1e826a884fa4",
-      "bytes": 2184230
+      "filename": "DarkWhispers-Addons-0.3.3-windows-x64-setup.exe",
+      "sha256": "3bbfbe0bd2c54778330b9d522120f25450795fdcd445ac938f5eb4b3eb3376ec",
+      "bytes": 2284091
     }
   ],
   "scope": "All release packages, read-only input mount; recursive archive scanning with limit alerts. No quarantine or removal.",
