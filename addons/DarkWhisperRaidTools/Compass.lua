@@ -7,6 +7,7 @@ local cfg, driver, hud, facing, reason, mapKey, instanceKey, nextLocationCheck
 local FONT = "Fonts\\ARIALN.TTF"
 local MEDIA = "Interface\\AddOns\\DarkWhisperRaidTools\\Media\\"
 local directions = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
+local defaultIcons = { 8, 4, 5, 6, 7, 1, 2, 3 }
 
 local function PublicNumber(value)
     return not (issecretvalue and issecretvalue(value)) and type(value) == "number"
@@ -90,6 +91,13 @@ local function NormalizeProfile(profile, index)
         profile.markers[id] = marker
     end
     return profile
+end
+
+local function DefaultProfile()
+    local profile = { name = "Default", markers = {} }
+    -- Clockwise from north: Skull, Triangle, Moon, Square, Cross, Star, Circle, Diamond.
+    for slot, icon in ipairs(defaultIcons) do profile.markers[slot] = { icon = icon } end
+    return NormalizeProfile(profile, 1)
 end
 
 function C.Profile() return cfg.layouts[cfg.active] end
@@ -516,11 +524,11 @@ function C.Initialize()
     cfg.active = math.floor(Clamp(cfg.active, 1, 1, math.max(1, #cfg.layouts)))
     for index = 1, #cfg.layouts do cfg.layouts[index] = NormalizeProfile(cfg.layouts[index], index) end
     if #cfg.layouts == 0 then
-        cfg.layouts[1] = NormalizeProfile({ name = "Default" }, 1)
+        cfg.layouts[1] = DefaultProfile()
     elseif cfg.layoutVersion ~= 2 and cfg.layouts[1].name ~= "Layout 1" and cfg.layouts[1].name ~= "Default" then
         -- Keep named legacy layouts intact and selected when adding the required
         -- default. The old unnamed first layout can serve as Default directly.
-        table.insert(cfg.layouts, 1, NormalizeProfile({ name = "Default" }, 1))
+        table.insert(cfg.layouts, 1, DefaultProfile())
         cfg.active = cfg.active + 1
     end
     cfg.layouts[1].name = "Default"

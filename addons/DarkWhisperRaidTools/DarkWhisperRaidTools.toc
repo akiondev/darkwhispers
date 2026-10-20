@@ -2,7 +2,7 @@
 ## Title: DarkWhispers Raid Tool
 ## Notes: Standalone manual raid marker compass, layouts and heading calibration.
 ## Author: Robin
-## Version: 1.0.1
+## Version: 1.0.2
 ## SavedVariables: DarkWhisperRaidToolsDB
 
 Core.lua

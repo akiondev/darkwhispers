@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": "0.3.1",
+      "date": "20 Oct 2026",
+      "title": "Your raid marker default",
+      "changes": [
+        "DarkWhispers Raid Tool 1.0.2 ships Skull at north, then Triangle, Moon, Square, Cross, Star, Circle and Diamond clockwise.",
+        "Existing saved layouts and calibrations stay intact. New custom layouts still start empty."
+      ]
+    },
+    {
       "version": "0.3.0",
       "date": "20 Oct 2026",
       "title": "A new home for your raid tools",

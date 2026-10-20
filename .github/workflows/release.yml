@@ -35,7 +35,7 @@ jobs:
           set -euo pipefail
           mkdir -p reports-source
           python ci/prepare.py
-          echo "Not rerun: raid addon changes are display-name/version metadata only; Lua syntax checked locally; user will test in game." > reports-source/addon-tests.txt
+          echo "Not rerun in this workflow: the default marker preset and saved-layout preservation were checked locally with the existing WoW stub. In-game validation remains manual." > reports-source/addon-tests.txt
           echo "Not rerun: catalog publisher unchanged." > reports-source/catalog-tests.txt
           node --test --test-name-pattern="accepts WoW root|upgrades|restores|incomplete new install" website/tests/browser-installer.test.mjs | tee reports-source/browser-tests.txt
           python -m unittest discover -s website/tests -p 'test_*.py' 2>&1 | tee -a reports-source/browser-tests.txt

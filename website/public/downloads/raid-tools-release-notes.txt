@@ -1,4 +1,7 @@
-DarkWhispers Raid Tool 1.0.1
+DarkWhispers Raid Tool 1.0.2
 
-Updated the displayed addon name. Existing addon folder, saved settings, layouts and commands remain compatible.
-Open /acomp or /dwrt to configure the standalone compass.
+Default marker preset, clockwise from north:
+Skull, Triangle, Moon, Square, Cross, Star, Circle, Diamond.
+Angles: 0, 45, 90, 135, 180, 225, 270, 315 degrees.
+Existing saved layouts, calibration and new empty custom layouts are preserved.
+Open /acomp or /dwrt to configure the compass.

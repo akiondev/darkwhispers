@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const invoke = window.__TAURI__?.core.invoke;
 let state = null, busy = false, pendingRemoval = null;
-let launcherVersion = "0.3.0", availableLauncher = null, reportsLoaded = false;
+let launcherVersion = "0.3.1", availableLauncher = null, reportsLoaded = false;
 function updateMotion() {
   document.documentElement.classList.toggle("motion-paused", document.hidden || !document.hasFocus());
 }
@@ -182,6 +182,6 @@ if (invoke) {
     try { render(await invoke("get_status",{checkUpdates:false})); message(String(payload)); } catch {}
   });
 } else {
-  render({game_path:null,auto_update:false,warning:null,addons:[{addon:{id:"DarkWhisperRaidTools",title:"DarkWhispers Raid Tool",description:"Your raid markers. Your north. A standalone compass with custom layouts.",version:"1.0.1"},installed:false,installed_version:null,update_available:false}]});
+  render({game_path:null,auto_update:false,warning:null,addons:[{addon:{id:"DarkWhisperRaidTools",title:"DarkWhispers Raid Tool",description:"Your raid markers. Your north. A standalone compass with custom layouts.",version:"1.0.2"},installed:false,installed_version:null,update_available:false}]});
   message("Design preview. Open the desktop launcher to manage addons.");
 }

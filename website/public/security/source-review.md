@@ -1,9 +1,11 @@
 # DarkWhispers maintainer review notes
 
-Release: launcher 0.3.0 and DarkWhispers Raid Tool 1.0.1.
+Release: launcher 0.3.1 and DarkWhispers Raid Tool 1.0.2.
 Scope: implementation notes, not an independent audit or security certification.
 The original automated reports, source commit and exact package hashes are in
 the immutable GitHub release and its public workflow.
+
+The default marker preset starts with Skull at north, followed clockwise by Triangle, Moon, Square, Cross, Star, Circle and Diamond. Existing saved layouts are preserved. The existing WoW stub was used locally to check the preset, rendered positions and layout preservation; this is separate from workflow-run checks.
 
 ## Installation and storage
 
