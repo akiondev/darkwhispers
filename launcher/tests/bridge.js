@@ -7,23 +7,29 @@ let selectedFolder = null;
 let failNext = false;
 let folderIssue = false;
 let unknownVersion = false;
+let offline = false;
+let lastCheck = null;
 const addon = {
   id: "DarkWhisperRaidTools", title: "DarkWhispers Raid Tool",
   description: "Your raid markers. Your north. A standalone compass with custom layouts.",
-  version: "1.0.2"
+  version: "1.0.2", released_at: 1792525213,
+  release_notes: "Default markers follow the requested clockwise arrangement. Existing saved layouts are preserved."
 };
 window.__TAURI__ = {core: {invoke: async (command, args = {}) => {
   await new Promise(resolve => setTimeout(resolve, 150));
   if (failNext) { failNext = false; throw "Test download failed. Nothing was installed."; }
-  if (command === "check_launcher_update") return {current:"0.3.1",available:null,supported:true};
+  if (command === "check_launcher_update") return {current:"0.3.2",available:null,supported:true};
   if (command === "set_auto_update") { autoUpdate = args.enabled; return; }
   if (command === "window_action" || command === "open_resource") return;
   if (command === "get_release_checks") return (await fetch("/build/release-checks.json")).json();
-  if (command === "get_status") return {
-    game_path: selectedFolder, warning: null, auto_update: autoUpdate,
-    addons: [{addon, installed: folderIssue ? false : installed, installed_version: installed ? (unknownVersion ? "Unknown" : availableUpdate ? "0.9.0" : "1.0.2") : null, update_available: availableUpdate,
+  if (command === "get_status") {
+    if (args.checkUpdates && !offline) lastCheck = Math.floor(Date.now()/1000);
+    return {
+    game_path: selectedFolder, warning: offline ? "Could not check for addon updates. Showing the last known release." : null, auto_update: autoUpdate,
+    catalog_online: !!args.checkUpdates && !offline, catalog_checked_at: lastCheck,
+    addons: [{addon, installed: folderIssue ? false : installed, installed_version: installed ? (unknownVersion ? "Unknown" : availableUpdate ? "1.0.1" : "1.0.2") : null, update_available: availableUpdate,
       issue: folderIssue ? "DarkWhisperRaidTools already exists but is not a recognized addon. It was not changed." : null}]
-  };
+  }; }
   if (command === "choose_game") { selectedFolder = "C:\\Games\\World of Warcraft\\_retail_"; return true; }
   if (command === "install_addon") { installed = true; availableUpdate = false; return; }
   if (command === "remove_addon") { installed = false; return; }
@@ -37,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ["QA: fail next operation", () => { failNext = true; }],
     ["QA: unknown version", () => { installed = true; unknownVersion = true; folderIssue = false; availableUpdate = false; document.getElementById("refresh").click(); }],
     ["QA: folder conflict", () => { folderIssue = true; document.getElementById("refresh").click(); }],
+    ["QA: offline", () => { offline = !offline; document.getElementById("refresh").click(); }],
   ]) {
     const button = document.createElement("button");
     button.textContent = text;

@@ -105,6 +105,15 @@ node launcher/build-tools/publish-catalog.mjs
 must never be silently replaced. App binaries should be rebuilt when the bundled
 catalog changes; older builds can use newly signed online catalogs without rebuilding.
 
+Addon updates do not require a launcher update. Use Check updates in an addon row
+to fetch the signed catalog, then Update to install that addon. Compact rows show
+the installed and latest versions, release date and expandable release notes.
+Cached/offline results are labeled and never claim to be up to date. Returning to
+the foreground refreshes the list after one minute without a background timer.
+Maintain website/addon-releases.json with the addon's version, release date and
+summary before signing a changed catalog. Its publication date also prevents an
+older cached catalog from hiding a newer bundled catalog while offline.
+
 The initial Windows installer is unsigned. Catalog signing is separate from
 Windows Authenticode and does not suppress SmartScreen prompts. No security
 certification or third-party audit is claimed. Windows launcher updates use the

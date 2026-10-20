@@ -7,7 +7,7 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{Cursor, Read, Write},
     path::{Component, Path, PathBuf},
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 pub type Result<T> = std::result::Result<T, String>;
@@ -24,6 +24,10 @@ pub struct Addon {
     pub title: String,
     pub description: String,
     pub version: String,
+    #[serde(default)]
+    pub released_at: Option<u64>,
+    #[serde(default)]
+    pub release_notes: Option<String>,
     pub download_url: String,
     pub sha256: String,
 }
@@ -31,6 +35,8 @@ pub struct Addon {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Catalog {
     pub schema: u32,
+    #[serde(default)]
+    pub published_at: u64,
     pub addons: Vec<Addon>,
 }
 
@@ -62,6 +68,8 @@ pub struct Status {
     pub addons: Vec<AddonStatus>,
     pub warning: Option<String>,
     pub auto_update: bool,
+    pub catalog_online: bool,
+    pub catalog_checked_at: Option<u64>,
 }
 
 fn error(context: &str, source: impl std::fmt::Display) -> String {
@@ -151,8 +159,11 @@ fn client() -> Result<reqwest::blocking::Client> {
 }
 
 fn download(url: &str, limit: u64) -> Result<Vec<u8>> {
-    let response = client()?
-        .get(url)
+    let mut request = client()?.get(url);
+    if url == CATALOG_URL {
+        request = request.header(reqwest::header::CACHE_CONTROL, "no-cache");
+    }
+    let response = request
         .send()
         .and_then(|r| r.error_for_status())
         .map_err(|e| error("Download failed", e))?;
@@ -362,14 +373,21 @@ fn parse_version(toc: &str) -> Option<String> {
     })
 }
 
-fn cached_catalog(config: &Path) -> Result<Catalog> {
-    if let Some(catalog) = fs::read(config.join("catalog.json"))
+fn cached_catalog(config: &Path) -> Result<(Catalog, Option<u64>)> {
+    let bundled = verify_catalog(include_bytes!("bundled-catalog.json"))?;
+    let path = config.join("catalog.json");
+    if let Some(catalog) = fs::read(&path)
         .ok()
         .and_then(|b| verify_catalog(&b).ok())
     {
-        return Ok(catalog);
+        // An older saved catalog must not hide a newer bundled release offline.
+        if catalog.published_at >= bundled.published_at {
+            let checked_at = fs::metadata(path).ok().and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_secs());
+            return Ok((catalog, checked_at));
+        }
     }
-    verify_catalog(include_bytes!("bundled-catalog.json"))
+    Ok((bundled, None))
 }
 
 pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
@@ -380,17 +398,18 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
             save_settings(config, &settings)?;
         }
     }
-    let catalog_result = if check_updates {
-        fetch_catalog(config)
-    } else {
-        cached_catalog(config)
-    };
-    let (catalog, mut warning) = match catalog_result {
-        Ok(catalog) => (catalog, None),
-        Err(_) => {
-            (cached_catalog(config)?,
-             Some("Could not check for updates. Showing the last known release. Check your connection and try again.".into()))
+    let (catalog, catalog_checked_at, catalog_online, mut warning) = if check_updates {
+        match fetch_catalog(config) {
+            Ok(catalog) => (catalog, SystemTime::now().duration_since(UNIX_EPOCH).ok().map(|d| d.as_secs()), true, None),
+            Err(_) => {
+                let (catalog, checked_at) = cached_catalog(config)?;
+                (catalog, checked_at, false,
+                 Some("Could not check for addon updates. Showing the last known release. Check your connection and try again.".into()))
+            }
         }
+    } else {
+        let (catalog, checked_at) = cached_catalog(config)?;
+        (catalog, checked_at, false, None)
     };
     let game = settings
         .game_path
@@ -434,6 +453,8 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
         addons,
         warning,
         auto_update: settings.auto_update,
+        catalog_online,
+        catalog_checked_at,
     })
 }
 

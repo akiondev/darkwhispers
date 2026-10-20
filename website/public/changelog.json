@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "version": "0.3.2",
+      "date": "20 Oct 2026",
+      "title": "Clearer addon updates",
+      "changes": [
+        "Compact dark addon rows show installed and latest versions, update dates and release notes.",
+        "Check and install addon updates directly from each row. Addon updates are independent of launcher updates.",
+        "Cached catalogs no longer claim Up to date. Returning to the launcher refreshes the list when needed."
+      ]
+    },
+    {
       "version": "0.3.1",
       "date": "20 Oct 2026",
       "title": "Your raid marker default",

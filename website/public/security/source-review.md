@@ -1,6 +1,6 @@
 # DarkWhispers maintainer review notes
 
-Release: launcher 0.3.1 and DarkWhispers Raid Tool 1.0.2.
+Release: launcher 0.3.2 and DarkWhispers Raid Tool 1.0.2.
 Scope: implementation notes, not an independent audit or security certification.
 The original automated reports, source commit and exact package hashes are in
 the immutable GitHub release and its public workflow.
@@ -21,6 +21,13 @@ versions. The browser installer uses verified staging and temporary copy-based
 rollback; a closed tab or lost permission can still interrupt browser recovery.
 
 ## Desktop behavior
+
+Addon versions come from the independently signed online catalog. Per-addon checks
+do not use the launcher self-updater. Compact rows show installed/latest versions,
+the release date and expandable notes. A cached result is labeled explicitly and
+cannot display Up to date. The list refreshes on return to the foreground after
+one minute; no periodic timer or automatic install is added while auto-update is off.
+Older saved catalogs cannot hide a more recent bundled catalog during offline fallback.
 
 The custom frame uses native window operations. A system tray offers Open and
 Quit; unsupported desktop trays fall back to normal taskbar minimization.

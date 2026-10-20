@@ -18,6 +18,7 @@ test("catalog publication preserves trust, rejects wrong keys, and requires expl
   const addonBase = existsSync(resolve(root,"addons")) ? resolve(root,"addons") : root;
   cpSync(resolve(addonBase,"DarkWhisperRaidTools"),resolve(project,"DarkWhisperRaidTools"),{recursive:true});
   mkdirSync(resolve(project,"website/public/downloads"),{recursive:true});
+  cpSync(resolve(root,"website/addon-releases.json"),resolve(project,"website/addon-releases.json"));
   const envelope = JSON.parse(readFileSync(resolve(root,"website/public/api/v1/catalog.json"),"utf8"));
   const payload = JSON.parse(Buffer.from(envelope.payload,"base64"));
   const name = "DarkWhisperRaidTools-"+payload.addons[0].version+".zip";
@@ -37,6 +38,12 @@ test("catalog publication preserves trust, rejects wrong keys, and requires expl
   const signed = readFileSync(signedFile);
   const data = JSON.parse(signed);
   assert.equal(verify(null,Buffer.from(data.payload,"base64"),key,Buffer.from(data.signature,"base64")),true);
+  const published = JSON.parse(Buffer.from(data.payload,"base64"));
+  assert.ok(published.published_at > 0);
+  assert.ok(published.addons[0].released_at <= published.published_at);
+  assert.equal(published.addons[0].version,payload.addons[0].version);
+  const metadata = JSON.parse(readFileSync(resolve(root,"website/addon-releases.json"),"utf8"));
+  assert.equal(published.addons[0].release_notes,metadata.addons.DarkWhisperRaidTools.release_notes);
   assert.equal(run().status,0);
   assert.deepEqual(readFileSync(publicFile),publicBytes);
   const replacement = generateKeyPairSync("ed25519").privateKey.export({type:"pkcs8",format:"pem"});

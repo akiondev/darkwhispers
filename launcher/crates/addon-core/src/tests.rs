@@ -206,6 +206,28 @@ fn local_status_uses_verified_catalog_without_network() {
     assert!(state.game_path.is_some());
     assert!(!state.addons[0].installed);
     assert!(state.warning.is_none());
+    assert!(!state.catalog_online);
+    assert!(state.catalog_checked_at.is_none());
+}
+
+#[test]
+fn addon_update_is_independent_of_the_launcher_version() {
+    let (temp, game) = game();
+    let config = temp.path().join("config");
+    select_game(&config, &game).unwrap();
+    let (old, bytes) = package("1.0.1", &[]);
+    install_bytes(&game, &old, &bytes).unwrap();
+    fs::write(config.join("catalog.json"), include_bytes!("bundled-catalog.json")).unwrap();
+    let state = status(&config, false).unwrap();
+    let addon = &state.addons[0];
+    assert_eq!(addon.installed_version.as_deref(), Some("1.0.1"));
+    let expected = verify_catalog(include_bytes!("bundled-catalog.json")).unwrap();
+    assert_eq!(addon.addon.version, expected.addons[0].version);
+    assert!(addon.update_available);
+    assert!(addon.addon.released_at.is_some());
+    assert!(!addon.addon.release_notes.as_ref().unwrap().is_empty());
+    assert!(!state.catalog_online);
+    assert!(state.catalog_checked_at.is_some());
 }
 
 #[test]
@@ -320,10 +342,18 @@ fn live_signed_release_installs_and_removes() {
     let (temp, game) = game();
     let config = temp.path().join("config");
     select_game(&config, &game).unwrap();
+    let (old, bytes) = package("1.0.1", &[]);
+    install_bytes(&game, &old, &bytes).unwrap();
+    let before = status(&config, true).unwrap();
+    assert!(before.catalog_online);
+    assert!(before.catalog_checked_at.is_some());
+    assert!(before.addons[0].update_available);
+    let expected = before.addons[0].addon.version.clone();
     install(&config, "DarkWhisperRaidTools").unwrap();
     let state = status(&config, false).unwrap();
     assert!(state.addons[0].installed);
     assert!(!state.addons[0].update_available);
+    assert_eq!(state.addons[0].installed_version.as_deref(), Some(expected.as_str()));
     remove(&config, "DarkWhisperRaidTools").unwrap();
     assert!(installed_version(&game, "DarkWhisperRaidTools")
         .unwrap()

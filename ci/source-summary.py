@@ -18,7 +18,7 @@ summary = {
     "schema":1,"commit":os.environ["GITHUB_SHA"],
     "rustsec":{"vulnerabilities":audit["vulnerabilities"]["count"],"advisory_notes":sum(len(items) for items in audit["warnings"].values()),"ignored":[],"database":audit["database"]},
     "semgrep":{"version":analysis["version"],"findings":len(analysis["results"]),"errors":len(analysis.get("errors",[])),"scanned_files":len(analysis["paths"]["scanned"]),"rulesets":["p/security-audit","p/secrets"],"metrics":"off","suppressed_findings":False},
-    "tests":{"lua":"not_run_in_workflow_default_preset_and_layout_preservation_checked_locally","browser_installer":"targeted_folder_update_cleanup_and_rollback_passed","catalog_publisher":"signed_catalog_fixture_and_archive_hashes_passed","rust_core":"passed_including_recovery","live_catalog":"not_run_unchanged_download_protocol"},
+    "tests":{"lua":"not_run_in_workflow_default_preset_and_layout_preservation_checked_locally","browser_installer":"targeted_folder_update_cleanup_and_rollback_passed","catalog_publisher":"signed_catalog_fixture_and_archive_hashes_passed","rust_core":"passed_including_recovery_and_independent_addon_update","live_catalog":"passed_independent_addon_update_from_old_fixture"},
     "limits":["An attestation proves workflow origin and file integrity, not absence of malicious code or bugs.","Semgrep community rules do not provide whole-program or complete Rust coverage.","RustSec informational advisories remain disclosed in the full report.","Windows installer is unsigned."]
 }
 (reports/"source-summary.json").write_text(json.dumps(summary,indent=2)+"\n")

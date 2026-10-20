@@ -39,6 +39,15 @@ const addonBase = existsSync(resolve(root, "addons")) ? resolve(root, "addons") 
 const toc = readFileSync(resolve(addonBase,"DarkWhisperRaidTools/DarkWhisperRaidTools.toc"),"utf8");
 const version = toc.match(/^## Version:\s*([0-9.]+)\s*$/m)?.[1];
 if (!version) throw new Error("Missing addon version");
+const metadata = JSON.parse(readFileSync(resolve(root,"website/addon-releases.json"),"utf8"));
+const release = metadata.addons?.DarkWhisperRaidTools;
+const publishedAt = Date.parse(metadata.published_at) / 1000;
+const releasedAt = Date.parse(release?.released_at) / 1000;
+if (release?.version !== version || !Number.isSafeInteger(publishedAt) || !Number.isSafeInteger(releasedAt)
+    || releasedAt <= 0 || releasedAt > publishedAt || typeof release.release_notes !== "string"
+    || !release.release_notes.trim() || release.release_notes.length > 2000) {
+  throw new Error("Addon release metadata must match the runtime version and contain a valid date and summary.");
+}
 const archiveName = `DarkWhisperRaidTools-${version}.zip`;
 const archive = readFileSync(resolve(root,"website/public/downloads",archiveName));
 const runtimeRoot = resolve(addonBase, "DarkWhisperRaidTools");
@@ -67,11 +76,14 @@ collectRuntime(runtimeRoot);
 if (files.length !== 7) throw new Error("Unexpected runtime inventory. Review the release allowlist.");
 const payload = Buffer.from(JSON.stringify({
   schema:1,
+  published_at:publishedAt,
   addons:[{
     id:"DarkWhisperRaidTools",
     title:"DarkWhispers Raid Tool",
     description:"Your raid markers. Your north. A standalone compass with custom layouts.",
     version,
+    released_at:releasedAt,
+    release_notes:release.release_notes,
     download_url:`https://darkwhispers.akion.se/downloads/${archiveName}`,
     sha256:createHash("sha256").update(archive).digest("hex"),
     files_schema:1,

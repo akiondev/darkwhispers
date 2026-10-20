@@ -1,0 +1,10 @@
+{
+  "published_at": "2026-10-20T20:09:27Z",
+  "addons": {
+    "DarkWhisperRaidTools": {
+      "version": "1.0.2",
+      "released_at": "2026-10-20T19:40:13Z",
+      "release_notes": "Default markers: Skull at north, then Triangle, Moon, Square, Cross, Star, Circle and Diamond clockwise. Saved layouts are preserved."
+    }
+  }
+}
