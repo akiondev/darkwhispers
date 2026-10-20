@@ -101,8 +101,10 @@ implemented; download a new launcher release from the website.
 
 ## Source publication
 
-The launcher code is MIT licensed. The owner will create the public GitHub repository
-separately. Do not publish private keys, `.tools`, build caches or credentials.
+The launcher code is MIT licensed and public at
+https://github.com/akiondev/darkwhispers. Do not publish private keys, `.tools`,
+build caches or credentials. See ../docs/VERIFY.md for public build provenance,
+complete scan reports and immutable release verification.
 The addon is a separate project; this license covers the launcher, not Blizzard
 assets or third-party dependencies. Dependency license notices are generated during
 release preparation. No paid signing service or paid hosting product is required

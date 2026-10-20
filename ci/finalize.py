@@ -28,8 +28,18 @@ for path in sorted(staging.iterdir()):
         artifacts.append({"filename":path.name,"sha256":digest,"bytes":path.stat().st_size,"url":base+path.name})
     shutil.copyfile(path,release/path.name)
 assert len(artifacts) >= 4
+codeql_runs = []
+for path in sorted(release.glob("codeql-*.sarif")):
+    codeql_runs.extend(json.loads(path.read_text())["runs"])
+assert len(codeql_runs) >= 2, "Both CodeQL language reports are required"
+for run in codeql_runs:
+    rules = {item["id"]:item for item in run["tool"]["driver"].get("rules",[])}
+    for finding in run.get("results",[]):
+        severity = float(rules.get(finding.get("ruleId"),{}).get("properties",{}).get("security-severity","0"))
+        assert severity < 7, "High-severity CodeQL finding blocks release"
+(release/"codeql-report.sarif").write_text(json.dumps({"version":"2.1.0","runs":codeql_runs},indent=2)+"\n")
 report_files = {}
-for name in ("defender.json","clamav.json","semgrep.json","cargo-audit.json","source-summary.json","source-files.json"):
+for name in ("defender.json","clamav.json","semgrep.json","cargo-audit.json","source-summary.json","source-files.json","codeql-report.sarif"):
     path = release/name
     report_files[name] = {"url":base+name,"sha256":hashlib.sha256(path.read_bytes()).hexdigest()}
 evidence = {
@@ -41,6 +51,7 @@ evidence = {
     "workflow":".github/workflows/release.yml","checked_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "artifacts":artifacts,"reports":report_files,"source":source,
     "scanners":{"defender":defender,"clamav":clam},
+    "codeql":{"findings":sum(len(run.get("results",[])) for run in codeql_runs),"languages":["JavaScript","Python"],"report":report_files["codeql-report.sarif"]},
     "attestation":{"type":"https://slsa.dev/provenance/v1","verification_command":"gh attestation verify <downloaded-file> --repo akiondev/darkwhispers --signer-workflow akiondev/darkwhispers/.github/workflows/release.yml"},
     "limits":source["limits"]
 }

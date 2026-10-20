@@ -260,6 +260,7 @@ local function loadAddon(saved)
     UISpecialFrames, SlashCmdList = {}, {}
     local ns = {}
     for line in io.lines("AkionUI/AkionUI.toc") do
+        line = line:gsub("\r$", "")
         if line:match("%.lua$") then assert(loadfile("AkionUI/" .. line))("AkionUI", ns) end
     end
     fire("ADDON_LOADED", "UnrelatedAddon")
@@ -278,6 +279,7 @@ local function loadRaidTools(saved, legacy, order)
     local raid, akion = {}, {}
     local function Load(name, namespace)
         for line in io.lines(name .. "/" .. name .. ".toc") do
+            line = line:gsub("\r$", "")
             if line:match("%.lua$") then assert(loadfile(name .. "/" .. line))(name, namespace) end
         end
         fire("ADDON_LOADED", name)

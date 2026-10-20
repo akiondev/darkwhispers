@@ -178,6 +178,7 @@ function renderSecurity() {
   };
   $("public-build").href = publicRun ? provenance.run_url : "https://github.com/akiondev/darkwhispers/actions";
   $("public-build").textContent = publicRun ? "View this release's public build & scans ↗" : "View public builds & scans on GitHub ↗";
+  $("release-report").href = reportLink("evidence","/security/release-checks.json");
   $("provenance-note").textContent = publicRun ? "Built from " + provenance.commit.slice(0,12) + ". Verify signed files and original reports on GitHub." : "These existing scans were run by the maintainer. A public GitHub release build is pending.";
   const required = Object.values(release.platforms).map((item) => item.sha256).concat(catalog ? catalog.addons.map((item)=>item.sha256) : []);
   const artifacts = checks.artifacts || [];
@@ -197,7 +198,7 @@ function renderSecurity() {
   const analysis = reportMatches ? checks.static_analysis : null;
   const analysisDone = analysis?.status === "completed" && analysis.errors === 0;
   rows.append(checkRow("ClamAV antivirus", clamPassed ? "0 detections" : "Pending", clamPassed ? clam.engine + " · " + clam.signatures + " signatures. Full archive scanning; see the exact file hashes and log." : "No matching completed ClamAV scan for every release file.", clamPassed));
-  rows.append(checkRow("Semgrep Community Edition", analysisDone ? analysis.findings + " findings" : "See report", analysis?.summary || "No automated source scan has been published.", analysisDone && analysis.findings === 0));
+  rows.append(checkRow("Semgrep Community Edition", analysisDone ? analysis.findings + (analysis.findings === 1 ? " finding" : " findings") : "See report", analysis?.summary || "No automated source scan has been published.", analysisDone && analysis.findings === 0));
   rows.append(checkRow("Addon integrity", "Verified on install", "Ed25519 catalog signature and SHA-256 checks for every file before it is written.", true));
   const meta = document.createElement("p");
   meta.className = "report-meta";
@@ -216,9 +217,13 @@ function renderSecurity() {
     evidenceCard("Semgrep · code analysis", analysisDone ? (analysis.findings && analysis.reviewed_findings === analysis.findings ? analysis.findings + " reviewed note" : analysis.findings + " findings") + " · " + analysis.scanned_files + " files scanned" : "Analysis pending", reportLink("semgrep","/security/semgrep-report.json"), analysisDone && analysis.findings === 0),
     evidenceCard("RustSec · dependencies", noVulnerabilities ? "0 vulnerabilities · " + audit.warnings + " advisory notes" : "Audit pending", reportLink("rustsec","/security/dependency-audit.json"), noVulnerabilities && !audit.warnings)
   );
+  if (publicRun && checks.codeql) {
+    grid.append(evidenceCard("CodeQL · code analysis", checks.codeql.findings + " findings · JavaScript & Python", reportLink("codeql","/security/codeql-report.sarif"), checks.codeql.findings === 0));
+    grid.append(evidenceCard("Signed provenance", provenance.immutable ? "Immutable GitHub release" : "Verify on GitHub", provenance.release_url, !!provenance.immutable));
+  }
   const stamp = checks.checked_at ? new Date(checks.checked_at) : null;
   $("evidence-version").textContent = reportMatches ? "v" + release.version + (stamp && !Number.isNaN(stamp.getTime()) ? " · " + stamp.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "") : "Reports pending";
-  $("security-summary").textContent = "Windows installer unsigned · automated checks and developer review, not an independent certification.";
+  $("security-summary").textContent = publicRun ? "GitHub-hosted checks · Windows installer unsigned · provenance proves origin and integrity, not safety." : "Windows installer unsigned · automated checks and developer review, not an independent certification.";
 }
 async function initialize() {
   selectPlatform(selectedPlatform);
