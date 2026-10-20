@@ -116,6 +116,13 @@ jobs:
           else
             tauri build --bundles deb --ci
           fi
+      - name: Preserve compiled dependencies before package tests
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            launcher/target
+          key: native-${{ runner.os }}-1.99.1-${{ hashFiles('launcher/Cargo.lock') }}
       - name: Windows installer and uninstaller
         if: runner.os == 'Windows'
         shell: pwsh

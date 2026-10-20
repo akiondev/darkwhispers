@@ -31,7 +31,12 @@ Write-Output 'Windows installer: successful; installed executable SHA-256 verifi
 # This uninstaller was just installed into the verified, previously absent test folder.
 $uninstall = Start-Process -FilePath (Join-Path $testRoot 'uninstall.exe') -ArgumentList '/S' -WindowStyle Hidden -PassThru
 if (-not $uninstall.WaitForExit(30000)) { throw 'Uninstaller did not complete within 30 seconds.' }
-for ($attempt = 0; $attempt -lt 50 -and (Test-Path -LiteralPath $installedExe); $attempt++) { Start-Sleep -Milliseconds 100 }
+# NSIS may continue in its temporary child process after this parent exits.
+# Wait for both filesystem and registry cleanup, not just executable deletion.
+$cleanupDeadline = [DateTime]::UtcNow.AddSeconds(30)
+while ([DateTime]::UtcNow -lt $cleanupDeadline -and ((Test-Path -LiteralPath $installedExe) -or (Test-Path -LiteralPath $registration))) {
+    Start-Sleep -Milliseconds 100
+}
 if ((Test-Path -LiteralPath $installedExe) -or (Test-Path -LiteralPath $registration)) { throw 'Uninstall verification failed.' }
 # NSIS intentionally remembers its install directory. Remove only the test's new key.
 if (Test-Path -LiteralPath $productKey) {
