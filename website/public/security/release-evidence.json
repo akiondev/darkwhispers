@@ -1,74 +1,74 @@
 {
   "schema": 2,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "repository": "akiondev/darkwhispers",
-  "tag": "v0.1.3",
-  "commit": "83f228cc9aa956502dff5d9cc51b5dbcba78750c",
-  "run_id": 39441060689,
-  "run_url": "https://github.com/akiondev/darkwhispers/actions/runs/39441060689",
-  "source_url": "https://github.com/akiondev/darkwhispers/tree/83f228cc9aa956502dff5d9cc51b5dbcba78750c",
-  "release_url": "https://github.com/akiondev/darkwhispers/releases/tag/v0.1.3",
+  "tag": "v0.1.4",
+  "commit": "bb073c83d23ad8724b8d131664ceb0d3f7377748",
+  "run_id": 39451741168,
+  "run_url": "https://github.com/akiondev/darkwhispers/actions/runs/39451741168",
+  "source_url": "https://github.com/akiondev/darkwhispers/tree/bb073c83d23ad8724b8d131664ceb0d3f7377748",
+  "release_url": "https://github.com/akiondev/darkwhispers/releases/tag/v0.1.4",
   "workflow": ".github/workflows/release.yml",
-  "checked_at": "2026-10-20T14:42:09.784005+00:00",
+  "checked_at": "2026-10-20T15:56:08.833635+00:00",
   "artifacts": [
     {
       "filename": "AkionUI-0.8.1.zip",
       "sha256": "c83b2f9f1ca5bd8e397e93726ce89c081829ef66f75bcf34db7ec3197fd30b59",
       "bytes": 12927,
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/AkionUI-0.8.1.zip"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/AkionUI-0.8.1.zip"
     },
     {
       "filename": "DarkWhisperRaidTools-1.0.0.zip",
       "sha256": "0db555a3519b410400c32560144d93ea515ed767787f4a9666a8c51f2554489f",
       "bytes": 21778,
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/DarkWhisperRaidTools-1.0.0.zip"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/DarkWhisperRaidTools-1.0.0.zip"
     },
     {
-      "filename": "DarkWhispers-Addons-0.1.3-linux-amd64.deb",
-      "sha256": "9d5caf9e1402e0bc4026420529a8549ca3c74edd62b2c2c6b6c49a29bc7d8721",
-      "bytes": 2816078,
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/DarkWhispers-Addons-0.1.3-linux-amd64.deb"
+      "filename": "DarkWhispers-Addons-0.1.4-linux-amd64.deb",
+      "sha256": "5c801e8fb64173204bd29d8cef349f7813f748a49b57ac254edc142fb8a9600c",
+      "bytes": 2816846,
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/DarkWhispers-Addons-0.1.4-linux-amd64.deb"
     },
     {
-      "filename": "DarkWhispers-Addons-0.1.3-windows-x64-setup.exe",
-      "sha256": "04989c8641de6324b8e1def6ff5f6a64891226a4a4f88315be843c8d9b0d5d05",
-      "bytes": 2025519,
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/DarkWhispers-Addons-0.1.3-windows-x64-setup.exe"
+      "filename": "DarkWhispers-Addons-0.1.4-windows-x64-setup.exe",
+      "sha256": "112e94d0581f91d0c820db8b87fd7f864732485e9de59740f32fc03560adfb95",
+      "bytes": 2026354,
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/DarkWhispers-Addons-0.1.4-windows-x64-setup.exe"
     }
   ],
   "reports": {
     "defender.json": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/defender.json",
-      "sha256": "0558ffd3edad35e3c4ee054a1545948489fd890472afcacfdcdee6ccd0f0104f"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/defender.json",
+      "sha256": "975e832c9470a01e1c139e7f67d41ac9974e3917cbbe0710667f66d7c7ea9505"
     },
     "clamav.json": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/clamav.json",
-      "sha256": "ee812ff88351fac7076b702c95855f38231f4fae0be48a4e7204d0fd87a9d56b"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/clamav.json",
+      "sha256": "83889e0b5b9214dad8b3d6f67d7a223b61a720d2133221eb79c5123675bf02ab"
     },
     "semgrep.json": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/semgrep.json",
-      "sha256": "68154f15d244f5fff82717a1ced6dd19bf12364301f3563a6d4a41cde33aee88"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/semgrep.json",
+      "sha256": "2e404a4fe1bcad6d66c0ff627cf31e02fc3e8beac0445f6457fa0f4132f95c3b"
     },
     "cargo-audit.json": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/cargo-audit.json",
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/cargo-audit.json",
       "sha256": "ecfb23d8a0525d8acc2b51b2324b259e6f910e7efe028af132d8040940dcb619"
     },
     "source-summary.json": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/source-summary.json",
-      "sha256": "e200a728b3a97b0aa157e7bd3b0beb301a0399413078a8c226b15f98ecc30703"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/source-summary.json",
+      "sha256": "8ae869ff4da4a5d4930dfef5ffa7bb7b95c70101b37aa103925bec990351d5d0"
     },
     "source-files.json": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/source-files.json",
-      "sha256": "f08517fe3b6c768dc24fa3f44b8eac418e70378381402edee4c85a3c8572ae57"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/source-files.json",
+      "sha256": "bcf681fbf1a1469888678e32d74f0e209c316357479505ff87b924813efa52ba"
     },
     "codeql-report.sarif": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/codeql-report.sarif",
-      "sha256": "a772b34ba2d47c8d01e4d5429dc11be9d91ea753aa1afe879dcdd6f5e405d60d"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/codeql-report.sarif",
+      "sha256": "62b55f6bf49d0b85841a106f772bf4121f32f677d86889528330204da88511f3"
     }
   },
   "source": {
     "schema": 1,
-    "commit": "83f228cc9aa956502dff5d9cc51b5dbcba78750c",
+    "commit": "bb073c83d23ad8724b8d131664ceb0d3f7377748",
     "rustsec": {
       "vulnerabilities": 0,
       "advisory_notes": 2,
@@ -83,7 +83,7 @@
       "version": "1.180.0",
       "findings": 1,
       "errors": 0,
-      "scanned_files": 109,
+      "scanned_files": 113,
       "rulesets": [
         "p/security-audit",
         "p/secrets"
@@ -119,8 +119,8 @@
       ],
       "maximum_signature_age_hours": 72,
       "signatures_updated_at": "2026-10-20T08:34:39.0000000Z",
-      "started_at": "2026-10-20T14:41:21.9302317Z",
-      "checked_at": "2026-10-20T14:41:30.2853977Z",
+      "started_at": "2026-10-20T15:55:41.2607029Z",
+      "checked_at": "2026-10-20T15:55:49.6317347Z",
       "artifacts": [
         {
           "filename": "AkionUI-0.8.1.zip",
@@ -133,14 +133,14 @@
           "bytes": 21778
         },
         {
-          "filename": "DarkWhispers-Addons-0.1.3-linux-amd64.deb",
-          "sha256": "9d5caf9e1402e0bc4026420529a8549ca3c74edd62b2c2c6b6c49a29bc7d8721",
-          "bytes": 2816078
+          "filename": "DarkWhispers-Addons-0.1.4-linux-amd64.deb",
+          "sha256": "5c801e8fb64173204bd29d8cef349f7813f748a49b57ac254edc142fb8a9600c",
+          "bytes": 2816846
         },
         {
-          "filename": "DarkWhispers-Addons-0.1.3-windows-x64-setup.exe",
-          "sha256": "04989c8641de6324b8e1def6ff5f6a64891226a4a4f88315be843c8d9b0d5d05",
-          "bytes": 2025519
+          "filename": "DarkWhispers-Addons-0.1.4-windows-x64-setup.exe",
+          "sha256": "112e94d0581f91d0c820db8b87fd7f864732485e9de59740f32fc03560adfb95",
+          "bytes": 2026354
         }
       ],
       "scope": "All downloaded release packages; custom scan with archive scanning and remediation disabled. No exclusions added."
@@ -150,8 +150,8 @@
       "status": "passed",
       "engine": "ClamAV 1.5.4/28159/Tue Oct 20 06:24:12 2026",
       "signatures": 3628175,
-      "started_at": "2026-10-20T14:41:28Z",
-      "checked_at": "2026-10-20T14:41:52Z",
+      "started_at": "2026-10-20T15:55:36Z",
+      "checked_at": "2026-10-20T15:55:57Z",
       "exit_code": 0,
       "detections": 0,
       "artifacts": [
@@ -166,14 +166,14 @@
           "bytes": 21778
         },
         {
-          "filename": "DarkWhispers-Addons-0.1.3-linux-amd64.deb",
-          "sha256": "9d5caf9e1402e0bc4026420529a8549ca3c74edd62b2c2c6b6c49a29bc7d8721",
-          "bytes": 2816078
+          "filename": "DarkWhispers-Addons-0.1.4-linux-amd64.deb",
+          "sha256": "5c801e8fb64173204bd29d8cef349f7813f748a49b57ac254edc142fb8a9600c",
+          "bytes": 2816846
         },
         {
-          "filename": "DarkWhispers-Addons-0.1.3-windows-x64-setup.exe",
-          "sha256": "04989c8641de6324b8e1def6ff5f6a64891226a4a4f88315be843c8d9b0d5d05",
-          "bytes": 2025519
+          "filename": "DarkWhispers-Addons-0.1.4-windows-x64-setup.exe",
+          "sha256": "112e94d0581f91d0c820db8b87fd7f864732485e9de59740f32fc03560adfb95",
+          "bytes": 2026354
         }
       ],
       "scope": "All release packages, read-only input mount; recursive archive scanning with limit alerts. No quarantine or removal.",
@@ -187,8 +187,8 @@
       "Python"
     ],
     "report": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.3/codeql-report.sarif",
-      "sha256": "a772b34ba2d47c8d01e4d5429dc11be9d91ea753aa1afe879dcdd6f5e405d60d"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/codeql-report.sarif",
+      "sha256": "62b55f6bf49d0b85841a106f772bf4121f32f677d86889528330204da88511f3"
     }
   },
   "attestation": {

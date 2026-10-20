@@ -11,8 +11,8 @@
   ],
   "maximum_signature_age_hours": 72,
   "signatures_updated_at": "2026-10-20T08:34:39.0000000Z",
-  "started_at": "2026-10-20T14:41:21.9302317Z",
-  "checked_at": "2026-10-20T14:41:30.2853977Z",
+  "started_at": "2026-10-20T15:55:41.2607029Z",
+  "checked_at": "2026-10-20T15:55:49.6317347Z",
   "artifacts": [
     {
       "filename": "AkionUI-0.8.1.zip",
@@ -25,14 +25,14 @@
       "bytes": 21778
     },
     {
-      "filename": "DarkWhispers-Addons-0.1.3-linux-amd64.deb",
-      "sha256": "9d5caf9e1402e0bc4026420529a8549ca3c74edd62b2c2c6b6c49a29bc7d8721",
-      "bytes": 2816078
+      "filename": "DarkWhispers-Addons-0.1.4-linux-amd64.deb",
+      "sha256": "5c801e8fb64173204bd29d8cef349f7813f748a49b57ac254edc142fb8a9600c",
+      "bytes": 2816846
     },
     {
-      "filename": "DarkWhispers-Addons-0.1.3-windows-x64-setup.exe",
-      "sha256": "04989c8641de6324b8e1def6ff5f6a64891226a4a4f88315be843c8d9b0d5d05",
-      "bytes": 2025519
+      "filename": "DarkWhispers-Addons-0.1.4-windows-x64-setup.exe",
+      "sha256": "112e94d0581f91d0c820db8b87fd7f864732485e9de59740f32fc03560adfb95",
+      "bytes": 2026354
     }
   ],
   "scope": "All downloaded release packages; custom scan with archive scanning and remediation disabled. No exclusions added."
