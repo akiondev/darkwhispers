@@ -25,11 +25,11 @@
       <div id="addons" aria-busy="true"><div class="loading-card">Loading your addons…</div></div>
       <p class="message" id="message" role="status" aria-live="polite"></p>
     </main>
-    <footer><span><i aria-hidden="true"></i> Small tools. Better raids.</span><div class="footer-tools"><button id="copy-status" type="button">Copy status</button><button id="launcher-update" type="button" disabled>Check launcher</button><span id="launcher-version">v0.2.0</span></div></footer>
+    <footer><span><i aria-hidden="true"></i> Small tools. Better raids.</span><div class="footer-tools"><button id="copy-status" type="button">Copy status</button><button id="launcher-update" type="button" disabled>Check launcher</button><span id="launcher-version">v0.2.1</span></div></footer>
   </div>
-  <dialog id="remove-dialog">
+  <dialog id="remove-dialog" aria-labelledby="remove-title" aria-describedby="remove-description">
     <form method="dialog">
-      <p class="eyebrow">REMOVE ADDON</p><h2 id="remove-title">Remove this addon?</h2>
+      <p class="eyebrow" id="remove-eyebrow">REMOVE ADDON</p><h2 id="remove-title">Remove this addon?</h2>
       <p id="remove-description">Your saved WoW settings are kept. You can install the addon again anytime.</p>
       <div class="dialog-actions"><button class="button quiet" value="cancel" autofocus>Cancel</button><button class="button danger" id="confirm-remove" value="remove">Remove</button></div>
     </form>

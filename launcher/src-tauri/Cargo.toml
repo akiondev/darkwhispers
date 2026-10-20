@@ -1,6 +1,6 @@
 [package]
 name = "darkwhispers-addons"
-version = "0.2.0"
+version = "0.2.1"
 description = "Install, update and remove DarkWhispers addons."
 authors = ["Robin"]
 edition = "2021"

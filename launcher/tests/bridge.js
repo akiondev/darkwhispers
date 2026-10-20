@@ -15,7 +15,7 @@ const addon = {
 window.__TAURI__ = {core: {invoke: async (command) => {
   await new Promise(resolve => setTimeout(resolve, 150));
   if (failNext) { failNext = false; throw "Test download failed. Nothing was installed."; }
-  if (command === "check_launcher_update") return {current:"0.2.0",available:null,supported:true};
+  if (command === "check_launcher_update") return {current:"0.2.1",available:null,supported:true};
   if (command === "restore_addon") { installed = true; hasBackup = true; return; }
   if (command === "get_status") return {
     game_path: selectedFolder, warning: null,

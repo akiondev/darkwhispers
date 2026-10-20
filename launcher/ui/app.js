@@ -5,15 +5,25 @@ const invoke = window.__TAURI__?.core.invoke;
 let state = null;
 let busy = false;
 let pendingRemoval = null;
-let launcherVersion = "0.2.0";
+let launcherVersion = "0.2.1";
 let availableLauncher = null;
+
+function updateMotion() {
+  document.documentElement.classList.toggle("motion-paused", document.hidden || !document.hasFocus());
+}
+document.addEventListener("visibilitychange", updateMotion);
+window.addEventListener("focus", updateMotion);
+window.addEventListener("blur", updateMotion);
+updateMotion();
 
 function confirmAddon(item, kind) {
   if (busy) return;
   pendingRemoval = {item, kind};
+  $("remove-eyebrow").textContent = kind === "restore" ? "RESTORE BACKUP" : "REMOVE ADDON";
   $("remove-title").textContent = kind === "restore" ? `Restore ${item.addon.title}?` : `Remove ${item.addon.title}?`;
   $("remove-description").textContent = kind === "restore" ? "Replace the current addon with its most recent backup. Your current version is backed up and saved WoW settings are kept." : "Your saved WoW settings are kept. You can install the addon again anytime.";
   $("confirm-remove").textContent = kind === "restore" ? "Restore" : "Remove";
+  $("confirm-remove").className = kind === "restore" ? "button primary" : "button danger";
   $("remove-dialog").returnValue = "cancel";
   $("remove-dialog").showModal();
 }
@@ -70,6 +80,8 @@ function render(next) {
       version.append(badge);
     }
     const actions = card.querySelector(".addon-actions");
+    const maintenance = document.createElement("div");
+    maintenance.className = "maintenance";
     if (!item.issue && (!item.installed || item.update_available)) {
       const install = document.createElement("button");
       install.className = "button primary";
@@ -89,21 +101,22 @@ function render(next) {
       repair.className = "remove"; repair.dataset.operation = "repair";
       repair.textContent = "Repair";
       repair.addEventListener("click", () => installAddon(item, true));
-      actions.append(repair);
+      maintenance.append(repair);
       const remove = document.createElement("button");
-      remove.className = "remove";
+      remove.className = "remove destructive";
       remove.dataset.operation = "remove";
       remove.textContent = "Remove";
       remove.addEventListener("click", () => confirmAddon(item, "remove"));
-      actions.append(remove);
+      maintenance.append(remove);
     }
     if (item.can_restore && !item.issue) {
       const restore = document.createElement("button");
       restore.className = "remove"; restore.dataset.operation = "restore";
       restore.textContent = "Restore previous";
       restore.addEventListener("click", () => confirmAddon(item, "restore"));
-      actions.append(restore);
+      maintenance.append(restore);
     }
+    if (maintenance.childElementCount) actions.append(maintenance);
     $("addons").append(card);
   }
   setBusy(busy);
@@ -132,7 +145,7 @@ async function refresh() {
   await operation("Checking for updates…", async () => {
     const next = await invoke("get_status", {checkUpdates: true});
     render(next);
-    statusMessage(next, "Everything is ready.");
+    statusMessage(next, next.game_path ? "Everything is ready." : "Choose your WoW Retail folder to install addons.");
   });
 }
 
