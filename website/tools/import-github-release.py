@@ -17,6 +17,7 @@ args.add_argument("--version",required=True)
 args.add_argument("--gh",default="gh")
 args.add_argument("--updater-key", help="Local private key path; never uploaded to GitHub")
 args.add_argument("--tauri", default="tauri")
+args.add_argument("--node", help="Run the Tauri JavaScript CLI without a command shell")
 options = args.parse_args()
 require(re.fullmatch(r"\d+\.\d+\.\d+",options.version), "Invalid release version")
 repo = "akiondev/darkwhispers"
@@ -69,7 +70,8 @@ if options.updater_key:
     package = directory/name
     # Only the exact installer already verified against public GitHub provenance
     # above is signed. The private key remains on this computer.
-    signed = subprocess.run([options.tauri, "signer", "sign", "--private-key-path", str(key),
+    command = [options.node, options.tauri] if options.node else [options.tauri]
+    signed = subprocess.run(command + ["signer", "sign", "--private-key-path", str(key),
                              "--app-version", options.version, str(package)],
                             capture_output=True, text=True, encoding="utf-8")
     require(signed.returncode == 0, "Local updater signing failed; no update feed published")

@@ -27,7 +27,7 @@ function selectPlatform(platform) {
   const main = $("launcher-download");
   $("platform-icon").innerHTML = icons[platform] || icons.unknown;
   $("download-title").textContent = platform === "unknown" ? "Choose your platform" : "Download for " + names[platform];
-  $("download-detail").textContent = item?.label || (release ? "Coming soon · select another platform" : "Loading the latest release…");
+  $("download-detail").textContent = item?.label || (release ? "Windows and Linux · choose a platform" : "Loading the latest release…");
   main.removeAttribute("href");
   main.classList.add("unavailable");
   main.setAttribute("aria-disabled", "true");
