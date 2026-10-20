@@ -1,4 +1,4 @@
-import {loadCatalog, resolveRetail, installAddon, fetchBytes} from "/browser-install.420550aa1e304420.mjs";
+import {loadCatalog, resolveRetail, installAddon, fetchBytes} from "/browser-install.a9433300899c3ec7.mjs";
 
 const $ = (id) => document.getElementById(id);
 const icons = {
@@ -87,10 +87,10 @@ function renderAddons() {
     install.textContent = "Install to WoW";
     install.addEventListener("click", () => runInstall(addon));
     const zip = document.createElement("a");
-    zip.className = "text-link";
-    zip.textContent = "Download ZIP ↓";
-    zip.href = new URL(addon.download_url).pathname;
-    zip.setAttribute("download", "");
+    zip.className = "button github-inline";
+    zip.textContent = "Manual ZIP on GitHub ↗";
+    zip.href = "https://github.com/akiondev/darkwhispers/releases/latest";
+    zip.target = "_blank"; zip.rel = "noopener";
     buttons.append(install, zip);
     row.append(title, version, buttons);
     $("addon-list").append(row);
@@ -98,7 +98,7 @@ function renderAddons() {
   setInstalling(false);
 }
 $("choose-wow").disabled = !directSupported;
-if (!directSupported) $("browser-support").textContent = "Direct installation needs desktop Chrome or Edge with folder-write support. Download the ZIP in this browser.";
+if (!directSupported) $("browser-support").textContent = "Direct installation needs desktop Chrome or Edge with folder-write support. Use Manual ZIP on GitHub in this browser.";
 $("choose-wow").addEventListener("click", async () => {
   if (installing) return;
   setInstalling(true);
@@ -131,7 +131,7 @@ async function runInstall(addon) {
         return install();
       });
     } else { result = await install(); }
-    installStatus("Installed " + addon.title + " " + result.version + ". Start WoW or reload its UI." + (result.backupPath ? " Backup: " + result.backupPath : ""));
+    installStatus("Installed " + addon.title + " " + result.version + ". Start WoW or reload its UI.");
   } catch (error) {
     installStatus(error.name === "NotAllowedError" ? "Folder access was denied. Re-select your folder or use the launcher." : error.message, true);
   } finally { setInstalling(false); }
@@ -150,7 +150,7 @@ function checkRow(title, status, text, passed, reportUrl) {
   row.append(heading, detail);
   if (reportUrl) {
     const link = document.createElement("a");
-    link.className = "text-link"; link.textContent = "Full report ↗";
+    link.className = "text-link"; link.textContent = "Read report ↗";
     link.href = reportUrl; link.target = "_blank"; link.rel = "noopener";
     row.append(link);
   }
@@ -162,7 +162,7 @@ function evidenceCard(title, result, reportUrl, passed) {
   const name = document.createElement("strong"); name.textContent = title;
   const status = document.createElement("p"); status.textContent = result;
   const link = document.createElement("a");
-  link.textContent = "Full report ↗"; link.href = reportUrl; link.target = "_blank"; link.rel = "noopener";
+  link.textContent = "Read report ↗"; link.href = reportUrl; link.target = "_blank"; link.rel = "noopener";
   card.append(name, status, link);
   return card;
 }
@@ -173,11 +173,7 @@ function renderSecurity() {
   const reportMatches = checks.version === release.version;
   const provenance = reportMatches && checks.provenance?.repository === "akiondev/darkwhispers" ? checks.provenance : null;
   const publicRun = provenance && /^[a-f0-9]{40}$/.test(provenance.commit || "") && /^https:\/\/github\.com\/akiondev\/darkwhispers\/actions\/runs\/[0-9]+$/.test(provenance.run_url);
-  const reportLink = (name, fallback) => {
-    const url = provenance?.report_links?.[name];
-    const prefix = "https://github.com/akiondev/darkwhispers/releases/download/v" + release.version + "/";
-    return publicRun && typeof url === "string" && url.startsWith(prefix) && /^[A-Za-z0-9_.-]+$/.test(url.slice(prefix.length)) ? url : fallback;
-  };
+  const reportLink = name => "/reports.html?report=" + ({rustsec:"rustsec",evidence:"evidence",defender:"defender",clamav:"clamav",semgrep:"semgrep",codeql:"codeql"}[name] || "evidence");
   $("public-build").href = publicRun ? provenance.run_url : "https://github.com/akiondev/darkwhispers/actions";
   $("public-build").textContent = publicRun ? "View this release's public build & scans ↗" : "View public builds & scans on GitHub ↗";
   $("release-report").href = reportLink("evidence","/security/release-checks.json");
@@ -190,7 +186,7 @@ function renderSecurity() {
   const review = reportMatches ? checks.source_review : null;
   rows.append(checkRow("Source review", review?.status === "completed" ? "Completed" : "Pending", review?.summary || "Source review has not been published.", review?.status === "completed"));
   if (review?.report_url === "/security/source-review.md") {
-    const link = document.createElement("a"); link.href = review.report_url; link.target = "_blank"; link.rel = "noopener"; link.className = "text-link"; link.textContent = "Read the source review ↗"; rows.append(link);
+    const link = document.createElement("a"); link.href = "/reports.html?report=source"; link.target = "_blank"; link.rel = "noopener"; link.className = "text-link"; link.textContent = "Read the source review ↗"; rows.append(link);
   }
   const audit = reportMatches ? checks.dependencies : null;
   const noVulnerabilities = ["passed","completed_with_notes"].includes(audit?.status) && audit.vulnerabilities === 0;
@@ -205,7 +201,7 @@ function renderSecurity() {
   const immutable = publicRun && provenance.immutable === true && provenance.release_url === releaseUrl;
   if (publicRun && checks.codeql) {
     rows.append(checkRow("CodeQL", checks.codeql.findings + " findings", "JavaScript and Python analysis. Open the original SARIF report for every result.", checks.codeql.findings === 0, reportLink("codeql","/security/codeql-report.sarif")));
-    rows.append(checkRow("Signed provenance", immutable ? "Immutable release" : "See report", "Verify the source commit and file attestations on GitHub.", immutable, releaseUrl));
+    rows.append(checkRow("Signed provenance", immutable ? "Immutable release" : "See report", "Verify the source commit and file attestations on GitHub.", immutable, reportLink("evidence")));
   }
   rows.append(checkRow("Addon integrity", "Verified on install", "Ed25519 catalog signature and SHA-256 checks for every file before it is written.", true));
   const meta = document.createElement("p");
@@ -227,15 +223,31 @@ function renderSecurity() {
   );
   if (publicRun && checks.codeql) {
     grid.append(evidenceCard("CodeQL · code analysis", checks.codeql.findings + " findings · JavaScript & Python", reportLink("codeql","/security/codeql-report.sarif"), checks.codeql.findings === 0));
-    grid.append(evidenceCard("Signed provenance", immutable ? "Immutable GitHub release" : "Verify on GitHub", releaseUrl, immutable));
+    grid.append(evidenceCard("Signed provenance", immutable ? "Immutable GitHub release" : "Verify on GitHub", reportLink("evidence"), immutable));
   }
   const stamp = checks.checked_at ? new Date(checks.checked_at) : null;
   $("evidence-version").textContent = reportMatches ? "v" + release.version + (stamp && !Number.isNaN(stamp.getTime()) ? " · " + stamp.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "") : "Reports pending";
   $("security-summary").textContent = publicRun ? "GitHub-hosted checks · Windows installer unsigned · provenance proves origin and integrity, not safety." : "Windows installer unsigned · automated checks and developer review, not an independent certification.";
 }
+async function loadChangelog() {
+  try {
+    const feed = JSON.parse(new TextDecoder().decode(await fetchBytes("/changelog.json",65536)));
+    if (!Array.isArray(feed.entries)) throw new Error("Invalid changelog");
+    const host = $("changelog-feed"); host.replaceChildren();
+    for (const entry of feed.entries.slice(0,3)) {
+      const article = document.createElement("article"); article.className = "changelog-entry";
+      const stamp = document.createElement("p"); stamp.className = "change-stamp"; stamp.textContent = "v" + entry.version + " · " + entry.date;
+      const title = document.createElement("h3"); title.textContent = entry.title;
+      const list = document.createElement("ul");
+      for (const value of (entry.changes || []).slice(0,5)) { const item = document.createElement("li"); item.textContent = value; list.append(item); }
+      article.append(stamp,title,list); host.append(article);
+    }
+  } catch { $("changelog-feed").textContent = "Read the latest changes in GitHub Releases."; }
+}
 async function initialize() {
   selectPlatform(selectedPlatform);
   await Promise.allSettled([
+    loadChangelog(),
     (async () => {
       release = JSON.parse(new TextDecoder().decode(await fetchBytes("/launcher/releases.json", 65536)));
       for (const button of document.querySelectorAll("[data-platform]")) button.querySelector(".availability").textContent = release.platforms?.[button.dataset.platform] ? "Available" : "Coming soon";

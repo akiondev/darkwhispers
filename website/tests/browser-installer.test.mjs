@@ -102,11 +102,11 @@ test("installs actual release files and preserves unrelated data",async()=>fixtu
   await installVerified(root,addon,files);
   for (const [name,bytes] of files) assert.deepEqual(new Uint8Array(await fs.readFile(resolve(retail,"Interface/AddOns",addon.id,name))),bytes);
 }));
-test("upgrades with verified backup and removes stale files",async()=>fixture(async({retail,root})=>{
+test("upgrades without retained copies and removes stale files",async()=>fixture(async({retail,root})=>{
   await oldAddon(retail);
   const result=await installVerified(root,addon,files);
-  assert.equal(await fs.readFile(resolve(retail,result.backupPath,"Old.lua"),"utf8"),"old");
-  assert.ok((await fs.stat(resolve(retail,result.backupPath,"Empty"))).isDirectory());
+  assert.equal(result.backupPath,undefined);
+  await assert.rejects(fs.stat(resolve(retail,"Interface/AddOns/.darkwhispers-web-backups")));
   await assert.rejects(fs.stat(resolve(retail,"Interface/AddOns",addon.id,"Old.lua")));
 }));
 test("rejects corrupt buffers and does not overwrite an existing addon",async()=>fixture(async({retail,root})=>{

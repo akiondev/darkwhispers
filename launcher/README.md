@@ -3,7 +3,7 @@
 A small desktop addon manager for WoW Retail. Rust handles files, downloads and
 verification; Tauri uses the operating system's webview for the interface.
 The interface is plain HTML, CSS and JavaScript. There are no accounts, analytics,
-ads, background services or periodic polling.
+ads or system services. Automatic addon checks are opt-in and off by default.
 
 ## Use
 
@@ -11,8 +11,7 @@ Open the launcher, choose the World of Warcraft folder if it was not detected,
 then use Install, Update or Remove. Check for updates refreshes the catalog.
 Restart WoW or reload its UI after changing an addon.
 
-Both addon sources are public under the repository's addons directory. Only
-DarkWhisper Raid Tools is currently in the signed launcher catalog.
+Only DarkWhispers Raid Tool is distributed in the signed launcher catalog and current public source. AkionUI is private and excluded from new exports/releases.
 The launcher accepts the WoW root, `_retail_`, or its `Interface/AddOns` folder.
 Classic installations are rejected. Linux users select their Wine/Lutris WoW
 installation; this app does not install or configure Wine or World of Warcraft.
@@ -22,16 +21,25 @@ Install with your software installer, or `sudo apt install ./<downloaded-file>.d
 Debian 12 and newer is the build baseline. Other distributions and the generated
 AppImage need desktop compatibility checks before publication.
 
-Saved settings in `WTF` and unrelated addons are never edited. A replaced or removed
-addon is moved into `Interface/AddOns/.darkwhispers-backups/<unique name>/`.
-Backups are retained, not automatically pruned. The live addon folder is replaced
-as a whole so removed files do not linger after updates. If the final rename fails,
-the previous addon is restored. A durable recovery record is written before the
-first rename; the next launch recovers interrupted swaps before allowing changes.
-Repair reinstalls the signed current release. Restore previous explicitly restores
-the newest recognized backup and keeps the displaced version as another backup.
-Addon writes are blocked while WoW is running. Browser installation remains a
-fallback with copy-based rollback; it cannot provide the desktop atomic swap.
+Saved settings in WTF and unrelated addons are never edited. Completed addon
+updates do not retain previous versions. A temporary copy and small journal
+protect the directory swap; both are cleared once the update commits. Interrupted
+swaps recover on the next launch. Recognized copies retained by earlier launcher
+versions are cleaned when WoW is closed. Reinstall downloads the signed latest
+release again; Remove deletes only the selected known addon directory.
+
+The custom window minimizes to the system tray where a tray is available.
+Left-click the tray icon or choose Open to return; Quit exits. Closing the window
+also exits. Optional automatic updates check every five minutes only while this
+process is open or in the tray, never auto-install removed addons, and wait until
+WoW is closed. With the option off there are no background update timers or
+catalog requests. Manual startup/check actions can still fetch current metadata.
+No operating-system autostart entry is created.
+
+Trust & reports shows the recorded scan results and opens complete readable
+reports in the browser. The purple button opens source code; the orange button
+opens the original GitHub release files for the user's own review. Neither
+GitHub nor a scan result is a guarantee of safety.
 
 ## Build
 

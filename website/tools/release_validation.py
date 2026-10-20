@@ -24,10 +24,9 @@ def validate_evidence(evidence, version, checksums, directory):
             and evidence["workflow"] == ".github/workflows/release.yml", "Invalid provenance links")
     artifacts = evidence["artifacts"]
     names = [item["filename"] for item in artifacts]
-    require(len(names) == 4 and len(set(names)) == 4, "Exactly four distinct packages are required")
+    require(len(names) == 3 and len(set(names)) == 3, "Exactly three distinct public packages are required")
     require(f"DarkWhispers-Addons-{version}-windows-x64-setup.exe" in names
             and f"DarkWhispers-Addons-{version}-linux-amd64.deb" in names
-            and sum(bool(re.fullmatch(r"AkionUI-\d+\.\d+\.\d+\.zip", name)) for name in names) == 1
             and sum(bool(re.fullmatch(r"DarkWhisperRaidTools-\d+\.\d+\.\d+\.zip", name)) for name in names) == 1,
             "Unexpected package inventory")
     for item in artifacts:
@@ -47,7 +46,7 @@ def validate_evidence(evidence, version, checksums, directory):
         require(scan["status"] == "passed" and scan["exit_code"] == 0 and scan["detections"] == 0,
                 scanner + " did not pass")
         scanned = scan["artifacts"]
-        require(len(scanned) == 4 and {item["filename"] for item in scanned} == set(names),
+        require(len(scanned) == 3 and {item["filename"] for item in scanned} == set(names),
                 scanner + " package inventory mismatch")
         for package in artifacts:
             require(any(all(item.get(key) == package[key] for key in ("filename", "sha256", "bytes"))

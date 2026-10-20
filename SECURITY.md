@@ -6,7 +6,7 @@ settings or exploitable sensitive data in a public issue.
 
 The launcher verifies an Ed25519-signed addon catalog and SHA-256 package hashes.
 It rejects unsafe paths, links, unknown folders and downgrades, stages updates,
-retains backups and does not modify other addons or WTF saved settings.
+clears temporary previous-version copies after a completed update, and does not modify other addons or WTF saved settings.
 The browser installer verifies the signed catalog and each file before writing.
 Browser folder replacement cannot be atomic; keep WoW and other managers closed.
 

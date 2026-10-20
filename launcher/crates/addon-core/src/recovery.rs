@@ -68,7 +68,13 @@ pub(super) fn recover_locked(addons: &Path, id: &str) -> Result<bool> {
         }
         fs::rename(backup, &destination).map_err(|e| error("Close WoW and retry recovery", e))?;
     }
+    if let Some(backup) = &backup {
+        let wrapper = backup.parent().ok_or("Invalid recovery path")?;
+        if backup.exists() { delete_owned_tree(backup)?; }
+        if wrapper.is_dir() { fs::remove_dir(wrapper).map_err(|e| error("Could not clear temporary addon files", e))?; }
+    }
     fs::remove_file(&journal).map_err(|e| error("Could not finish recovery", e))?;
+    if let Some(parent) = journal.parent() { let _ = fs::remove_dir(parent); }
     Ok(true)
 }
 
@@ -76,10 +82,17 @@ pub(super) fn recover_if_needed(game: &Path, id: &str) -> Result<bool> {
     let destination = addon_folder(game, id)?;
     let addons = destination.parent().ok_or("Invalid addon path")?;
     let journal = journal_path(addons, id)?;
-    if !journal.exists() { return Ok(false); }
+    let pending = journal.exists();
+    let legacy = addons.join(".darkwhispers-backups").is_dir()
+        || addons.join(".darkwhispers-web-backups").is_dir();
+    if !pending && !legacy { return Ok(false); }
+    // Legacy retained copies are cleaned only while the game is closed.
+    if !pending && ensure_game_closed().is_err() { return Ok(false); }
     let _lock = acquire_lock(addons)?;
     ensure_game_closed()?;
-    recover_locked(addons, id)
+    let recovered = recover_locked(addons, id)?;
+    purge_backups(addons, id)?;
+    Ok(recovered)
 }
 
 pub(super) fn swap_addon(addons: &Path, id: &str, source: &Path, destination: &Path) -> Result<()> {
@@ -102,46 +115,48 @@ pub(super) fn swap_addon(addons: &Path, id: &str, source: &Path, destination: &P
         }
         return Err(error("Installation failed; the previous state was restored", e));
     }
-    fs::remove_file(journal).map_err(|e| error("Addon installed; reopen the launcher to finish recovery", e))?;
-    Ok(())
-}
-
-pub(super) fn latest_backup(addons: &Path, id: &str) -> Result<Option<PathBuf>> {
-    validate_id(id)?;
-    let root = addons.join(".darkwhispers-backups");
-    reject_link(&root)?;
-    let entries = match fs::read_dir(&root) {
-        Ok(entries) => entries,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(error("Could not read addon backups", e)),
-    };
-    let mut newest = None;
-    for entry in entries {
-        let entry = entry.map_err(|e| error("Could not read addon backup", e))?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if !name.starts_with(&format!("{id}-")) { continue; }
-        let path = backup_path(addons, id, &name)?;
-        if !recognized(&path, id)? { continue; }
-        let modified = entry.metadata().and_then(|meta| meta.modified())
-            .map_err(|e| error("Could not read addon backup date", e))?;
-        if newest.as_ref().is_none_or(|(date, _)| modified > *date) {
-            newest = Some((modified, path));
-        }
-    }
-    Ok(newest.map(|(_, path)| path))
-}
-
-pub fn restore_previous(config: &Path, id: &str) -> Result<()> {
-    let catalog = cached_catalog(config)?;
-    if !catalog.addons.iter().any(|addon| addon.id == id) { return Err("Unknown addon.".into()); }
-    let game = load_settings(config)?.game_path.ok_or("Choose your WoW folder first.")?;
-    let destination = addon_folder(&game, id)?;
-    let addons = destination.parent().ok_or("Invalid addon path")?;
-    let _lock = acquire_lock(addons)?;
-    ensure_game_closed()?;
     recover_locked(addons, id)?;
-    // Never replace an unrelated directory during a restore.
-    installed_version(&game, id)?;
-    let backup = latest_backup(addons, id)?.ok_or("No previous addon backup is available.")?;
-    swap_addon(addons, id, &backup, &destination)
+    purge_backups(addons, id)
+}
+
+// Never follow links or reparse points while deleting a known owned directory.
+// Validate the complete tree before removing any of it.
+pub(super) fn delete_owned_tree(path: &Path) -> Result<()> {
+    fn inspect(path: &Path) -> Result<()> {
+        reject_link(path)?;
+        if path.is_dir() {
+            for entry in fs::read_dir(path).map_err(|e| error("Could not inspect addon files", e))? {
+                inspect(&entry.map_err(|e| error("Could not inspect addon file", e))?.path())?;
+            }
+        }
+        Ok(())
+    }
+    inspect(path)?;
+    fs::remove_dir_all(path).map_err(|e| error("Could not remove addon files. Close WoW and retry", e))
+}
+
+pub(super) fn purge_backups(addons: &Path, id: &str) -> Result<()> {
+    validate_id(id)?;
+    for (folder, nested) in [(".darkwhispers-backups", true), (".darkwhispers-web-backups", false)] {
+        let root = addons.join(folder);
+        reject_link(&root)?;
+        if !root.is_dir() { continue; }
+        for entry in fs::read_dir(&root).map_err(|e| error("Could not clear old launcher copies", e))? {
+            let entry = entry.map_err(|e| error("Could not clear old launcher copy", e))?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !name.starts_with(&format!("{id}-")) || name.len() > 128
+                || !name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_') { continue; }
+            let wrapper = entry.path();
+            reject_link(&wrapper)?;
+            if !wrapper.is_dir() { continue; }
+            let target = if nested { wrapper.join(id) } else { wrapper.clone() };
+            if recognized(&target, id)? {
+                if nested && fs::read_dir(&wrapper).map_err(|e| error("Could not inspect old launcher copy", e))?.count() != 1 { continue; }
+                delete_owned_tree(&target)?;
+            }
+            if nested && wrapper.is_dir() { let _ = fs::remove_dir(&wrapper); }
+        }
+        let _ = fs::remove_dir(root); // Only remove the now-empty launcher root.
+    }
+    Ok(())
 }

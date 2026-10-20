@@ -11,7 +11,7 @@ files = []
 for path in sorted(Path("inputs").iterdir()):
     assert path.is_file() and "/inputs/"+path.name+": OK" in log
     files.append({"filename":path.name,"sha256":hashlib.sha256(path.read_bytes()).hexdigest(),"bytes":path.stat().st_size})
-assert len(files) >= 4 and int(re.search(r"Scanned files:\s+(\d+)",log).group(1)) == len(files)
+assert len(files) == 3 and int(re.search(r"Scanned files:\s+(\d+)",log).group(1)) == len(files)
 report = {
     "schema":1,"status":"passed","engine":(reports/"clamav-version.txt").read_text().strip(),
     "signatures":int(re.search(r"Known viruses:\s+(\d+)",log).group(1)),

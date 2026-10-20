@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "version": "0.3.0",
+      "date": "20 Oct 2026",
+      "title": "A new home for your raid tools",
+      "changes": [
+        "Custom launcher window, frost visuals and clearer addon selection.",
+        "Minimize to tray; optional automatic addon updates, off by default.",
+        "No retained addon backups. Reinstall or update to the latest release.",
+        "Readable scan reports, orange GitHub downloads and this changelog."
+      ]
+    },
+    {
+      "version": "0.2.1",
+      "date": "20 Oct 2026",
+      "title": "A smoother launcher",
+      "changes": [
+        "Cleaner controls, compact dialogs and paused animations while inactive."
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "20 Oct 2026",
+      "title": "Signed launcher updates",
+      "changes": [
+        "Version-bound launcher updates and safer interrupted-install recovery."
+      ]
+    }
+  ]
+}

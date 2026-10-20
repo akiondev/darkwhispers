@@ -16,7 +16,6 @@ const MAX_DOWNLOAD: u64 = 32 * 1024 * 1024;
 const MAX_UNPACKED: u64 = 128 * 1024 * 1024;
 mod recovery;
 mod game_process;
-pub use recovery::restore_previous;
 pub use game_process::ensure_game_closed;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +43,8 @@ struct SignedCatalog {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Settings {
     pub game_path: Option<PathBuf>,
+    #[serde(default)]
+    pub auto_update: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -53,7 +54,6 @@ pub struct AddonStatus {
     pub update_available: bool,
     pub installed: bool,
     pub issue: Option<String>,
-    pub can_restore: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -61,6 +61,7 @@ pub struct Status {
     pub game_path: Option<PathBuf>,
     pub addons: Vec<AddonStatus>,
     pub warning: Option<String>,
+    pub auto_update: bool,
 }
 
 fn error(context: &str, source: impl std::fmt::Display) -> String {
@@ -209,13 +210,29 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
 
 pub fn select_game(config: &Path, selected: &Path) -> Result<PathBuf> {
     let path = validate_game(selected)?;
-    save_settings(
-        config,
-        &Settings {
-            game_path: Some(path.clone()),
-        },
-    )?;
+    let mut settings = load_settings(config)?;
+    settings.game_path = Some(path.clone());
+    save_settings(config, &settings)?;
     Ok(path)
+}
+
+pub fn set_auto_update(config: &Path, enabled: bool) -> Result<()> {
+    let mut settings = load_settings(config)?;
+    settings.auto_update = enabled;
+    save_settings(config, &settings)
+}
+
+pub fn automatic_update_ids(status: &Status) -> Vec<String> {
+    if !status.auto_update || status.warning.is_some() || status.game_path.is_none() {
+        return Vec::new();
+    }
+    status.addons.iter().filter(|item| item.installed && item.update_available && item.issue.is_none())
+        .map(|item| item.addon.id.clone()).collect()
+}
+
+pub fn release_checks() -> Result<serde_json::Value> {
+    let bytes = download("https://darkwhispers.akion.se/security/release-checks.json", 256 * 1024)?;
+    serde_json::from_slice(&bytes).map_err(|e| error("Could not load release reports", e))
 }
 
 pub fn validate_game(selected: &Path) -> Result<PathBuf> {
@@ -405,7 +422,6 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
             .zip(semver::Version::parse(&addon.version).ok())
             .is_some_and(|(a, b)| a < b);
         addons.push(AddonStatus {
-            can_restore: game.as_ref().and_then(|path| recovery::latest_backup(&path.join("Interface/AddOns"), &addon.id).ok()).flatten().is_some(),
             installed: version.is_some(),
             installed_version: version,
             update_available: update,
@@ -417,6 +433,7 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
         game_path: game,
         addons,
         warning,
+        auto_update: settings.auto_update,
     })
 }
 
@@ -595,6 +612,7 @@ fn reserve_backup(addons: &Path, id: &str) -> Result<PathBuf> {
     Ok(target)
 }
 
+#[cfg(test)]
 fn backup_addon(addons: &Path, destination: &Path, id: &str) -> Result<PathBuf> {
     reject_link(destination)?;
     let target = reserve_backup(addons, id)?;
@@ -607,7 +625,7 @@ fn backup_addon(addons: &Path, destination: &Path, id: &str) -> Result<PathBuf> 
     Ok(target)
 }
 
-pub fn remove(config: &Path, id: &str) -> Result<PathBuf> {
+pub fn remove(config: &Path, id: &str) -> Result<()> {
     // Removal works offline, but still only for a known, signed catalog entry.
     let catalog = fs::read(config.join("catalog.json"))
         .ok()
@@ -627,7 +645,8 @@ pub fn remove(config: &Path, id: &str) -> Result<PathBuf> {
     if installed_version(&game, id)?.is_none() {
         return Err("This addon is not installed.".into());
     }
-    backup_addon(addons, &destination, id)
+    recovery::delete_owned_tree(&destination)?;
+    recovery::purge_backups(addons, id)
 }
 
 #[cfg(test)]

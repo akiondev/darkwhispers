@@ -6,9 +6,8 @@ $sourceDirectory = if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'addons')
 if (-not (Test-Path -LiteralPath $addonsDirectory -PathType Container)) {
     throw "WoW AddOns directory not found: $addonsDirectory"
 }
-# Validate both packages before changing the installation. Install the standalone
-# compass first, then retire AkionUI's old entry points.
-$addonNames = @('DarkWhisperRaidTools', 'AkionUI')
+# Validate the public raid tool before changing its installation.
+$addonNames = @('DarkWhisperRaidTools')
 foreach ($addonName in $addonNames) {
     $manifest = Join-Path $sourceDirectory "$addonName\$addonName.toc"
     if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) {
@@ -34,17 +33,4 @@ foreach ($addonName in $addonNames) {
         }
     }
     Write-Output "Installed and verified $($files.Count) files in $destination"
-}
-
-# Remove only known retired files inside our original addon. SavedVariables and
-# other addon directories are never edited; no recursive cleanup is performed.
-$akionTarget = Join-Path $addonsDirectory 'AkionUI'
-foreach ($retired in @(
-    'Media\Soothe.wav', 'CompassTest.lua', 'Compass.lua', 'CompassOptions.lua',
-    'Media\CompassDisc.tga', 'Media\CompassRing.tga', 'Media\CompassArrow.tga'
-)) {
-    $retiredPath = Join-Path $akionTarget $retired
-    if (Test-Path -LiteralPath $retiredPath -PathType Leaf) {
-        Remove-Item -LiteralPath $retiredPath -Force
-    }
 }

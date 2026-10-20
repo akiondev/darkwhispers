@@ -185,7 +185,7 @@ export async function installVerified(retail, addon, files, progress = () => {})
   }
   const token = Date.now() + "-" + crypto.randomUUID().slice(0,8);
   const stagingName = ".darkwhispers-web-stage-" + token;
-  let touched = false;
+  let touched = false, committed = false, rolledBack = false;
   try {
     const staging = await addons.getDirectoryHandle(stagingName, {create:true});
     progress("Preparing the installation…");
@@ -201,12 +201,14 @@ export async function installVerified(retail, addon, files, progress = () => {})
     if (previous) await addons.removeEntry(addon.id, {recursive:true});
     const target = await addons.getDirectoryHandle(addon.id, {create:true});
     await writeTree(target, files, (count,total) => progress("Installing " + count + "/" + total + "…"));
-    return {version:addon.version, backupPath, files:files.size};
+    committed = true;
+    return {version:addon.version, files:files.size};
   } catch (error) {
     if (touched) {
       try {
         if (await maybeDirectory(addons, addon.id)) await addons.removeEntry(addon.id, {recursive:true});
         if (original) await writeTree(await addons.getDirectoryHandle(addon.id, {create:true}), original);
+        rolledBack = true;
       } catch {
         throw new Error("Installation was interrupted. Restore the previous addon from " + (backupPath || "your backup") + ".");
       }
@@ -214,6 +216,16 @@ export async function installVerified(retail, addon, files, progress = () => {})
     throw new Error((error.message || String(error)) + (touched && original ? " The previous addon was restored." : ""));
   } finally {
     try { await addons.removeEntry(stagingName, {recursive:true}); } catch {}
+    if (backupPath && (committed || rolledBack)) {
+      try {
+        const root = await addons.getDirectoryHandle(".darkwhispers-web-backups");
+        await root.removeEntry(backupPath.split("/").at(-1), {recursive:true});
+        // removeEntry without recursive succeeds only if this root is empty.
+        try { await addons.removeEntry(".darkwhispers-web-backups"); } catch {}
+      } catch {
+        progress("Installation finished, but temporary cleanup needs folder access. Reinstall to retry.");
+      }
+    }
   }
 }
 export async function installAddon(retail, addon, progress) {

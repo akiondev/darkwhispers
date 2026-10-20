@@ -15,15 +15,11 @@ manager and a frost-themed download site.
 | launcher/ | Rust installation core, Tauri desktop app, plain HTML/CSS/JS interface |
 | website/ | Static download site, browser addon installer and scoped VPS deployment tools |
 | addons/DarkWhisperRaidTools/ | Standalone marker compass, commands /dwrt and /acomp |
-| addons/AkionUI/ | Moonkin warning, Bloodlust lockout and Soothe text, commands /aui and /akionui |
-| tests/ | Simulated WoW API and addon regression tests |
 | ci/ | Public build, scan, packaging and evidence scripts |
 | .github/workflows/ | Source checks and attested release pipeline |
 | docs/ | Usage, trust model and implementation research |
 
-The two addons are independent. Only DarkWhisper Raid Tools is currently offered
-by the signed launcher/browser catalog. Both addon sources and standalone ZIP
-packages are public.
+Only DarkWhispers Raid Tool is distributed here, through the signed launcher/browser catalog and a standalone ZIP. AkionUI is private and is not part of current source exports or new releases. Older published Git history and immutable releases may still contain previously public files.
 
 ## Trust and verification
 
@@ -51,20 +47,15 @@ paid services are required to use the software.
 
 See [launcher build instructions](launcher/README.md),
 [website instructions](website/README.md) and the
-[addon guide](docs/addons-guide.md).
+[raid tool guide](docs/raid-tools-guide.md).
 
-Prepare the signed-catalog fixtures and both deterministic addon archives:
+Prepare the signed-catalog fixtures and the deterministic public addon archive:
 
     python ci/prepare.py
 
 Run the browser installer tests:
 
     node --test website/tests/browser-installer.test.mjs
-
-Run the addon suite with Lua 5.1 from the addon parent directory:
-
-    cd addons
-    lua ../tests/smoke.lua
 
 Run Rust core tests from launcher/:
 

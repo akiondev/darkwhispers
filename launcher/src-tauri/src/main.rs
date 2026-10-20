@@ -9,9 +9,12 @@ use tauri::{Emitter, Manager, State};
 use tokio::sync::Mutex;
 use tauri_plugin_dialog::DialogExt;
 
+mod desktop;
+
 struct AppState {
     config: PathBuf,
     operation: Arc<Mutex<()>>,
+    auto_wake: Arc<desktop::AutoWake>,
 }
 
 #[tauri::command]
@@ -74,16 +77,6 @@ async fn remove_addon(id: String, state: State<'_, AppState>) -> core::Result<()
     })
     .await
     .map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
-async fn restore_addon(id: String, state: State<'_, AppState>) -> core::Result<()> {
-    let config = state.config.clone();
-    let operation = state.operation.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let _guard = operation.blocking_lock();
-        core::restore_previous(&config, &id)
-    }).await.map_err(|e| e.to_string())?
 }
 
 #[derive(serde::Serialize)]
@@ -149,20 +142,20 @@ fn main() {
     let builder = tauri::Builder::default();
     #[cfg(windows)]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.unminimize();
-            let _ = window.set_focus();
-        }
+        desktop::show_main(app);
     }));
     builder
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             #[cfg(windows)]
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
-            app.manage(AppState {
-                config: app.path().app_config_dir()?,
-                operation: Arc::new(Mutex::new(())),
-            });
+            let config = app.path().app_config_dir()?;
+            let operation = Arc::new(Mutex::new(()));
+            let auto_wake = Arc::new(desktop::AutoWake::default());
+            app.manage(AppState { config: config.clone(), operation: operation.clone(), auto_wake: auto_wake.clone() });
+            // If a desktop has no usable tray, minimization stays in its taskbar.
+            let _ = desktop::create_tray(app);
+            desktop::start_auto_updates(app.handle().clone(), config, operation, auto_wake);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -170,10 +163,20 @@ fn main() {
             choose_game,
             install_addon,
             remove_addon,
-            restore_addon,
+            desktop::set_auto_update,
+            desktop::window_action,
+            desktop::get_release_checks,
+            desktop::open_resource,
             check_launcher_update,
             install_launcher_update
         ])
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(false))
+                && window.app_handle().tray_by_id("main-tray").is_some()
+                && window.is_minimized().unwrap_or(false) {
+                let _ = window.hide();
+            }
+        })
         .run(tauri::generate_context!())
         .expect("DarkWhispers Addons could not start");
 }

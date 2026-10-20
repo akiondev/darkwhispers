@@ -25,7 +25,7 @@ jobs:
       - name: Targeted browser and release validation tests
         run: |
           python ci/prepare.py
-          node --test --test-name-pattern="accepts WoW root" website/tests/browser-installer.test.mjs
+          node --test --test-name-pattern="accepts WoW root|upgrades|restores|incomplete new install" website/tests/browser-installer.test.mjs
           python -m unittest discover -s website/tests -p 'test_*.py'
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:

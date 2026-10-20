@@ -91,9 +91,9 @@ fn install_upgrade_and_remove_preserve_other_addons_and_saved_settings() {
     let folder = game.join("Interface/AddOns/DarkWhisperRaidTools");
     assert!(!folder.join("Old.lua").exists());
     assert_eq!(fs::read_to_string(folder.join("Main.lua")).unwrap(), "new");
-    let backup = remove(&config, &second.id).unwrap();
+    remove(&config, &second.id).unwrap();
     assert!(!folder.exists());
-    assert_eq!(fs::read_to_string(backup.join("Main.lua")).unwrap(), "new");
+    assert!(!game.join("Interface/AddOns/.darkwhispers-backups").exists());
     assert_eq!(
         fs::read_to_string(game.join("Interface/AddOns/OtherAddon/Other.lua")).unwrap(),
         "keep"
@@ -249,7 +249,7 @@ fn recovery_preserves_committed_install_and_blocks_unsafe_records() {
 }
 
 #[test]
-fn restore_previous_preserves_current_version_as_another_backup() {
+fn updates_and_removal_leave_no_retained_versions_and_preserve_wtf() {
     let (temp, game) = game();
     let config = temp.path().join("config");
     select_game(&config, &game).unwrap();
@@ -257,15 +257,41 @@ fn restore_previous_preserves_current_version_as_another_backup() {
     install_bytes(&game, &addon, &first).unwrap();
     let (addon, second) = package("1.1.0", &[("DarkWhisperRaidTools/Main.lua", "second")]);
     install_bytes(&game, &addon, &second).unwrap();
-    assert!(status(&config, false).unwrap().addons[0].can_restore);
-    restore_previous(&config, &addon.id).unwrap();
-    assert_eq!(installed_version(&game, &addon.id).unwrap().as_deref(), Some("1.0.0"));
-    let latest = recovery::latest_backup(&game.join("Interface/AddOns"), &addon.id).unwrap().unwrap();
-    assert_eq!(fs::read(latest.join("Main.lua")).unwrap(), b"second");
+    assert_eq!(installed_version(&game, &addon.id).unwrap().as_deref(), Some("1.1.0"));
+    assert!(!game.join("Interface/AddOns/.darkwhispers-backups").exists());
     remove(&config, &addon.id).unwrap();
-    restore_previous(&config, &addon.id).unwrap();
-    assert!(installed_version(&game, &addon.id).unwrap().is_some());
+    assert!(installed_version(&game, &addon.id).unwrap().is_none());
     assert_eq!(fs::read(game.join("WTF/Account/settings.lua")).unwrap(), b"keep settings");
+    assert_eq!(fs::read(game.join("Interface/AddOns/OtherAddon/Other.lua")).unwrap(), b"keep");
+}
+
+#[test]
+fn auto_update_is_opt_in_and_survives_folder_changes() {
+    let (temp, game) = game();
+    let config = temp.path().join("config");
+    assert!(!load_settings(&config).unwrap().auto_update);
+    set_auto_update(&config, true).unwrap();
+    select_game(&config, &game).unwrap();
+    assert!(load_settings(&config).unwrap().auto_update);
+    set_auto_update(&config, false).unwrap();
+    assert!(!load_settings(&config).unwrap().auto_update);
+}
+
+#[test]
+fn cleanup_removes_only_recognized_launcher_copies() {
+    let (temp, game) = game();
+    let config = temp.path().join("config");
+    select_game(&config, &game).unwrap();
+    let (addon, bytes) = package("1.0.0", &[]);
+    install_bytes(&game, &addon, &bytes).unwrap();
+    let addons = game.join("Interface/AddOns");
+    let old = backup_addon(&addons, &addons.join(&addon.id), &addon.id).unwrap();
+    fs::copy(old.join("DarkWhisperRaidTools.toc"), temp.path().join("old.toc")).unwrap();
+    fs::create_dir_all(addons.join(".darkwhispers-backups/OtherAddon-keep")).unwrap();
+    fs::write(addons.join(".darkwhispers-backups/OtherAddon-keep/notes.txt"), b"keep").unwrap();
+    recovery::purge_backups(&addons, &addon.id).unwrap();
+    assert!(!old.exists());
+    assert!(addons.join(".darkwhispers-backups/OtherAddon-keep/notes.txt").is_file());
 }
 
 #[test]
@@ -298,8 +324,7 @@ fn live_signed_release_installs_and_removes() {
     let state = status(&config, false).unwrap();
     assert!(state.addons[0].installed);
     assert!(!state.addons[0].update_available);
-    let backup = remove(&config, "DarkWhisperRaidTools").unwrap();
-    assert!(backup.join("DarkWhisperRaidTools.toc").is_file());
+    remove(&config, "DarkWhisperRaidTools").unwrap();
     assert!(installed_version(&game, "DarkWhisperRaidTools")
         .unwrap()
         .is_none());
@@ -328,4 +353,24 @@ fn linked_addons_and_linked_addons_folder_are_not_modified() {
     symlink(&outside, game.join("Interface/AddOns")).unwrap();
     assert!(validate_game(&game).is_err());
     assert!(fs::read_dir(&outside).unwrap().next().is_none());
+}
+
+#[test]
+fn automatic_updates_exclude_removed_unknown_and_disabled_addons() {
+    let (temp, game) = game();
+    let config = temp.path().join("config");
+    select_game(&config, &game).unwrap();
+    set_auto_update(&config, true).unwrap();
+    assert!(automatic_update_ids(&status(&config, false).unwrap()).is_empty());
+    let (addon, bytes) = package("0.9.0", &[]);
+    install_bytes(&game, &addon, &bytes).unwrap();
+    assert_eq!(automatic_update_ids(&status(&config, false).unwrap()), vec![addon.id.clone()]);
+    let mut snapshot = status(&config, false).unwrap();
+    snapshot.addons[0].issue = Some("Unrecognized folder".into());
+    assert!(automatic_update_ids(&snapshot).is_empty());
+    set_auto_update(&config, false).unwrap();
+    assert!(automatic_update_ids(&status(&config, false).unwrap()).is_empty());
+    set_auto_update(&config, true).unwrap();
+    remove(&config, &addon.id).unwrap();
+    assert!(automatic_update_ids(&status(&config, false).unwrap()).is_empty());
 }

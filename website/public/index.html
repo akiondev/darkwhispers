@@ -7,8 +7,8 @@
   <meta name="description" content="DarkWhispers. Download the launcher or install a World of Warcraft Retail addon directly.">
   <link rel="canonical" href="https://darkwhispers.akion.se/">
   <link rel="icon" href="/assets/frost.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.2bbaff12fe116837.css">
-  <script src="/app.29d6e979d24d72b9.js" type="module"></script>
+  <link rel="stylesheet" href="/styles.bf44a4f707162cd5.css">
+  <script src="/app.e2c5433adb39fd0e.js" type="module"></script>
   <title>DarkWhispers</title>
 </head>
 <body>
@@ -32,6 +32,11 @@
         <span class="download-label"><strong>Install an addon in browser</strong><small>Choose your WoW folder · no launcher needed</small></span>
         <svg class="download-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
       </button>
+      <a class="download-main github-main" id="github-download" href="https://github.com/akiondev/darkwhispers/releases/latest" target="_blank" rel="noopener">
+        <span class="platform-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="outline-icon"><path d="M9 19c-5 1-5-2-7-2m14 5v-4a3 3 0 0 0-.8-2.3c2.7-.3 5.5-1.3 5.5-6A4.7 4.7 0 0 0 19.4 6 4.3 4.3 0 0 0 19.3 2s-1.1-.4-3.7 1.4a13 13 0 0 0-6.7 0C6.3 1.6 5.2 2 5.2 2A4.3 4.3 0 0 0 5.1 6a4.7 4.7 0 0 0-1.3 3.7c0 4.7 2.8 5.7 5.5 6A3 3 0 0 0 8.5 18v4"/></svg></span>
+        <span class="download-label"><strong>Manual download on GitHub</strong><small>Direct release files · best for your own review</small></span>
+        <svg class="download-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg>
+      </a>
       <details class="platforms" id="platforms">
         <summary>Other platforms <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary>
         <div class="platform-menu" aria-label="Choose a platform">
@@ -47,11 +52,15 @@
       <p class="provenance-note" id="provenance-note">Check the source, workflow and original reports on GitHub.</p>
       <div id="evidence-grid" class="evidence-grid"><p class="muted">Loading scan reports…</p></div>
       <div class="evidence-links">
-        <a href="/security/source-review.md" target="_blank" rel="noopener">Source review ↗</a>
+        <a href="/reports.html?report=source" target="_blank" rel="noopener">Source review ↗</a>
         <button type="button" id="open-security">All reports &amp; file hashes ↗</button>
       </div>
       <a class="verify-link" href="https://github.com/akiondev/darkwhispers/blob/main/docs/VERIFY.md" target="_blank" rel="noopener">How to verify a download &amp; report signatures ↗</a>
       <p id="security-summary" class="security-summary" role="status"></p>
+    </section>
+    <section class="changelog" aria-labelledby="changelog-title">
+      <div class="evidence-heading"><h2 id="changelog-title">Latest changes</h2><a href="https://github.com/akiondev/darkwhispers/releases" target="_blank" rel="noopener">All releases ↗</a></div>
+      <div id="changelog-feed"><p class="muted">Loading the latest changes…</p></div>
     </section>
     <noscript><p class="no-script">Enable JavaScript to choose your download.</p></noscript>
   </main>
@@ -75,7 +84,7 @@
     <p class="overline">RELEASE TRANSPARENCY</p><h2 id="security-title">Security checks</h2>
     <div id="security-details"><p class="muted">Loading release reports…</p></div>
     <p class="helper">Scan results apply to the listed file hashes and date. They are not a guarantee that software is risk-free.</p>
-    <a class="text-link" id="release-report" href="/security/release-checks.json" target="_blank" rel="noopener">View full report ↗</a>
+    <a class="text-link" id="release-report" href="/reports.html?report=evidence" target="_blank" rel="noopener">Read complete release report ↗</a>
   </dialog>
 </body>
 </html>

@@ -31,7 +31,7 @@ From the project root:
 python website/tools/package.py
 ```
 
-This builds the existing DarkWhisper Raid Tools runtime as a deterministic ZIP,
+This builds the existing DarkWhispers Raid Tool runtime as a deterministic ZIP,
 checks every packaged file against the source, validates local HTML links and
 generates a deployment archive and SHA-256 inventory in `website/build/`.
 AkionUI, saved settings, research files and credentials are never packaged.
@@ -99,7 +99,7 @@ files under /addons/ have gzip sidecars to avoid transferring raw textures.
 The catalog stays compatible with the desktop launcher.
 
 Browser installation verifies downloads, stages and reads back files, backs up
-the previous addon, then writes and verifies the live folder. Failures trigger
+the previous addon temporarily, then writes and verifies the live folder. Completed updates and successful rollbacks clear that temporary copy. Failures trigger
 restoration. Browser replacement is not atomic; an interrupted tab or revoked
 permission may require restoring from Interface/AddOns/.darkwhispers-web-backups/.
 

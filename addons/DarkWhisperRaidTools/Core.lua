@@ -1,5 +1,5 @@
 local addonName, ns = ...
-ns.version = "1.0.0"
+ns.version = "1.0.1"
 
 local function Copy(value, seen)
     if type(value) ~= "table" then return value end

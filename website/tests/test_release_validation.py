@@ -22,7 +22,7 @@ class ReleaseValidation(unittest.TestCase):
         self.version = "0.1.4"
         prefix = "https://github.com/akiondev/darkwhispers/releases/download/v0.1.4/"
         names = ["DarkWhispers-Addons-0.1.4-windows-x64-setup.exe",
-                 "DarkWhispers-Addons-0.1.4-linux-amd64.deb", "AkionUI-0.8.1.zip",
+                 "DarkWhispers-Addons-0.1.4-linux-amd64.deb",
                  "DarkWhisperRaidTools-1.0.0.zip"]
         reports = ["defender.json", "clamav.json", "semgrep.json", "cargo-audit.json",
                    "source-summary.json", "source-files.json", "codeql-report.sarif"]
@@ -53,6 +53,13 @@ class ReleaseValidation(unittest.TestCase):
 
     def test_complete_release(self):
         self.validate()
+
+    def test_private_addon_is_not_a_public_release_package(self):
+        item = copy.deepcopy(self.evidence["artifacts"][-1])
+        item["filename"] = "AkionUI-0.8.1.zip"
+        self.evidence["artifacts"][-1] = item
+        with self.assertRaises(ValueError):
+            self.validate()
 
     def test_missing_or_duplicate_platform(self):
         self.evidence["artifacts"][1] = self.evidence["artifacts"][0]

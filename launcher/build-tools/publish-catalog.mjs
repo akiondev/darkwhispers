@@ -69,7 +69,7 @@ const payload = Buffer.from(JSON.stringify({
   schema:1,
   addons:[{
     id:"DarkWhisperRaidTools",
-    title:"DarkWhisper Raid Tools",
+    title:"DarkWhispers Raid Tool",
     description:"Your raid markers. Your north. A standalone compass with custom layouts.",
     version,
     download_url:`https://darkwhispers.akion.se/downloads/${archiveName}`,

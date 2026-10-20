@@ -11,7 +11,7 @@ root = Path(__file__).resolve().parents[1]
 base = root/"addons" if (root/"addons").is_dir() else root
 out = root/"out/addons"
 out.mkdir(parents=True, exist_ok=True)
-for name in ("AkionUI","DarkWhisperRaidTools"):
+for name in ("DarkWhisperRaidTools",):
     source = base/name
     version = re.search(r"^## Version:\s*([\d.]+)\s*$",(source/(name+".toc")).read_text(),re.M).group(1)
     with zipfile.ZipFile(out/f"{name}-{version}.zip","w",compression=zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
@@ -36,4 +36,4 @@ for addon in catalog["addons"]:
         (target.parent/(target.name+".gz")).write_bytes(gzip.compress(data,mtime=0))
     archive = out/(addon["id"]+"-"+addon["version"]+".zip")
     assert hashlib.sha256(archive.read_bytes()).hexdigest() == addon["sha256"], "Archive differs from the existing signed catalog"
-print("Both addon archives prepared. Signed catalog file hashes and ZIP hash match.")
+print("Public raid addon archive prepared. Signed catalog file hashes and ZIP hash match.")

@@ -6,6 +6,7 @@ import json
 import re
 import tarfile
 import zipfile
+from urllib.parse import urlsplit
 
 site = Path(__file__).resolve().parents[1]
 project = site.parent
@@ -74,7 +75,7 @@ for ref in parser.refs:
     if ref.startswith("#"):
         assert ref[1:] in parser.ids, f"Broken anchor: {ref}"
     elif ref.startswith("/") and ref != "/":
-        assert (public / ref.lstrip("/")).is_file(), f"Missing file: {ref}"
+        assert (public / urlsplit(ref).path.lstrip("/")).is_file(), f"Missing file: {ref}"
 assert "https://github.com/akiondev/darkwhispers" in html, "The public source link must stay visible"
 
 build = site / "build"

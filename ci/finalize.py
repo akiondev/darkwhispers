@@ -24,7 +24,7 @@ groups = {
 }
 import re
 addon_files = set()
-for name in ("AkionUI","DarkWhisperRaidTools"):
+for name in ("DarkWhisperRaidTools",):
     toc = (root/"addons"/name/(name+".toc")).read_text(encoding="utf-8")
     addon_version = re.search(r"^## Version:\s*([\d.]+)\s*$",toc,re.M).group(1)
     addon_files.add(name+"-"+addon_version+".zip")
@@ -54,7 +54,7 @@ for path in sorted(files.values()):
             assert any(item["filename"] == path.name and item["sha256"] == digest for item in scan["artifacts"]), "Unscanned or changed release file"
         artifacts.append({"filename":path.name,"sha256":digest,"bytes":path.stat().st_size,"url":base+path.name})
     shutil.copyfile(path,release/path.name)
-assert len(artifacts) >= 4
+assert len(artifacts) == 3
 codeql_runs = []
 for path in sorted(release.glob("codeql-*.sarif")):
     codeql_runs.extend(json.loads(path.read_text())["runs"])

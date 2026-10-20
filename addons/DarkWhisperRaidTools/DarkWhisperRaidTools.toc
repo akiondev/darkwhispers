@@ -1,8 +1,8 @@
 ## Interface: 120100
-## Title: DarkWhisper Raid Tools
+## Title: DarkWhispers Raid Tool
 ## Notes: Standalone manual raid marker compass, layouts and heading calibration.
 ## Author: Robin
-## Version: 1.0.0
+## Version: 1.0.1
 ## SavedVariables: DarkWhisperRaidToolsDB
 
 Core.lua

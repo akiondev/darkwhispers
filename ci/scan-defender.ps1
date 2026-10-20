@@ -5,7 +5,7 @@ New-Item -ItemType Directory -Force $reportRoot | Out-Null
 $inventory = @(Get-ChildItem -LiteralPath $scanRoot -File | ForEach-Object {
     [ordered]@{filename=$_.Name;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant();bytes=$_.Length}
 })
-if ($inventory.Count -lt 4) { throw 'Incomplete release inputs' }
+if ($inventory.Count -ne 3) { throw 'Incomplete release inputs' }
 $started = [DateTime]::UtcNow.ToString('o')
 if (-not (Get-Service WinDefend -ErrorAction SilentlyContinue)) { throw 'Defender is unavailable on this runner; no passed result recorded' }
 if ((Get-Service WinDefend).Status -ne 'Running') { Start-Service WinDefend }

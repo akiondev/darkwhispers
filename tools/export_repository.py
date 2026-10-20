@@ -23,7 +23,7 @@ def include(source, target):
     assert not any(marker in data for marker in markers), "Private-key marker in " + str(source.relative_to(root))
     mapping[target] = source
 
-for name in ("AkionUI","DarkWhisperRaidTools"):
+for name in ("DarkWhisperRaidTools",):
     for source in (root/name).rglob("*"):
         if source.is_file() and source.suffix in {".lua",".toc",".tga"}:
             include(source, "addons/"+source.relative_to(root).as_posix())
@@ -33,7 +33,7 @@ for folder in ("launcher","website","tests","tools","docs","ci",".github"):
         if not source.is_file() or any(part in excluded for part in relative.parts):
             continue
         name = relative.as_posix()
-        if name in {"launcher/tests/ui.html"} or name.startswith("docs/README.public") or ".public." in source.name:
+        if name in {"launcher/tests/ui.html", "tests/smoke.lua", "docs/soothe-research.md", "docs/addons-guide.md"} or name.startswith("docs/README.public") or ".public." in source.name:
             continue
         if name.startswith(("website/public/addons/","website/public/launcher/downloads/")):
             continue
@@ -45,17 +45,13 @@ for folder in ("launcher","website","tests","tools","docs","ci",".github"):
             continue
         include(source,name)
 for source,target in (("docs/README.public.md","README.md"),("docs/SECURITY.public.md","SECURITY.md"),
-                      ("docs/AGENTS.public.md","AGENTS.md"),("launcher/LICENSE","LICENSE"),("deploy.ps1","deploy.ps1")):
+                      ("docs/AGENTS.public.md","AGENTS.md"),("launcher/LICENSE","LICENSE"),("tools/deploy-raid.ps1","deploy.ps1")):
     include(root/source,target)
 for name,source in sorted(mapping.items()):
     target = destination/name
     assert target.resolve().is_relative_to(destination.resolve())
     target.parent.mkdir(parents=True,exist_ok=True)
     shutil.copyfile(source,target)
-# The detailed existing usage guide is retained without exposing local settings.
-guide = (root/"README.md").read_text(encoding="utf-8")
-guide = guide.replace("](docs/soothe-research.md)","](soothe-research.md)")
-(destination/"docs/addons-guide.md").write_text(guide,encoding="utf-8")
 (destination/".gitattributes").write_text("* text=auto eol=lf\naddons/** -text\n*.tga binary\n*.png binary\n*.ico binary\n*.icns binary\n*.bin binary\n",encoding="utf-8")
 (destination/".gitignore").write_text("""/out/
 /release/
