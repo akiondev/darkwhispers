@@ -680,7 +680,7 @@ dependencies = [
 
 [[package]]
 name = "darkwhispers-addons"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "darkwhispers-core",
  "serde",
@@ -695,7 +695,7 @@ dependencies = [
 
 [[package]]
 name = "darkwhispers-core"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",

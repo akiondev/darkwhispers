@@ -11,7 +11,7 @@ sections = ["DarkWhispers Addons — third-party dependency notices",
             "The application uses Tauri, Rust crates and the operating system's webview.",
             "The list includes build-time and platform-specific dependencies.",
             "Each dependency remains licensed by its authors under the terms below.\n"]
-sections.extend(["\nGrenze Gotisch Black — self-hosted wordmark font\n",
+sections.extend(["\nCinzel Bold — renamed DarkWhispers Wordmark subset — self-hosted wordmark font\n",
                  (root / "ui/fonts/SOURCE.txt").read_text(encoding="utf-8"),
                  (root / "ui/fonts/OFL.txt").read_text(encoding="utf-8")])
 for package in sorted(metadata["packages"], key=lambda p: (p["name"], p["version"])):

@@ -17,7 +17,7 @@ function detectedPlatform() {
   return "unknown";
 }
 let selectedPlatform = detectedPlatform();
-let release = null, catalog = null, checks = null, retail = null, installing = false;
+let release = null, catalog = null, retail = null, installing = false;
 const directSupported = typeof window.showDirectoryPicker === "function" && !!crypto.subtle;
 
 function selectPlatform(platform) {
@@ -26,7 +26,7 @@ function selectPlatform(platform) {
   const item = release?.platforms?.[platform];
   const main = $("launcher-download");
   $("platform-icon").innerHTML = icons[platform] || icons.unknown;
-  $("download-title").textContent = platform === "unknown" ? "Choose your platform" : "Download for " + names[platform];
+  $("download-title").textContent = platform === "unknown" ? "Choose your platform" : "Download Launcher for " + names[platform];
   $("download-detail").textContent = item?.label || (release ? "Windows and Linux · choose a platform" : "Loading the latest release…");
   main.removeAttribute("href");
   main.classList.add("unavailable");
@@ -40,7 +40,6 @@ function selectPlatform(platform) {
       main.removeAttribute("aria-disabled");
     }
   }
-  renderSecurity();
 }
 document.querySelectorAll("[data-platform]").forEach((button) => button.addEventListener("click", () => selectPlatform(button.dataset.platform)));
 $("launcher-download").addEventListener("click", (event) => {
@@ -50,7 +49,7 @@ document.addEventListener("click", (event) => {
   if (!$("platforms").contains(event.target)) $("platforms").open = false;
 });
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") $("platforms").open = false; });
-for (const kind of ["addons","security"]) $("open-" + kind).addEventListener("click", () => $(kind + "-dialog").showModal());
+for (const kind of ["addons"]) $("open-" + kind).addEventListener("click", () => $(kind + "-dialog").showModal());
 document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => {
   if (button.dataset.close === "addons-dialog" && installing) return;
   $(button.dataset.close).close();
@@ -92,7 +91,9 @@ function renderAddons() {
     zip.href = new URL(addon.download_url).pathname;
     zip.setAttribute("download","");
     buttons.append(install, zip);
-    row.append(title, version, buttons);
+    const identity = document.createElement("div"); identity.className = "addon-title";
+    const mark = document.createElement("img"); mark.src = "/assets/raid-tools.svg"; mark.alt = ""; mark.width = 36; mark.height = 36;
+    identity.append(mark,title); row.append(identity, version, buttons);
     $("addon-list").append(row);
   }
   setInstalling(false);
@@ -142,99 +143,6 @@ async function runInstall(addon) {
     installStatus(error.name === "NotAllowedError" ? "Folder access was denied. Re-select your folder or use the launcher." : error.message, true);
   } finally { setInstalling(false); }
 }
-function checkRow(title, status, text, passed, reportUrl) {
-  const row = document.createElement("section");
-  row.className = "check-row";
-  const heading = document.createElement("strong");
-  heading.append(document.createTextNode(title));
-  const tag = document.createElement("span");
-  tag.className = "check-tag" + (passed ? "" : " pending");
-  tag.textContent = status;
-  heading.append(tag);
-  const detail = document.createElement("p");
-  detail.textContent = text;
-  row.append(heading, detail);
-  if (reportUrl) {
-    const link = document.createElement("a");
-    link.className = "text-link"; link.textContent = "Read report ↗";
-    link.href = reportUrl; link.target = "_blank"; link.rel = "noopener";
-    row.append(link);
-  }
-  return row;
-}
-function evidenceCard(title, result, reportUrl, passed) {
-  const card = document.createElement("div");
-  card.className = "evidence-item" + (passed ? "" : " pending");
-  const name = document.createElement("strong"); name.textContent = title;
-  const status = document.createElement("p"); status.textContent = result;
-  const link = document.createElement("a");
-  link.textContent = "Read report ↗"; link.href = reportUrl; link.target = "_blank"; link.rel = "noopener";
-  card.append(name, status, link);
-  return card;
-}
-function renderSecurity() {
-  if (!checks || !release) return;
-  const rows = $("security-details");
-  rows.replaceChildren();
-  const reportMatches = checks.version === release.version;
-  const provenance = reportMatches && checks.provenance?.repository === "akiondev/darkwhispers" ? checks.provenance : null;
-  const publicRun = provenance && /^[a-f0-9]{40}$/.test(provenance.commit || "") && /^https:\/\/github\.com\/akiondev\/darkwhispers\/actions\/runs\/[0-9]+$/.test(provenance.run_url);
-  const reportLink = name => "/reports.html?report=" + ({rustsec:"rustsec",evidence:"evidence",defender:"defender",clamav:"clamav",semgrep:"semgrep",codeql:"codeql"}[name] || "evidence");
-  $("public-build").href = publicRun ? provenance.run_url : "https://github.com/akiondev/darkwhispers/actions";
-  $("public-build").textContent = publicRun ? "View this release's public build & scans ↗" : "View public builds & scans on GitHub ↗";
-  $("release-report").href = reportLink("evidence","/security/release-checks.json");
-  $("provenance-note").textContent = publicRun ? "Built from " + provenance.commit.slice(0,12) + ". Verify signed files and original reports on GitHub." : "These existing scans were run by the maintainer. A public GitHub release build is pending.";
-  const required = Object.values(release.platforms).map((item) => item.sha256).concat(catalog ? catalog.addons.map((item)=>item.sha256) : []);
-  const artifacts = checks.artifacts || [];
-  const scanPassed = reportMatches && checks.malware?.status === "passed" && checks.malware?.detections === 0 && checks.malware?.exit_code === 0 && required.length > 0 && required.every((hash) => artifacts.some((file) => file.sha256 === hash && file.scan?.status === "passed" && file.scan?.detections === 0 && file.scan?.exit_code === 0));
-  const scanner = checks.malware?.engine || "Not available";
-  rows.append(checkRow("Microsoft Defender", scanPassed ? "0 detections" : "See report", scanner + (scanPassed ? " · no detections in the listed release files." : " · no matching completed scan for every release file."), scanPassed, reportLink("defender","/security/defender-report.json")));
-  const review = reportMatches ? checks.source_review : null;
-  rows.append(checkRow("Source review", review?.status === "completed" ? "Completed" : "Pending", review?.summary || "Source review has not been published.", review?.status === "completed"));
-  if (review?.report_url === "/security/source-review.md") {
-    const link = document.createElement("a"); link.href = "/reports.html?report=source"; link.target = "_blank"; link.rel = "noopener"; link.className = "text-link"; link.textContent = "Read the source review ↗"; rows.append(link);
-  }
-  const audit = reportMatches ? checks.dependencies : null;
-  const noVulnerabilities = ["passed","completed_with_notes"].includes(audit?.status) && audit.vulnerabilities === 0;
-  rows.append(checkRow("Dependency audit", noVulnerabilities ? (audit.warnings ? audit.warnings + " advisory notes" : "Passed") : "See report", audit?.summary || "No matching dependency audit has been published.", noVulnerabilities && !audit.warnings, reportLink("rustsec","/security/dependency-audit.json")));
-  const clam = reportMatches ? checks.scanners?.clamav : null;
-  const clamPassed = clam?.status === "passed" && clam.detections === 0 && clam.exit_code === 0 && required.length > 0 && required.every((hash) => clam.artifacts?.some((file) => file.sha256 === hash && file.status === "passed"));
-  const analysis = reportMatches ? checks.static_analysis : null;
-  const analysisDone = analysis?.status === "completed" && analysis.errors === 0;
-  rows.append(checkRow("ClamAV antivirus", clamPassed ? "0 detections" : "See report", clamPassed ? clam.engine + " · " + clam.signatures + " signatures. Full archive scanning; see the exact file hashes and log." : "No matching completed ClamAV scan for every release file.", clamPassed, reportLink("clamav","/security/clamav-report.json")));
-  rows.append(checkRow("Semgrep Community Edition", analysisDone ? analysis.findings + (analysis.findings === 1 ? " finding" : " findings") : "See report", analysis?.summary || "No automated source scan has been published.", analysisDone && analysis.findings === 0, reportLink("semgrep","/security/semgrep-report.json")));
-  const releaseUrl = "https://github.com/akiondev/darkwhispers/releases/tag/v" + release.version;
-  const immutable = publicRun && provenance.immutable === true && provenance.release_url === releaseUrl;
-  if (publicRun && checks.codeql) {
-    rows.append(checkRow("CodeQL", checks.codeql.findings + " findings", "JavaScript and Python analysis. Open the original SARIF report for every result.", checks.codeql.findings === 0, reportLink("codeql","/security/codeql-report.sarif")));
-    rows.append(checkRow("Signed provenance", immutable ? "Immutable release" : "See report", "Verify the source commit and file attestations on GitHub.", immutable, reportLink("evidence")));
-  }
-  rows.append(checkRow("Addon integrity", "Verified on install", "Ed25519 catalog signature and SHA-256 checks for every file before it is written.", true));
-  const meta = document.createElement("p");
-  meta.className = "report-meta";
-  meta.textContent = "Checked: " + (checks.checked_at || "Not recorded") + ". Windows installers are unsigned. Source review is not an independent security certification.";
-  rows.append(meta);
-  const hashes = document.createElement("details");
-  const summary = document.createElement("summary"); summary.className = "text-link"; summary.textContent = "Scanned file hashes"; hashes.append(summary);
-  for (const item of artifacts) {
-    const line = document.createElement("p"); line.className = "hash muted"; line.textContent = item.filename + " — SHA-256 " + item.sha256; hashes.append(line);
-  }
-  rows.append(hashes);
-  const grid = $("evidence-grid");
-  grid.replaceChildren(
-    evidenceCard("Microsoft Defender", scanPassed ? "0 detections · " + artifacts.length + " release files" : "Check results · see report", reportLink("defender","/security/defender-report.json"), scanPassed),
-    evidenceCard("ClamAV", clamPassed ? "0 detections · " + artifacts.length + " release files" : "Check results · see report", reportLink("clamav","/security/clamav-report.json"), clamPassed),
-    evidenceCard("Semgrep · code analysis", analysisDone ? (analysis.findings && analysis.reviewed_findings === analysis.findings ? analysis.findings + " reviewed note" : analysis.findings + (analysis.findings === 1 ? " finding" : " findings")) + " · " + analysis.scanned_files + " files scanned" : "Analysis pending", reportLink("semgrep","/security/semgrep-report.json"), analysisDone && analysis.findings === 0),
-    evidenceCard("RustSec · dependencies", noVulnerabilities ? "0 vulnerabilities · " + audit.warnings + " advisory notes" : Number.isInteger(audit?.vulnerabilities) ? audit.vulnerabilities + " vulnerabilities · see report" : "Audit unavailable", reportLink("rustsec","/security/dependency-audit.json"), noVulnerabilities && !audit.warnings)
-  );
-  if (publicRun && checks.codeql) {
-    grid.append(evidenceCard("CodeQL · code analysis", checks.codeql.findings + " findings · JavaScript & Python", reportLink("codeql","/security/codeql-report.sarif"), checks.codeql.findings === 0));
-    grid.append(evidenceCard("Signed provenance", immutable ? "Immutable GitHub release" : "Verify on GitHub", reportLink("evidence"), immutable));
-  }
-  const stamp = checks.checked_at ? new Date(checks.checked_at) : null;
-  $("evidence-version").textContent = reportMatches ? "v" + release.version + (stamp && !Number.isNaN(stamp.getTime()) ? " · " + stamp.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "") : "Reports pending";
-  $("security-summary").textContent = publicRun ? "GitHub-hosted checks · Windows installer unsigned · provenance proves origin and integrity, not safety." : "Windows installer unsigned · automated checks and developer review, not an independent certification.";
-}
 async function loadChangelog() {
   try {
     const feed = JSON.parse(new TextDecoder().decode(await fetchBytes("/changelog.json",65536)));
@@ -260,11 +168,8 @@ async function initialize() {
       selectPlatform(selectedPlatform);
     })().catch(() => { $("download-detail").textContent = "Downloads unavailable. Please reload."; }),
     (async () => {
-      catalog = await loadCatalog(); renderAddons(); renderZipDownload(); renderSecurity();
-    })().catch((error) => { $("addon-list").textContent = error.message; installStatus("The addon catalog could not be verified.", true); }),
-    (async () => {
-      checks = JSON.parse(new TextDecoder().decode(await fetchBytes("/security/release-checks.json", 256 * 1024))); renderSecurity();
-    })().catch(() => { $("security-details").textContent = "Security reports are unavailable. No certification is claimed."; $("evidence-grid").textContent = "Security reports are currently unavailable."; })
+      catalog = await loadCatalog(); renderAddons(); renderZipDownload();
+    })().catch((error) => { $("addon-list").textContent = error.message; installStatus("The addon catalog could not be verified.", true); })
   ]);
 }
 

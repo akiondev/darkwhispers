@@ -19,7 +19,7 @@ if not version_match:
     raise SystemExit("Cannot read addon version")
 version = version_match.group(1)
 runtime = sorted(p for p in addon.rglob("*") if p.suffix in {".lua", ".toc", ".tga"})
-if len(runtime) != 7:
+if len(runtime) != 8:
     raise SystemExit("Unexpected runtime inventory; review package allowlist")
 download = public / "downloads" / f"DarkWhisperRaidTools-{version}.zip"
 download.parent.mkdir(parents=True, exist_ok=True)

@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const invoke = window.__TAURI__?.core.invoke;
 let state = null, busy = false, pendingRemoval = null;
-let launcherVersion = "0.3.3", availableLauncher = null, reportsLoaded = false, lastAddonCheck = 0;
+let launcherVersion = "0.3.4", availableLauncher = null, reportsLoaded = false, lastAddonCheck = 0;
 function updateMotion() {
   document.documentElement.classList.toggle("motion-paused", document.hidden || !document.hasFocus());
 }
@@ -47,7 +47,7 @@ function render(next) {
   const path = next.game_path?.replace(/^\\\\\?\\/, "") || "Choose your WoW Retail folder to get started.";
   $("game-path").textContent = path; $("game-path").title = path;
   $("auto-update").checked = !!next.auto_update;
-  $("auto-detail").textContent = next.auto_update ? "On · signed releases only" : "Off · no background checks";
+  $("auto-detail").textContent = next.auto_update ? "On" : "Off";
   $("addons").replaceChildren();
   const columns = document.createElement("div"); columns.className = "addon-list-head"; columns.setAttribute("aria-hidden","true");
   for (const text of ["ADDON","INSTALLED","LATEST","ACTIONS"]) { const label = document.createElement("span"); label.textContent = text; columns.append(label); }
@@ -58,7 +58,7 @@ function render(next) {
   $("nav-library").querySelector(".nav-count").textContent = next.addons.length;
   for (const item of next.addons) {
     const card = document.createElement("article"); card.className = "addon-row";
-    card.innerHTML = '<div class="addon-row-main"><div class="addon-identity"><div class="addon-icon" aria-hidden="true"><img src="mark.webp" alt=""></div><div class="addon-name"><h2></h2><p class="addon-state"></p><p class="addon-updated"></p></div></div><div class="version-col installed-version"></div><div class="version-col latest-version"></div><div class="addon-row-actions"></div></div><div class="addon-details" hidden><p class="release-heading"></p><p class="release-notes"></p><p class="addon-issue" hidden></p><div class="maintenance"></div></div>';
+    card.innerHTML = '<div class="addon-row-main"><div class="addon-identity"><div class="addon-icon" aria-hidden="true"><img src="raid-tools.svg" alt=""></div><div class="addon-name"><h2></h2><p class="addon-state"></p><p class="addon-updated"></p></div></div><div class="version-col installed-version"></div><div class="version-col latest-version"></div><div class="addon-row-actions"></div></div><div class="addon-details" hidden><p class="release-heading"></p><p class="release-notes"></p><p class="addon-issue" hidden></p><div class="maintenance"></div></div>';
     card.querySelector("h2").textContent = item.addon.title;
     card.querySelector("h2").title = item.addon.description;
     const known = /^\d+\.\d+\.\d+(?:[-+].+)?$/.test(item.installed_version || "");

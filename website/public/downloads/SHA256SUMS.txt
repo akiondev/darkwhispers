@@ -1,1 +1,1 @@
-5f31d36b333f7abdf37572bce12d25e17f372fdded83a3b429c49259d1535d21  DarkWhisperRaidTools-1.0.2.zip
+135b0312fee6c3f8822cb7176f19bdac724f5ebda2f4fdeb4485266f5596cb41  DarkWhisperRaidTools-1.0.3.zip

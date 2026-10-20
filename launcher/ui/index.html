@@ -9,7 +9,7 @@
 <div class="app-window">
   <div class="ambient" aria-hidden="true"><div class="aurora"></div><div class="orbit"></div></div>
   <header class="titlebar">
-    <div id="window-drag" class="window-drag"><img src="mark.webp" width="24" height="24" alt=""><span>DARKWHISPERS <small>ADDONS</small></span></div>
+    <div id="window-drag" class="window-drag"><img src="mark.webp" width="24" height="24" alt=""><span class="brand-wordmark">DARKWHISPERS <small>ADDONS</small></span></div>
     <div class="window-controls" aria-label="Window controls">
       <button type="button" data-window="minimize" aria-label="Minimize to system tray" title="Minimize to system tray"><svg viewBox="0 0 16 16"><path d="M3 8h10"/></svg></button>
       <button type="button" data-window="maximize" aria-label="Maximize or restore window" title="Maximize or restore"><svg viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx="1"/></svg></button>
@@ -18,7 +18,7 @@
   </header>
   <div class="workspace">
     <aside class="sidebar">
-      <div class="identity"><img src="mark.webp" width="64" height="64" alt=""><strong>DARKWHISPERS</strong><span>RAID COMPANIONS</span></div>
+      <div class="identity"><img src="mark.webp" width="64" height="64" alt=""><strong class="brand-wordmark">DARKWHISPERS</strong><span>RAID COMPANIONS</span></div>
       <nav aria-label="Launcher views">
         <button type="button" class="nav-item active" id="nav-library" aria-current="page"><svg viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5zm-9 9 9 5 9-5M3 16l9 5 9-5"/></svg>Your addons<span class="nav-count">1</span></button>
         <button type="button" class="nav-item" id="nav-reports"><svg viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/></svg>Trust &amp; reports</button>
@@ -28,7 +28,7 @@
         <button class="source-button" data-resource="source" type="button"><span>&lt;/&gt;</span>Open source<br><small>on GitHub ↗</small></button>
         <button class="manual-button" data-resource="manual" type="button">Manual download ↗<small>GitHub · review it yourself</small></button>
       </div>
-      <span class="sidebar-version" id="launcher-version">v0.3.3</span>
+      <span class="sidebar-version" id="launcher-version">v0.3.4</span>
     </aside>
     <main>
       <section class="game-location" aria-labelledby="location-title">
@@ -38,14 +38,11 @@
       </section>
       <section id="library-panel" aria-labelledby="library-title">
         <div class="section-heading"><div><p class="eyebrow">YOUR NEXT RAID STARTS HERE</p><h1 id="library-title">Your addons</h1></div><button class="refresh" id="refresh" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></svg>Check addon updates</button></div>
+        <div class="library-controls">
+          <label class="auto-update"><span id="auto-title">Auto-update</span><input type="checkbox" id="auto-update" role="switch" aria-labelledby="auto-title" disabled><span id="auto-detail">Off</span></label>
+          <p class="catalog-status" id="catalog-status" aria-live="polite"></p>
+        </div>
         <div id="addons" aria-busy="true"><div class="loading-card">Loading your addons…</div></div>
-        <p class="catalog-status" id="catalog-status" aria-live="polite"></p>
-        <section class="auto-update" aria-labelledby="auto-title">
-          <div><h2 id="auto-title">Auto-update installed addons</h2><p id="auto-detail">Off · no background checks</p></div>
-          <input type="checkbox" id="auto-update" role="switch" aria-labelledby="auto-title" aria-describedby="auto-description" disabled>
-          <p id="auto-description">Every five minutes while the launcher is open or in the tray. Updates wait until WoW is closed.</p>
-        </section>
-        <p class="tray-note">Minimize to keep DarkWhispers in the tray. Close the window or choose Quit in the tray to exit.</p>
       </section>
       <section id="reports-panel" aria-labelledby="reports-title" hidden>
         <div class="section-heading"><div><p class="eyebrow">OPEN BY DESIGN</p><h1 id="reports-title">Trust &amp; reports</h1></div><span id="report-version" class="release-stamp"></span></div>

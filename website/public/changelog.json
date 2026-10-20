@@ -1,6 +1,17 @@
 {
   "entries": [
     {
+      "version": "0.3.4",
+      "date": "20 Oct 2026",
+      "title": "Sharper identity, simpler controls",
+      "changes": [
+        "Cinzel Bold branding with a slow crimson glow across the website and launcher.",
+        "A compact Auto-update switch sits above the addon list. The extra Windows frame is removed.",
+        "Clear launcher download and installation details, with source code, scans and reports linked on GitHub.",
+        "DarkWhispers Raid Tool 1.0.3 has its own gothic tools logo. The vampire remains the website and launcher identity."
+      ]
+    },
+    {
       "version": "0.3.3",
       "date": "20 Oct 2026",
       "title": "Darkness, refined",

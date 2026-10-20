@@ -1,5 +1,6 @@
-Grenze Gotisch by Renata Polastri / Omnibus-Type.
-SIL Open Font License 1.1; see OFL.txt.
-Source: https://github.com/google/fonts/tree/main/ofl/grenzegotisch
-Source TTF SHA-256: 701b299d8dc002a2b4bea2ff0f1272c0e4081a2835914354804565c410d0c637
-Prepared as Latin WOFF2, static Black weight 900. No external font request is required.
+Cinzel Bold, weight 700, Version 1.001, by Natanael Gama.
+Source: https://www.dafont.com/cinzel.font
+Archive: https://dl.dafont.com/dl/?f=cinzel
+Original Cinzel-Bold.otf SHA-256: 803ba54b756b557cdb6c80ea9e3b96a867b2a3239a7db648d48b1d9e73b6067d
+Self-hosted Latin WOFF2 subset. Original Bold outlines preserved.
+Subset family renamed DarkWhispers Wordmark under the SIL OFL reserved-name terms.

@@ -1,6 +1,6 @@
 # DarkWhispers maintainer review notes
 
-Release: launcher 0.3.3 and DarkWhispers Raid Tool 1.0.2.
+Release: launcher 0.3.4 and DarkWhispers Raid Tool 1.0.3.
 Scope: implementation notes, not an independent audit or security certification.
 The original automated reports, source commit and exact package hashes are in
 the immutable GitHub release and its public workflow.
@@ -57,3 +57,12 @@ Visual/browser checks and manual desktop testing complement these tests; they
 do not certify every desktop or WoW encounter. Windows installers remain without
 Authenticode publisher signing. Read the original RustSec report for every
 transitive dependency advisory. No report or provenance claim guarantees safety.
+
+## Identity and compact controls
+
+Cinzel Bold is a self-hosted, renamed Latin subset under its embedded SIL OFL.
+The auto-update toggle moved above the list without changing opt-in semantics.
+Undecorated window shadow is disabled to avoid Tauri’s extra Windows border;
+the custom frame remains. The landing page links to GitHub reports rather than
+fetching duplicate scan cards. The raid addon has an original tools mark and
+unchanged saved settings and compass behavior.
