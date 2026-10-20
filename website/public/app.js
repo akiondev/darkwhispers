@@ -214,7 +214,7 @@ function renderSecurity() {
   grid.replaceChildren(
     evidenceCard("Microsoft Defender", scanPassed ? "0 detections · " + artifacts.length + " release files" : "Scan pending", reportLink("defender","/security/defender-report.json"), scanPassed),
     evidenceCard("ClamAV", clamPassed ? "0 detections · " + artifacts.length + " release files" : "Scan pending", reportLink("clamav","/security/clamav-report.json"), clamPassed),
-    evidenceCard("Semgrep · code analysis", analysisDone ? (analysis.findings && analysis.reviewed_findings === analysis.findings ? analysis.findings + " reviewed note" : analysis.findings + " findings") + " · " + analysis.scanned_files + " files scanned" : "Analysis pending", reportLink("semgrep","/security/semgrep-report.json"), analysisDone && analysis.findings === 0),
+    evidenceCard("Semgrep · code analysis", analysisDone ? (analysis.findings && analysis.reviewed_findings === analysis.findings ? analysis.findings + " reviewed note" : analysis.findings + (analysis.findings === 1 ? " finding" : " findings")) + " · " + analysis.scanned_files + " files scanned" : "Analysis pending", reportLink("semgrep","/security/semgrep-report.json"), analysisDone && analysis.findings === 0),
     evidenceCard("RustSec · dependencies", noVulnerabilities ? "0 vulnerabilities · " + audit.warnings + " advisory notes" : "Audit pending", reportLink("rustsec","/security/dependency-audit.json"), noVulnerabilities && !audit.warnings)
   );
   if (publicRun && checks.codeql) {

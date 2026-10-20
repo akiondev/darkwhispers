@@ -1,56 +1,39 @@
 {
   "schema": 1,
-  "version": "0.1.2",
-  "started_at": "2026-10-20T13:46:54.8698676Z",
-  "checked_at": "2026-10-20T13:46:55.2356135Z",
-  "malware": {
-    "engine": "Microsoft Defender Antivirus",
-    "engine_version": "1.1.26090.9",
-    "platform_version": "4.18.26090.9",
-    "signature_version": "1.461.118.0",
-    "signatures_updated_at": "2026-10-20T07:02:06.0000000Z",
-    "scope": "Full public release directory, including installers, addon archives, runtime files and website scripts",
-    "mode": "Custom scan with remediation disabled; real-time protection remains enabled",
-    "exit_code": 0
-  },
+  "status": "passed",
+  "engine": "Microsoft Defender Antivirus",
+  "exit_code": 0,
+  "detections": 0,
+  "engine_version": "1.1.26090.9",
+  "signature_version": "1.461.119.0",
+  "update_log": [
+    "Direct MMPC signature update completed."
+  ],
+  "maximum_signature_age_hours": 72,
+  "signatures_updated_at": "2026-10-20T08:34:39.0000000Z",
+  "started_at": "2026-10-20T14:41:21.9302317Z",
+  "checked_at": "2026-10-20T14:41:30.2853977Z",
   "artifacts": [
     {
-      "filename": "DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
-      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
-      "sha256": "59304e08ce5f41b93b2a6e55fa72a3b423e3acb775e5529195cdef96733f0ad7",
-      "bytes": 2021668,
-      "scan": {
-        "status": "passed",
-        "detections": 0,
-        "scanner": "Microsoft Defender Antivirus",
-        "exit_code": 0
-      }
-    },
-    {
-      "filename": "DarkWhispers-Addons-0.1.2-linux-amd64.deb",
-      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-linux-amd64.deb",
-      "sha256": "27c556acf2e7bde1a55d7942150bdae0062eaf398c8d1287fdfd654208c734d6",
-      "bytes": 2814572,
-      "scan": {
-        "status": "passed",
-        "detections": 0,
-        "scanner": "Microsoft Defender Antivirus",
-        "exit_code": 0
-      }
+      "filename": "AkionUI-0.8.1.zip",
+      "sha256": "c83b2f9f1ca5bd8e397e93726ce89c081829ef66f75bcf34db7ec3197fd30b59",
+      "bytes": 12927
     },
     {
       "filename": "DarkWhisperRaidTools-1.0.0.zip",
-      "url": "/downloads/DarkWhisperRaidTools-1.0.0.zip",
       "sha256": "0db555a3519b410400c32560144d93ea515ed767787f4a9666a8c51f2554489f",
-      "bytes": 21778,
-      "scan": {
-        "status": "passed",
-        "detections": 0,
-        "scanner": "Microsoft Defender Antivirus",
-        "exit_code": 0
-      }
+      "bytes": 21778
+    },
+    {
+      "filename": "DarkWhispers-Addons-0.1.3-linux-amd64.deb",
+      "sha256": "9d5caf9e1402e0bc4026420529a8549ca3c74edd62b2c2c6b6c49a29bc7d8721",
+      "bytes": 2816078
+    },
+    {
+      "filename": "DarkWhispers-Addons-0.1.3-windows-x64-setup.exe",
+      "sha256": "04989c8641de6324b8e1def6ff5f6a64891226a4a4f88315be843c8d9b0d5d05",
+      "bytes": 2025519
     }
   ],
-  "scan_log": "Scan starting...\nScan finished.\nScanning <local-project>\\website\\public found no threats.\n",
-  "log_note": "Full command output; local user/project path prefixes replaced for privacy."
+  "scope": "All downloaded release packages; custom scan with archive scanning and remediation disabled. No exclusions added."
 }
