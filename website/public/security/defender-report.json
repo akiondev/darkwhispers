@@ -7,30 +7,27 @@
   "engine_version": "1.1.26090.9",
   "signature_version": "1.461.119.0",
   "update_log": [
-    "MMPC update failed: Virus and spyware definitions update was completed with errors.",
-    "Validated Microsoft publisher: CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
-    "Definitions package SHA-256: 931a551e20f100d6d25ad47064b8ffd107d16e07577efc39b82bc8b34ef3b66e",
-    "Official offline definitions updater exit: 0"
+    "Direct MMPC signature update completed."
   ],
   "maximum_signature_age_hours": 72,
   "signatures_updated_at": "2026-10-20T08:34:39.0000000Z",
-  "started_at": "2026-10-20T17:58:02.0676969Z",
-  "checked_at": "2026-10-20T17:58:16.4781293Z",
+  "started_at": "2026-10-20T19:39:38.1475358Z",
+  "checked_at": "2026-10-20T19:39:47.3444334Z",
   "artifacts": [
     {
-      "filename": "DarkWhisperRaidTools-1.0.1.zip",
-      "sha256": "608a7e528c6d1ea85a7b861aad30f1d0dd4b0742c3a6d6728f1901827c5c1dde",
-      "bytes": 21791
+      "filename": "DarkWhisperRaidTools-1.0.2.zip",
+      "sha256": "5f31d36b333f7abdf37572bce12d25e17f372fdded83a3b429c49259d1535d21",
+      "bytes": 21907
     },
     {
-      "filename": "DarkWhispers-Addons-0.3.0-linux-amd64.deb",
-      "sha256": "a0734aaab50b00249041b3b3da0a57a3fb356f820d94a747b24ffe4f65530e9c",
-      "bytes": 2952894
+      "filename": "DarkWhispers-Addons-0.3.1-linux-amd64.deb",
+      "sha256": "e3cd44f57c203005cfdcaf6343d732a042493ff1e40d7abeb165e73ca06ab761",
+      "bytes": 2954892
     },
     {
-      "filename": "DarkWhispers-Addons-0.3.0-windows-x64-setup.exe",
-      "sha256": "30062ba4f8d85ccd53b7cd0ef86bb018b705226a4eb2fe3c17b01d13c8e9ddce",
-      "bytes": 2184057
+      "filename": "DarkWhispers-Addons-0.3.1-windows-x64-setup.exe",
+      "sha256": "77c1da4315f83f43348aaec8f541f3954503e3345b1fa012c78f1e826a884fa4",
+      "bytes": 2184230
     }
   ],
   "scope": "All downloaded release packages; custom scan with archive scanning and remediation disabled. No exclusions added."
