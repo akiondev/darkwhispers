@@ -1,0 +1,7 @@
+* text=auto eol=lf
+addons/** -text
+*.tga binary
+*.png binary
+*.ico binary
+*.icns binary
+*.bin binary

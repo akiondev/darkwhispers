@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#030b18">
+  <meta name="description" content="DarkWhispers. Download the launcher or install a World of Warcraft Retail addon directly.">
+  <link rel="canonical" href="https://darkwhispers.akion.se/">
+  <link rel="icon" href="/assets/frost.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.c84b4817ba49130e.css">
+  <script src="/app.558c5e2621e5af49.js" type="module"></script>
+  <title>DarkWhispers</title>
+</head>
+<body>
+  <div class="winter" aria-hidden="true">
+    <div class="sky"></div><div class="veil veil-one"></div><div class="veil veil-two"></div>
+    <div class="ice-glow"></div><div class="rune-ring"></div><canvas id="snow"></canvas>
+    <div class="vignette"></div>
+  </div>
+  <main class="sanctum">
+    <img class="sigil" src="/assets/frost.svg" width="74" height="90" alt="">
+    <h1>DarkWhispers</h1>
+    <div class="title-rule" aria-hidden="true"><span></span><i></i><span></span></div>
+    <div class="download-area">
+      <a class="download-main unavailable" id="launcher-download" aria-disabled="true">
+        <span class="platform-icon" id="platform-icon" aria-hidden="true"></span>
+        <span class="download-label"><strong id="download-title">Download launcher</strong><small id="download-detail">Finding your platform…</small></span>
+        <svg class="download-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>
+      </a>
+      <button class="download-main browser-main" type="button" id="open-addons">
+        <span class="platform-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="outline-icon"><rect x="2.5" y="3.5" width="19" height="17" rx="2"/><path d="M3 8h18M6 5.8h.01M9 5.8h.01M12 11v6m-3-3 3 3 3-3"/></svg></span>
+        <span class="download-label"><strong>Install an addon in browser</strong><small>Choose your WoW folder · no launcher needed</small></span>
+        <svg class="download-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+      </button>
+      <details class="platforms" id="platforms">
+        <summary>Other platforms <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary>
+        <div class="platform-menu" aria-label="Choose a platform">
+          <button type="button" data-platform="windows"><span>Windows <small>x64</small></span><span class="availability">Loading…</span></button>
+          <button type="button" data-platform="macos"><span>macOS</span><span class="availability">Coming soon</span></button>
+          <button type="button" data-platform="linux"><span>Linux <small>Debian / Ubuntu</small></span><span class="availability">Loading…</span></button>
+        </div>
+      </details>
+    </div>
+    <section class="release-evidence" aria-labelledby="evidence-title">
+      <a class="source-link" href="https://github.com/akiondev/darkwhispers" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-13-2 20"/></svg>Open source on GitHub ↗</a>
+      <div class="evidence-heading"><h2 id="evidence-title">Release checks</h2><span id="evidence-version"></span></div>
+      <a class="public-build" id="public-build" href="https://github.com/akiondev/darkwhispers/actions" target="_blank" rel="noopener">View public builds &amp; scans on GitHub ↗</a>
+      <p class="provenance-note" id="provenance-note">Check the source, workflow and original reports on GitHub.</p>
+      <div id="evidence-grid" class="evidence-grid"><p class="muted">Loading scan reports…</p></div>
+      <div class="evidence-links">
+        <a href="/security/source-review.md" target="_blank" rel="noopener">Source review ↗</a>
+        <button type="button" id="open-security">All reports &amp; file hashes ↗</button>
+      </div>
+      <a class="verify-link" href="https://github.com/akiondev/darkwhispers/blob/main/docs/VERIFY.md" target="_blank" rel="noopener">How to verify a download &amp; report signatures ↗</a>
+      <p id="security-summary" class="security-summary" role="status"></p>
+    </section>
+    <noscript><p class="no-script">Enable JavaScript to choose your download.</p></noscript>
+  </main>
+
+  <dialog id="addons-dialog" aria-labelledby="addons-title">
+    <button class="dialog-close" type="button" data-close="addons-dialog" aria-label="Close addon installer">×</button>
+    <p class="overline">WITHOUT THE LAUNCHER</p>
+    <h2 id="addons-title">Install an addon</h2>
+    <div id="addon-list"><p class="muted">Loading the signed addon catalog…</p></div>
+    <div class="folder-field">
+      <div><span class="field-label">WoW Retail folder</span><p id="folder-name">No folder selected</p></div>
+      <button class="button secondary" type="button" id="choose-wow">Choose folder</button>
+    </div>
+    <p class="helper" id="browser-support">Choose World of Warcraft or its _retail_ folder. Close WoW while installing.</p>
+    <p class="install-status" id="install-status" role="status" aria-live="polite"></p>
+    <p class="local-note">Your folder stays on this device.</p>
+  </dialog>
+
+  <dialog id="security-dialog" aria-labelledby="security-title">
+    <button class="dialog-close" type="button" data-close="security-dialog" aria-label="Close security checks">×</button>
+    <p class="overline">RELEASE TRANSPARENCY</p><h2 id="security-title">Security checks</h2>
+    <div id="security-details"><p class="muted">Loading release reports…</p></div>
+    <p class="helper">Scan results apply to the listed file hashes and date. They are not a guarantee that software is risk-free.</p>
+    <a class="text-link" href="/security/release-checks.json" target="_blank" rel="noopener">View full report ↗</a>
+  </dialog>
+</body>
+</html>

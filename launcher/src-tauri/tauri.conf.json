@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "DarkWhispers Addons",
+  "version": "0.1.3",
+  "identifier": "se.akion.darkwhispers.addons",
+  "build": { "frontendDist": "../ui" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [{
+      "label": "main", "title": "DarkWhispers Addons", "width": 900, "height": 620,
+      "minWidth": 720, "minHeight": 520, "center": true, "theme": "Dark"
+    }],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; frame-src 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "shortDescription": "A simple addon manager for World of Warcraft Retail.",
+    "resources": ["THIRD-PARTY-NOTICES.txt"],
+    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
+    "windows": { "nsis": { "installMode": "currentUser", "displayLanguageSelector": false } }
+  }
+}

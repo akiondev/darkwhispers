@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "version": "0.1.2",
+  "started_at": "2026-10-20T13:46:54.8698676Z",
+  "checked_at": "2026-10-20T13:46:55.2356135Z",
+  "malware": {
+    "engine": "Microsoft Defender Antivirus",
+    "engine_version": "1.1.26090.9",
+    "platform_version": "4.18.26090.9",
+    "signature_version": "1.461.118.0",
+    "signatures_updated_at": "2026-10-20T07:02:06.0000000Z",
+    "scope": "Full public release directory, including installers, addon archives, runtime files and website scripts",
+    "mode": "Custom scan with remediation disabled; real-time protection remains enabled",
+    "exit_code": 0
+  },
+  "artifacts": [
+    {
+      "filename": "DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
+      "sha256": "59304e08ce5f41b93b2a6e55fa72a3b423e3acb775e5529195cdef96733f0ad7",
+      "bytes": 2021668,
+      "scan": {
+        "status": "passed",
+        "detections": 0,
+        "scanner": "Microsoft Defender Antivirus",
+        "exit_code": 0
+      }
+    },
+    {
+      "filename": "DarkWhispers-Addons-0.1.2-linux-amd64.deb",
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-linux-amd64.deb",
+      "sha256": "27c556acf2e7bde1a55d7942150bdae0062eaf398c8d1287fdfd654208c734d6",
+      "bytes": 2814572,
+      "scan": {
+        "status": "passed",
+        "detections": 0,
+        "scanner": "Microsoft Defender Antivirus",
+        "exit_code": 0
+      }
+    },
+    {
+      "filename": "DarkWhisperRaidTools-1.0.0.zip",
+      "url": "/downloads/DarkWhisperRaidTools-1.0.0.zip",
+      "sha256": "0db555a3519b410400c32560144d93ea515ed767787f4a9666a8c51f2554489f",
+      "bytes": 21778,
+      "scan": {
+        "status": "passed",
+        "detections": 0,
+        "scanner": "Microsoft Defender Antivirus",
+        "exit_code": 0
+      }
+    }
+  ],
+  "scan_log": "Scan starting...\nScan finished.\nScanning <local-project>\\website\\public found no threats.\n",
+  "log_note": "Full command output; local user/project path prefixes replaced for privacy."
+}

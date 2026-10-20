@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "version": "0.1.2",
+  "status": "passed",
+  "exit_code": 0,
+  "engine": "ClamAV 1.5.4/28159/Tue Oct 20 06:24:12 2026",
+  "signatures": 3628175,
+  "detections": 0,
+  "started_at": "2026-10-20T13:40:54Z",
+  "checked_at": "2026-10-20T13:41:31Z",
+  "image": "clamav/clamav@sha256:e19130cdebaeacc71fa46eab3ed6f69941f2f22aa5e08d55e9197f8edf43ce5e",
+  "scope": "The three listed release archives/installers; recursive archive scanning, no exclusions, limit alerts enabled. Read-only mount; no deletion or quarantine.",
+  "command": "clamscan --recursive --verbose --scan-archive=yes --alert-exceeds-max=yes --max-filesize=128M --max-scansize=512M --log=/reports/clamav-scan.txt /scan",
+  "artifacts": [
+    {
+      "filename": "DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
+      "sha256": "59304e08ce5f41b93b2a6e55fa72a3b423e3acb775e5529195cdef96733f0ad7",
+      "bytes": 2021668,
+      "status": "passed"
+    },
+    {
+      "filename": "DarkWhispers-Addons-0.1.2-linux-amd64.deb",
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-linux-amd64.deb",
+      "sha256": "27c556acf2e7bde1a55d7942150bdae0062eaf398c8d1287fdfd654208c734d6",
+      "bytes": 2814572,
+      "status": "passed"
+    },
+    {
+      "filename": "DarkWhisperRaidTools-1.0.0.zip",
+      "url": "/downloads/DarkWhisperRaidTools-1.0.0.zip",
+      "sha256": "0db555a3519b410400c32560144d93ea515ed767787f4a9666a8c51f2554489f",
+      "bytes": 21778,
+      "status": "passed"
+    }
+  ],
+  "database_update_log": "ClamAV update process started at Tue Oct 20 13:40:55 2026\ndaily database available for update (local version: 28157, remote version: 28159)\nTesting database: '/var/lib/clamav/tmp.8cce2f0b8a/daily.cld' ...\nDatabase test passed.\ndaily.cld updated (version: 28159, sigs: 355771, f-level: 90, builder: svc.clamav-publisher)\nmain.cvd database is up-to-date (version: 63, sigs: 3287027, f-level: 90, builder: tomjudge)\nbytecode.cvd database is up-to-date (version: 339, sigs: 80, f-level: 90, builder: nrandolp)\nWARNING: Clamd was NOT notified: Can't connect to clamd through /tmp/clamd.sock: No such file or directory\n",
+  "scan_log": "\n-------------------------------------------------------------------------------\n\nScanning /scan/DarkWhisperRaidTools-1.0.0.zip\nScanning /scan/DarkWhispers-Addons-0.1.2-linux-amd64.deb\nScanning /scan/DarkWhispers-Addons-0.1.2-windows-x64-setup.exe\n\n----------- SCAN SUMMARY -----------\nKnown viruses: 3628175\nEngine version: 1.5.4\nScanned directories: 1\nScanned files: 3\nInfected files: 0\nData scanned: 24.43 MiB\nData read: 4.63 MiB (ratio 5.27:1)\nTime: 27.449 sec (0 m 27 s)\nStart Date: 2026:10:20 13:41:04\nEnd Date:   2026:10:20 13:41:31\n",
+  "limitations": [
+    "Executed by the project maintainer in an isolated container, not an independent certification.",
+    "Zero detections is not a guarantee of safety."
+  ]
+}

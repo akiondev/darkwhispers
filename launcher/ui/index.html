@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>DarkWhispers Addons</title>
+  <link rel="stylesheet" href="frost.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <div class="shell">
+    <header>
+      <div class="brand"><img src="mark.svg" width="42" height="42" alt=""><div><strong>DarkWhispers</strong><span>ADDONS</span></div></div>
+      <span class="edition">RETAIL</span>
+    </header>
+    <main>
+      <section class="game-location" aria-labelledby="location-title">
+        <div class="folder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10H3z"/></svg></div>
+        <div class="location"><h2 id="location-title">World of Warcraft</h2><p id="game-path">Looking for your Retail installation…</p></div>
+        <button class="button quiet" id="choose-folder" disabled>Choose folder</button>
+      </section>
+      <div class="section-heading"><div><p class="eyebrow">YOUR COLLECTION</p><h1>Addons</h1></div><button class="refresh" id="refresh" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 17.9 17"/></svg><span>Check for updates</span></button></div>
+      <div id="addons" aria-busy="true"><div class="loading-card">Loading your addons…</div></div>
+      <p class="message" id="message" role="status" aria-live="polite"></p>
+    </main>
+    <footer><span><i aria-hidden="true"></i> Small tools. Better raids.</span><span>v0.1.3</span></footer>
+  </div>
+  <dialog id="remove-dialog">
+    <form method="dialog">
+      <p class="eyebrow">REMOVE ADDON</p><h2 id="remove-title">Remove this addon?</h2>
+      <p>Your saved WoW settings are kept. You can install the addon again anytime.</p>
+      <div class="dialog-actions"><button class="button quiet" value="cancel" autofocus>Cancel</button><button class="button danger" id="confirm-remove" value="remove">Remove</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

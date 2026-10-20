@@ -1,0 +1,36 @@
+DarkWhisper Raid Tools 1.0.0
+
+Standalone manual raid marker compass for World of Warcraft Retail.
+Current addon interface declaration: 120100.
+
+Open the settings with /dwrt or /acomp.
+
+- Place, replace, hide and drag all eight marker types in a visual editor.
+- Empty positions remain selectable and numbered while editing.
+- Save multiple named layouts; the Default layout is always retained.
+- Calibrate north to your character's heading.
+- Move and resize the HUD, adjust icon size and background opacity.
+- Enable or disable the compass without losing your layout.
+- No AkionUI dependency. Legacy settings can be copied once when both addons
+  are enabled; AkionUI's settings are not changed.
+
+Limitations
+
+Markers are placed manually; the addon does not read world-marker positions.
+Rotation follows character heading, not independent camera rotation.
+Heading data must be available through WoW's permitted APIs. Rotation during
+boss encounters has not yet been verified in game.
+Never infer travel distance or an actual boss position from this compass.
+
+Install
+
+Extract DarkWhisperRaidTools into:
+World of Warcraft/_retail_/Interface/AddOns/
+
+The .toc file should be at:
+Interface/AddOns/DarkWhisperRaidTools/DarkWhisperRaidTools.toc
+
+Restart WoW after the first installation. Existing-file updates can usually be
+loaded with /reload. Preserve your WTF directory and saved settings.
+
+This is the addon ZIP. It is not a launcher installer.

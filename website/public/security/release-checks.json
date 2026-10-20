@@ -1,0 +1,307 @@
+{
+  "schema": 1,
+  "version": "0.1.2",
+  "started_at": "2026-10-20T13:46:54.8698676Z",
+  "checked_at": "2026-10-20T13:46:55.2356135Z",
+  "malware": {
+    "engine": "Microsoft Defender Antivirus",
+    "engine_version": "1.1.26090.9",
+    "platform_version": "4.18.26090.9",
+    "signature_version": "1.461.118.0",
+    "signatures_updated_at": "2026-10-20T07:02:06.0000000Z",
+    "scope": "Full public release directory, including installers, addon archives, runtime files and website scripts",
+    "mode": "Custom scan with remediation disabled; real-time protection remains enabled",
+    "exit_code": 0
+  },
+  "artifacts": [
+    {
+      "filename": "DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
+      "sha256": "59304e08ce5f41b93b2a6e55fa72a3b423e3acb775e5529195cdef96733f0ad7",
+      "bytes": 2021668,
+      "scan": {
+        "status": "passed",
+        "detections": 0,
+        "scanner": "Microsoft Defender Antivirus",
+        "exit_code": 0
+      }
+    },
+    {
+      "filename": "DarkWhispers-Addons-0.1.2-linux-amd64.deb",
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-linux-amd64.deb",
+      "sha256": "27c556acf2e7bde1a55d7942150bdae0062eaf398c8d1287fdfd654208c734d6",
+      "bytes": 2814572,
+      "scan": {
+        "status": "passed",
+        "detections": 0,
+        "scanner": "Microsoft Defender Antivirus",
+        "exit_code": 0
+      }
+    },
+    {
+      "filename": "DarkWhisperRaidTools-1.0.0.zip",
+      "url": "/downloads/DarkWhisperRaidTools-1.0.0.zip",
+      "sha256": "0db555a3519b410400c32560144d93ea515ed767787f4a9666a8c51f2554489f",
+      "bytes": 21778,
+      "scan": {
+        "status": "passed",
+        "detections": 0,
+        "scanner": "Microsoft Defender Antivirus",
+        "exit_code": 0
+      }
+    }
+  ],
+  "source_review": {
+    "status": "completed",
+    "method": "Manual security review by the development assistant; not an independent audit",
+    "summary": "Critical installer, download, signature and rollback paths reviewed. Automated disk tests and a real browser-file-system test passed. See the published scope and limitations.",
+    "report_url": "/security/source-review.md",
+    "files": [
+      {
+        "path": "launcher/crates/addon-core/src/lib.rs",
+        "sha256": "666a5007d94a0d87f5fd33193bdb3d0c78f95bd0e02e5addd9ba0905df654273"
+      },
+      {
+        "path": "launcher/src-tauri/src/main.rs",
+        "sha256": "bbe575799d962abe5675a31b7e56df4b1220441e74bb34905cc77c33623775fd"
+      },
+      {
+        "path": "launcher/ui/app.js",
+        "sha256": "de2e84824c6a46e40771faaaa822e6e5b52be5f80a9b5b97da76e2013ed00ca7"
+      },
+      {
+        "path": "launcher/build-tools/publish-catalog.mjs",
+        "sha256": "95a0cba41dbf84f0538e80e72388aeabc6a098efafad84235a3760cea8ab68e7"
+      },
+      {
+        "path": "website/public/app.js",
+        "sha256": "43eae7fe4c21966539f57c2e4fa563e840988c0bb00fc58874ef7804510cef60"
+      },
+      {
+        "path": "website/public/browser-install.mjs",
+        "sha256": "9716a08aff6af6e132ecb2755f7eb3e66409e125fbb0acd30428f9ec43191b6f"
+      },
+      {
+        "path": "website/tools/package.py",
+        "sha256": "4a24f274d7a620e31656eb3bb455cd044a494943d183d6b57d1cada7a8bd08f4"
+      },
+      {
+        "path": "website/deploy/install.py",
+        "sha256": "3f04ba717b694b5f823ea80b5bb081c4bbb8fb285c2ec0c4333c2fc36b7f5756"
+      }
+    ],
+    "tests": {
+      "browser_installer": 11,
+      "browser_real_file_handles": "passed",
+      "windows_core": 9,
+      "linux_core": 10,
+      "live_https": "passed on Windows and Linux",
+      "package_install_remove": "passed on Windows and Debian container"
+    }
+  },
+  "dependencies": {
+    "status": "completed_with_notes",
+    "tool": "cargo-audit 0.22.2",
+    "vulnerabilities": 0,
+    "warnings": 2,
+    "ignored_advisories": [],
+    "database": {
+      "advisory-count": 1345,
+      "last-commit": "b19b2c83c2493961ccb12f9fc4699a00fb2c6c44",
+      "last-updated": "2026-10-20T13:02:37+02:00"
+    },
+    "lockfile_sha256": "4742c4dca302a8dd65aefc57b96b6af0b35de0929212aeaea4a3d84abdb68a0d",
+    "summary": "RustSec: 0 vulnerability entries; 2 informational advisories (unmaintained proc-macro-error and Linux glib unsoundness). No advisories ignored.",
+    "report_url": "/security/dependency-audit.json"
+  },
+  "scanners": {
+    "clamav": {
+      "status": "passed",
+      "engine": "ClamAV 1.5.4/28159/Tue Oct 20 06:24:12 2026",
+      "signatures": 3628175,
+      "checked_at": "2026-10-20T13:41:31Z",
+      "artifacts": [
+        {
+          "filename": "DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
+          "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
+          "sha256": "59304e08ce5f41b93b2a6e55fa72a3b423e3acb775e5529195cdef96733f0ad7",
+          "bytes": 2021668,
+          "status": "passed"
+        },
+        {
+          "filename": "DarkWhispers-Addons-0.1.2-linux-amd64.deb",
+          "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-linux-amd64.deb",
+          "sha256": "27c556acf2e7bde1a55d7942150bdae0062eaf398c8d1287fdfd654208c734d6",
+          "bytes": 2814572,
+          "status": "passed"
+        },
+        {
+          "filename": "DarkWhisperRaidTools-1.0.0.zip",
+          "url": "/downloads/DarkWhisperRaidTools-1.0.0.zip",
+          "sha256": "0db555a3519b410400c32560144d93ea515ed767787f4a9666a8c51f2554489f",
+          "bytes": 21778,
+          "status": "passed"
+        }
+      ],
+      "report_url": "/security/clamav-report.json"
+    }
+  },
+  "static_analysis": {
+    "status": "completed",
+    "tool": "Semgrep Community Edition 1.180.0",
+    "findings": 1,
+    "errors": 0,
+    "scanned_files": 31,
+    "checked_at": "2026-10-20T13:43:30Z",
+    "rulesets": [
+      "p/security-audit",
+      "p/secrets"
+    ],
+    "summary": "Local Community Edition scan with registry security-audit and secrets rules; metrics disabled. Coverage and any skipped files, parsing errors or findings are in the full report. This is not a complete audit of Rust or every code path.",
+    "report_url": "/security/semgrep-report.json",
+    "source_manifest": [
+      {
+        "path": "launcher/build-tools/bundle-windows.ps1",
+        "sha256": "22055b524fd9946e32e165df8a3c4a299cd1ec4fcae921acd73f00c95ea6f31c"
+      },
+      {
+        "path": "launcher/build-tools/licenses.py",
+        "sha256": "db2be52a39b3f959f55fcc6a975ec099c8f3f1557a221cb103fbedfa005fff99"
+      },
+      {
+        "path": "launcher/build-tools/prepare-ui-test.py",
+        "sha256": "4ceb18d76dd3d0a1aade8c8ef4c9258568e9a2b7a8e9d586fb810c1e7b53748e"
+      },
+      {
+        "path": "launcher/build-tools/prepare.py",
+        "sha256": "24314a6b2565ed9228d71daa15e24ddf02b420fe3aec38f77f15cc41ce515ce4"
+      },
+      {
+        "path": "launcher/build-tools/publish-binaries.py",
+        "sha256": "31987014c26599ae18e2fbdecae4e9e4cf429dabeebe798f88ebb04cf7050fe6"
+      },
+      {
+        "path": "launcher/build-tools/publish-catalog.mjs",
+        "sha256": "95a0cba41dbf84f0538e80e72388aeabc6a098efafad84235a3760cea8ab68e7"
+      },
+      {
+        "path": "launcher/build-tools/release-build.sh",
+        "sha256": "bc29bb6565b83cf01f8c381fce9e1fbdc497605116aa8076b6e24e2d12f4f4a0"
+      },
+      {
+        "path": "launcher/build-tools/run-audit.sh",
+        "sha256": "768178b498a2395096b95dcd5d06b8545e3cdd9cab0d94e67c34cc483233ba43"
+      },
+      {
+        "path": "launcher/build-tools/run-build.sh",
+        "sha256": "a319282e4b234f08239ef8c91a86f276ed1b3279a841e57d3105123e183c070e"
+      },
+      {
+        "path": "launcher/build-tools/security-rebuild.sh",
+        "sha256": "9b60140f83795ecd83b05c1bd0b15561355064adef98bf349ad95f7ef100b4fa"
+      },
+      {
+        "path": "launcher/build-tools/test-installer.ps1",
+        "sha256": "a0a32ecb8694bbe153d01638d09f737ef4d2c62b0058a5bd5dee509d0c2dd000"
+      },
+      {
+        "path": "launcher/build-tools/test-linux-package.py",
+        "sha256": "dcabf13ebbb815adee9a32edcddf5e3f20fc9a28e911434067b1b184bed2f6d3"
+      },
+      {
+        "path": "launcher/crates/addon-core/src/lib.rs",
+        "sha256": "666a5007d94a0d87f5fd33193bdb3d0c78f95bd0e02e5addd9ba0905df654273"
+      },
+      {
+        "path": "launcher/crates/addon-core/src/tests.rs",
+        "sha256": "07ccf91a7f35301ec6f482d406428d6006d10a7fd98162f39cf10b67b3f6f4f2"
+      },
+      {
+        "path": "launcher/src-tauri/src/main.rs",
+        "sha256": "bbe575799d962abe5675a31b7e56df4b1220441e74bb34905cc77c33623775fd"
+      },
+      {
+        "path": "launcher/ui/app.js",
+        "sha256": "de2e84824c6a46e40771faaaa822e6e5b52be5f80a9b5b97da76e2013ed00ca7"
+      },
+      {
+        "path": "launcher/ui/frost.css",
+        "sha256": "9290b18a77184eeee84988580b82fa9452fd7ba02818e4dcc617283a17628918"
+      },
+      {
+        "path": "launcher/ui/index.html",
+        "sha256": "2190ce3e5f54a3081f5576640eb349816a9f97fcdfaf8703733b313acf4c9313"
+      },
+      {
+        "path": "website/deploy/install.py",
+        "sha256": "3f04ba717b694b5f823ea80b5bb081c4bbb8fb285c2ec0c4333c2fc36b7f5756"
+      },
+      {
+        "path": "website/public/app.js",
+        "sha256": "43eae7fe4c21966539f57c2e4fa563e840988c0bb00fc58874ef7804510cef60"
+      },
+      {
+        "path": "website/public/browser-install.mjs",
+        "sha256": "9716a08aff6af6e132ecb2755f7eb3e66409e125fbb0acd30428f9ec43191b6f"
+      },
+      {
+        "path": "website/public/index.html",
+        "sha256": "921cd8055a37237a1068e520c20030ddbb3fdee6f78d05f434e9d04ddcfa25c9"
+      },
+      {
+        "path": "website/tools/check-live-browser-files.mjs",
+        "sha256": "88e7b3e0b87b60efffe1d39a169a3947e852595b6fbe81e2bd756e7796f89f2f"
+      },
+      {
+        "path": "website/tools/collect-clamav.py",
+        "sha256": "40eca11bc053ff8c84d91e2085583dfa3717685d0d44f2c9dc7f43d25e1f0d70"
+      },
+      {
+        "path": "website/tools/package.py",
+        "sha256": "4a24f274d7a620e31656eb3bb455cd044a494943d183d6b57d1cada7a8bd08f4"
+      },
+      {
+        "path": "website/tools/prepare-source-scan.py",
+        "sha256": "f3e7caf2c5d65475c3b8ad9ab1e964b03a69c61ed7c3b82c33e257785e91c94f"
+      },
+      {
+        "path": "website/tools/publish-checks.py",
+        "sha256": "67880981dc5a33fdbd16355e840342789f69dbfd2aa053e0eea98509f8b37d31"
+      },
+      {
+        "path": "website/tools/run-clamav.sh",
+        "sha256": "0e64bc8c77af47c18e17e995d2eaec40d824618fb698d7ab70faa7c18a6cc45b"
+      },
+      {
+        "path": "website/tools/run-semgrep.sh",
+        "sha256": "2dcbf4cb559ee32da68ffdd984d200fba8d1ab925e691035cdfac65d4d9edecb"
+      },
+      {
+        "path": "website/tools/scan-release.ps1",
+        "sha256": "24574083a160b1aa17e8eaa6072536cc80a06ebeeec0008f89e4f4a172439b2f"
+      },
+      {
+        "path": "website/tools/verify-deployment.py",
+        "sha256": "cdf67f95004728f0a0275b5b010821bc5496e7319c7a56e5a07f32c587a9dd9e"
+      }
+    ],
+    "reviewed_findings": 1,
+    "review_notes": [
+      {
+        "rule": "python.lang.security.audit.httpsconnection-detected.httpsconnection-detected",
+        "path": "website/tools/verify-deployment.py",
+        "classification": "Reviewed API-usage audit note; no exploitable issue identified on the supported runtime",
+        "reason": "The verifier runs on Python 3.12.3 and explicitly uses ssl.create_default_context() for certificate and hostname verification. The HTTPS host is fixed and redirects are not followed. The rule warns about historical Python versions before 3.4.3.",
+        "reference": "https://docs.python.org/3/library/http.client.html#http.client.HTTPSConnection"
+      }
+    ],
+    "review_report_url": "/security/semgrep-review.md"
+  },
+  "limitations": [
+    "Results apply only to the listed file hashes and scan date; not a security certification or malware-free guarantee.",
+    "The source review is by the development assistant, not an independent third party.",
+    "Windows installers are unsigned. GitHub publication is pending the owner's repository.",
+    "Browser host-folder installation needs desktop folder-write support and explicit permission.",
+    "Linux GTK has an outstanding informational unsoundness advisory; see the full dependency report."
+  ]
+}

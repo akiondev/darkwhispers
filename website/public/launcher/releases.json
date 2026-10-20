@@ -1,0 +1,18 @@
+{
+  "version": "0.1.2",
+  "platforms": {
+    "windows": {
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-windows-x64-setup.exe",
+      "label": "v0.1.2 · x64 · 1.9 MB",
+      "sha256": "59304e08ce5f41b93b2a6e55fa72a3b423e3acb775e5529195cdef96733f0ad7",
+      "bytes": 2021668
+    },
+    "linux": {
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.1.2-linux-amd64.deb",
+      "label": "Debian / Ubuntu · .deb",
+      "sha256": "27c556acf2e7bde1a55d7942150bdae0062eaf398c8d1287fdfd654208c734d6",
+      "bytes": 2814572
+    }
+  },
+  "note": "Free · v0.1.2 beta · Windows installer is unsigned."
+}

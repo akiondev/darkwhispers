@@ -1,0 +1,10 @@
+/target/
+/dist/
+/node_modules/
+*.pem
+*.key
+*.pfx
+*.p12
+.env*
+/build-tools/cache/
+*.log

@@ -1,0 +1,66 @@
+"""Assemble verifiable release metadata from reports produced by public jobs."""
+from pathlib import Path
+import datetime
+import hashlib
+import json
+import os
+import shutil
+
+root = Path(__file__).resolve().parents[1]
+staging = root/"staging"
+release = root/"release"
+release.mkdir()
+version = json.loads((root/"launcher/src-tauri/tauri.conf.json").read_text())["version"]
+assert os.environ["GITHUB_REF"] == "refs/heads/main", "Only main can publish"
+base = "https://github.com/akiondev/darkwhispers/releases/download/v"+version+"/"
+defender = json.loads((staging/"defender.json").read_text(encoding="utf-8-sig"))
+clam = json.loads((staging/"clamav.json").read_text())
+source = json.loads((staging/"source-summary.json").read_text())
+assert source["commit"] == os.environ["GITHUB_SHA"]
+assert defender["status"] == clam["status"] == "passed"
+artifacts = []
+for path in sorted(staging.iterdir()):
+    assert path.is_file() and not path.is_symlink()
+    if path.suffix in {".exe",".deb",".zip"}:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        for scan in (defender,clam):
+            assert any(item["filename"] == path.name and item["sha256"] == digest for item in scan["artifacts"]), "Unscanned or changed release file"
+        artifacts.append({"filename":path.name,"sha256":digest,"bytes":path.stat().st_size,"url":base+path.name})
+    shutil.copyfile(path,release/path.name)
+assert len(artifacts) >= 4
+report_files = {}
+for name in ("defender.json","clamav.json","semgrep.json","cargo-audit.json","source-summary.json","source-files.json"):
+    path = release/name
+    report_files[name] = {"url":base+name,"sha256":hashlib.sha256(path.read_bytes()).hexdigest()}
+evidence = {
+    "schema":2,"version":version,"repository":"akiondev/darkwhispers","tag":"v"+version,
+    "commit":os.environ["GITHUB_SHA"],"run_id":int(os.environ["GITHUB_RUN_ID"]),
+    "run_url":"https://github.com/akiondev/darkwhispers/actions/runs/"+os.environ["GITHUB_RUN_ID"],
+    "source_url":"https://github.com/akiondev/darkwhispers/tree/"+os.environ["GITHUB_SHA"],
+    "release_url":"https://github.com/akiondev/darkwhispers/releases/tag/v"+version,
+    "workflow":".github/workflows/release.yml","checked_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "artifacts":artifacts,"reports":report_files,"source":source,
+    "scanners":{"defender":defender,"clamav":clam},
+    "attestation":{"type":"https://slsa.dev/provenance/v1","verification_command":"gh attestation verify <downloaded-file> --repo akiondev/darkwhispers --signer-workflow akiondev/darkwhispers/.github/workflows/release.yml"},
+    "limits":source["limits"]
+}
+(release/"release-evidence.json").write_text(json.dumps(evidence,indent=2)+"\n")
+(release/"SHA256SUMS.txt").write_text("".join(hashlib.sha256(path.read_bytes()).hexdigest()+"  "+path.name+"\n" for path in sorted(release.iterdir()) if path.is_file()))
+notes = f"""Built from commit {evidence['commit']} in a public GitHub Actions run:
+{evidence['run_url']}
+
+The release files, complete scan reports, source inventory and checksum list have
+GitHub/Sigstore build-provenance attestations. Release immutability is enabled.
+Verify any downloaded file with:
+
+    {evidence['attestation']['verification_command']}
+
+Defender and ClamAV reported zero detections for every listed package.
+RustSec advisory notes and all Semgrep findings remain in the full reports.
+Open release-evidence.json for exact hashes, source, tool results and limitations.
+
+Attestations prove origin and integrity, not that the software is risk-free.
+Windows installers are unsigned. Linux download targets Debian/Ubuntu x64.
+"""
+(root/"release-notes.md").write_text(notes)
+print(json.dumps({"version":version,"artifacts":len(artifacts),"run":evidence["run_url"]}))

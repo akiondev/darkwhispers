@@ -1,0 +1,253 @@
+name: Build, scan and attest release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: public-release
+  cancel-in-progress: false
+jobs:
+  source:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/bin/cargo-audit
+            launcher/target
+          key: source-rust-1.99.1-${{ hashFiles('launcher/Cargo.lock') }}
+      - name: Addon, browser and native core tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports-source
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.1
+          python ci/prepare.py
+          (cd addons && lua5.1 ../tests/smoke.lua) | tee reports-source/addon-tests.txt
+          node --test website/tests/browser-installer.test.mjs | tee reports-source/browser-tests.txt
+          rustup toolchain install 1.99.1 --profile minimal
+          rustup default 1.99.1
+          (cd launcher && cargo test --locked -p darkwhispers-core && cargo test --locked -p darkwhispers-core live_signed_release_installs_and_removes -- --ignored) | tee reports-source/rust-tests.txt
+      - name: RustSec dependency audit, no ignored advisories
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v cargo-audit; then cargo install --locked cargo-audit --version 0.22.2; fi
+          cargo audit --file launcher/Cargo.lock --json > reports-source/cargo-audit.json
+      - name: Semgrep Community Edition, no account or telemetry
+        run: |
+          docker run --rm --cpus=2 --memory=3g -v "$PWD:/src:ro" -v "$PWD/reports-source:/reports" \
+            --entrypoint semgrep semgrep/semgrep@sha256:529ee8a277ec8adc5b534d7c74eea0a47e9de21d62852b6ba7ac6ba9566845c3 \
+            scan --config p/security-audit --config p/secrets --metrics off --disable-version-check \
+            --no-git-ignore --exclude launcher/target --exclude out --exclude .git --jobs 2 \
+            --json --output /reports/semgrep.json /src
+          python ci/source-summary.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-input-addons
+          path: out/addons/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: release-source
+          path: reports-source/*
+          if-no-files-found: error
+  build:
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            platform: windows
+          - os: ubuntu-22.04
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            launcher/target
+          key: native-${{ runner.os }}-1.99.1-${{ hashFiles('launcher/Cargo.lock') }}
+      - name: Linux system prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev
+      - name: Build from the locked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.99.1 --profile minimal
+          rustup default 1.99.1
+          npm install --global @tauri-apps/cli@2.12.1
+          cd launcher
+          cargo test --locked -p darkwhispers-core
+          cargo test --locked -p darkwhispers-core live_signed_release_installs_and_removes -- --ignored
+          python build-tools/licenses.py
+          cd src-tauri
+          if [ "$RUNNER_OS" = Windows ]; then
+            tauri build --target x86_64-pc-windows-msvc --bundles nsis --ci
+          else
+            tauri build --bundles deb --ci
+          fi
+      - name: Windows installer and uninstaller
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./launcher/build-tools/test-installer.ps1
+      - name: Linux package install, dependencies and removal
+        if: runner.os == 'Linux'
+        run: sudo DARKWHISPERS_BUILD_ROOT="$PWD/launcher" GITHUB_ACTIONS=true python3 launcher/build-tools/test-linux-package.py
+      - name: Stage exact built packages
+        shell: bash
+        run: python ci/stage-binary.py ${{ matrix.platform }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-input-${{ matrix.platform }}
+          path: out/binaries/*
+          if-no-files-found: error
+  codeql:
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, python]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@d0bae162f31f17dd92c46ccdc4dfee5710f8dc67 # v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+      - uses: github/codeql-action/analyze@d0bae162f31f17dd92c46ccdc4dfee5710f8dc67 # v3
+        with:
+          output: codeql-results
+          category: "/language:${{ matrix.language }}"
+      - name: Collect complete SARIF
+        run: |
+          mkdir -p reports-codeql
+          cp codeql-results/*.sarif reports-codeql/codeql-${{ matrix.language }}.sarif
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-codeql-${{ matrix.language }}
+          path: reports-codeql/*
+          if-no-files-found: error
+  defender:
+    needs: [source, build]
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-input-*
+          path: inputs
+          merge-multiple: true
+      - name: Scan every package with Defender
+        shell: pwsh
+        run: ./ci/scan-defender.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: release-defender
+          path: reports-defender/*
+          if-no-files-found: error
+  clamav:
+    needs: [source, build]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-input-*
+          path: inputs
+          merge-multiple: true
+      - name: Scan every package with ClamAV
+        run: |
+          mkdir -p reports-clamav
+          docker run --rm --cpus=2 --memory=4g -v "$PWD/inputs:/inputs:ro" -v "$PWD/reports-clamav:/reports" \
+            -v "$PWD/ci/scan-clamav.sh:/run-scan.sh:ro" --entrypoint /bin/sh \
+            clamav/clamav@sha256:e19130cdebaeacc71fa46eab3ed6f69941f2f22aa5e08d55e9197f8edf43ce5e /run-scan.sh
+          python3 ci/collect-clamav.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: release-clamav
+          path: reports-clamav/*
+          if-no-files-found: error
+  publish:
+    needs: [source, build, codeql, defender, clamav]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-*
+          path: staging
+          merge-multiple: true
+      - name: Bind reports to the scanned file hashes
+        run: python3 ci/finalize.py
+      - name: Attest the files and complete reports
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: release/*
+      - name: Preserve the signed verification bundle
+        env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "$BUNDLE" release/attestation-bundle.jsonl
+      - name: Publish immutable GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(python3 -c 'import json; print(json.load(open("launcher/src-tauri/tauri.conf.json"))["version"])')
+          gh release create "v$version" --repo akiondev/darkwhispers --draft --target "$GITHUB_SHA" \
+            --title "DarkWhispers $version" --notes-file release-notes.md
+          gh release upload "v$version" --repo akiondev/darkwhispers release/*
+          gh release edit "v$version" --repo akiondev/darkwhispers --draft=false --latest
