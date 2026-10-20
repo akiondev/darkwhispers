@@ -12,6 +12,11 @@ function message(text, kind = "") {
   $("message").setAttribute("role", kind === "error" ? "alert" : "status");
 }
 
+function statusMessage(next, fallback) {
+  const warning = next.warning || (next.addons.some(item => item.issue) ? "An addon needs attention. See its details below." : "");
+  message(warning || fallback, warning ? "warning" : "");
+}
+
 function setBusy(value) {
   busy = value;
   $("choose-folder").disabled = value || !invoke;
@@ -36,7 +41,15 @@ function render(next) {
     card.querySelector("h2").textContent = item.addon.title;
     card.querySelector(".description").textContent = item.addon.description;
     const version = card.querySelector(".version");
-    version.textContent = item.installed ? `Installed ${item.installed_version}` : `Version ${item.addon.version}`;
+    const knownVersion = /^\d+\.\d+\.\d+(?:[-+].+)?$/.test(item.installed_version || "");
+    version.textContent = item.issue ? "Needs attention" : item.installed ? (knownVersion ? `Installed ${item.installed_version}` : "Installed · version unknown") : `Version ${item.addon.version}`;
+    if (item.issue) {
+      const detail = document.createElement("p");
+      detail.className = "addon-issue";
+      detail.textContent = item.issue;
+      card.querySelector(".addon-info").append(detail);
+      card.classList.add("needs-attention");
+    }
     if (item.update_available) {
       const badge = document.createElement("span");
       badge.className = "badge";
@@ -44,20 +57,21 @@ function render(next) {
       version.append(badge);
     }
     const actions = card.querySelector(".addon-actions");
-    if (!item.installed || item.update_available) {
+    if (!item.issue && (!item.installed || item.update_available)) {
       const install = document.createElement("button");
       install.className = "button primary";
       install.dataset.operation = "install";
       install.textContent = item.installed ? "Update" : "Install";
       install.addEventListener("click", () => installAddon(item));
       actions.append(install);
-    } else {
+    } else if (!item.issue) {
       const installed = document.createElement("span");
       installed.className = "installed";
-      installed.textContent = "Up to date";
+      installed.textContent = knownVersion ? (item.installed_version === item.addon.version ? "Up to date" : "Installed") : "Version unavailable";
+      if (!knownVersion) installed.classList.add("unknown-version");
       actions.append(installed);
     }
-    if (item.installed) {
+    if (item.installed && !item.issue) {
       const remove = document.createElement("button");
       remove.className = "remove";
       remove.dataset.operation = "remove";
@@ -81,7 +95,17 @@ async function operation(text, task) {
   setBusy(true);
   message(text, "busy");
   try { await task(); }
-  catch (error) { message(String(error), "error"); }
+  catch (error) {
+    if (!state) {
+      $("game-path").textContent = "Choose your WoW Retail folder.";
+      $("addons").replaceChildren();
+      const empty = document.createElement("p");
+      empty.className = "loading-card";
+      empty.textContent = "Could not load your addons. Choose your folder or try checking again.";
+      $("addons").append(empty);
+    }
+    message(String(error), "error");
+  }
   finally { setBusy(false); }
 }
 
@@ -89,7 +113,7 @@ async function refresh() {
   await operation("Checking for updates…", async () => {
     const next = await invoke("get_status", {checkUpdates: true});
     render(next);
-    message(next.warning || "Everything is ready.", next.warning ? "warning" : "");
+    statusMessage(next, "Everything is ready.");
   });
 }
 
@@ -108,7 +132,7 @@ $("choose-folder").addEventListener("click", () => operation("Choose your WoW fo
   if (chosen) {
     const next = await invoke("get_status", {checkUpdates: false});
     render(next);
-    message(next.warning || "WoW Retail folder selected.", next.warning ? "warning" : "");
+    statusMessage(next, "WoW Retail folder selected.");
   } else {
     message("");
   }

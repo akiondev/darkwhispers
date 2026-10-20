@@ -209,6 +209,26 @@ fn local_status_uses_verified_catalog_without_network() {
 }
 
 #[test]
+fn status_keeps_folder_errors_attached_to_the_addon() {
+    let (temp, game) = game();
+    let config = temp.path().join("config");
+    select_game(&config, &game).unwrap();
+    let folder = game.join("Interface/AddOns/DarkWhisperRaidTools");
+    fs::create_dir_all(&folder).unwrap();
+    fs::write(folder.join("notes.txt"), b"keep").unwrap();
+    let state = status(&config, false).unwrap();
+    assert!(state.addons[0].issue.as_ref().unwrap().contains("not a recognized addon"));
+    assert!(!state.addons[0].installed);
+    assert_eq!(fs::read(folder.join("notes.txt")).unwrap(), b"keep");
+    fs::write(folder.join("DarkWhisperRaidTools.toc"), b"## Title: Fixture\n").unwrap();
+    let state = status(&config, false).unwrap();
+    assert!(state.addons[0].issue.is_none());
+    assert!(state.addons[0].installed);
+    assert_eq!(state.addons[0].installed_version.as_deref(), Some("Unknown"));
+    assert!(!state.addons[0].update_available);
+}
+
+#[test]
 #[ignore = "Explicit live HTTPS integration test; uses a temporary WoW fixture only"]
 fn live_signed_release_installs_and_removes() {
     let (temp, game) = game();

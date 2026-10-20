@@ -27,6 +27,8 @@ jobs:
           (cd addons && lua5.1 ../tests/smoke.lua)
           node --test website/tests/browser-installer.test.mjs
           node --test launcher/tests/catalog-publisher.test.mjs
+          python -m unittest discover -s website/tests -p 'test_*.py'
+          python -O -m unittest discover -s website/tests -p 'test_*.py'
       - name: Rust core
         run: |
           rustup toolchain install 1.99.1 --profile minimal

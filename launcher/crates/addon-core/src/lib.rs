@@ -48,6 +48,7 @@ pub struct AddonStatus {
     pub installed_version: Option<String>,
     pub update_available: bool,
     pub installed: bool,
+    pub issue: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -383,16 +384,13 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
         });
     let mut addons = Vec::new();
     for addon in catalog.addons {
-        let version = if let Some(game) = &game {
+        let (version, issue) = if let Some(game) = &game {
             match installed_version(game, &addon.id) {
-                Ok(version) => version,
-                Err(message) => {
-                    warning = Some(message);
-                    None
-                }
+                Ok(version) => (version, None),
+                Err(message) => (None, Some(message)),
             }
         } else {
-            None
+            (None, None)
         };
         let update = version
             .as_ref()
@@ -403,6 +401,7 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
             installed: version.is_some(),
             installed_version: version,
             update_available: update,
+            issue,
             addon,
         });
     }

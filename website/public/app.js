@@ -102,19 +102,16 @@ $("choose-wow").disabled = !directSupported;
 if (!directSupported) $("browser-support").textContent = "Direct installation needs desktop Chrome or Edge with folder-write support. Download the ZIP in this browser.";
 $("choose-wow").addEventListener("click", async () => {
   if (installing) return;
+  setInstalling(true);
   try {
     // The picker must be called immediately from the click, before any network wait.
     const selected = await window.showDirectoryPicker({id:"darkwhispers-wow",mode:"readwrite"});
     retail = await resolveRetail(selected);
     $("folder-name").textContent = (selected.name === "_retail_" ? "" : selected.name + "/") + "_retail_/Interface/AddOns";
     installStatus("Folder selected. Ready to install.");
-    setInstalling(false);
   } catch (error) {
-    retail = null;
-    $("folder-name").textContent = "No folder selected";
-    setInstalling(false);
-    installStatus(error.name === "AbortError" ? "Folder selection was cancelled or blocked by the browser." : error.message, error.name !== "AbortError");
-  }
+    installStatus((error.name === "AbortError" ? "Folder selection cancelled." : error.message) + (retail ? " Your previous folder is still selected." : ""), error.name !== "AbortError");
+  } finally { setInstalling(false); }
 });
 async function runInstall(addon) {
   if (installing || !retail) return;
@@ -140,7 +137,7 @@ async function runInstall(addon) {
     installStatus(error.name === "NotAllowedError" ? "Folder access was denied. Re-select your folder or use the launcher." : error.message, true);
   } finally { setInstalling(false); }
 }
-function checkRow(title, status, text, passed) {
+function checkRow(title, status, text, passed, reportUrl) {
   const row = document.createElement("section");
   row.className = "check-row";
   const heading = document.createElement("strong");
@@ -152,6 +149,12 @@ function checkRow(title, status, text, passed) {
   const detail = document.createElement("p");
   detail.textContent = text;
   row.append(heading, detail);
+  if (reportUrl) {
+    const link = document.createElement("a");
+    link.className = "text-link"; link.textContent = "Full report ↗";
+    link.href = reportUrl; link.target = "_blank"; link.rel = "noopener";
+    row.append(link);
+  }
   return row;
 }
 function evidenceCard(title, result, reportUrl, passed) {
@@ -170,11 +173,11 @@ function renderSecurity() {
   rows.replaceChildren();
   const reportMatches = checks.version === release.version;
   const provenance = reportMatches && checks.provenance?.repository === "akiondev/darkwhispers" ? checks.provenance : null;
-  const publicRun = provenance && /^https:\/\/github\.com\/akiondev\/darkwhispers\/actions\/runs\/[0-9]+$/.test(provenance.run_url);
+  const publicRun = provenance && /^[a-f0-9]{40}$/.test(provenance.commit || "") && /^https:\/\/github\.com\/akiondev\/darkwhispers\/actions\/runs\/[0-9]+$/.test(provenance.run_url);
   const reportLink = (name, fallback) => {
     const url = provenance?.report_links?.[name];
     const prefix = "https://github.com/akiondev/darkwhispers/releases/download/v" + release.version + "/";
-    return publicRun && typeof url === "string" && url.startsWith(prefix) && !url.slice(prefix.length).includes("/") ? url : fallback;
+    return publicRun && typeof url === "string" && url.startsWith(prefix) && /^[A-Za-z0-9_.-]+$/.test(url.slice(prefix.length)) ? url : fallback;
   };
   $("public-build").href = publicRun ? provenance.run_url : "https://github.com/akiondev/darkwhispers/actions";
   $("public-build").textContent = publicRun ? "View this release's public build & scans ↗" : "View public builds & scans on GitHub ↗";
@@ -182,9 +185,9 @@ function renderSecurity() {
   $("provenance-note").textContent = publicRun ? "Built from " + provenance.commit.slice(0,12) + ". Verify signed files and original reports on GitHub." : "These existing scans were run by the maintainer. A public GitHub release build is pending.";
   const required = Object.values(release.platforms).map((item) => item.sha256).concat(catalog ? catalog.addons.map((item)=>item.sha256) : []);
   const artifacts = checks.artifacts || [];
-  const scanPassed = reportMatches && required.length > 0 && required.every((hash) => artifacts.some((file) => file.sha256 === hash && file.scan?.status === "passed"));
+  const scanPassed = reportMatches && checks.malware?.status === "passed" && checks.malware?.detections === 0 && checks.malware?.exit_code === 0 && required.length > 0 && required.every((hash) => artifacts.some((file) => file.sha256 === hash && file.scan?.status === "passed" && file.scan?.detections === 0 && file.scan?.exit_code === 0));
   const scanner = checks.malware?.engine || "Not available";
-  rows.append(checkRow("Malware scans", scanPassed ? "Passed" : "Pending", scanner + (scanPassed ? " · no detections in the listed release files." : " · no matching completed scan for every release file."), scanPassed));
+  rows.append(checkRow("Microsoft Defender", scanPassed ? "0 detections" : "See report", scanner + (scanPassed ? " · no detections in the listed release files." : " · no matching completed scan for every release file."), scanPassed, reportLink("defender","/security/defender-report.json")));
   const review = reportMatches ? checks.source_review : null;
   rows.append(checkRow("Source review", review?.status === "completed" ? "Completed" : "Pending", review?.summary || "Source review has not been published.", review?.status === "completed"));
   if (review?.report_url === "/security/source-review.md") {
@@ -192,13 +195,19 @@ function renderSecurity() {
   }
   const audit = reportMatches ? checks.dependencies : null;
   const noVulnerabilities = ["passed","completed_with_notes"].includes(audit?.status) && audit.vulnerabilities === 0;
-  rows.append(checkRow("Dependency audit", noVulnerabilities ? (audit.warnings ? audit.warnings + " advisory notes" : "Passed") : "See report", audit?.summary || "No matching dependency audit has been published.", noVulnerabilities && !audit.warnings));
+  rows.append(checkRow("Dependency audit", noVulnerabilities ? (audit.warnings ? audit.warnings + " advisory notes" : "Passed") : "See report", audit?.summary || "No matching dependency audit has been published.", noVulnerabilities && !audit.warnings, reportLink("rustsec","/security/dependency-audit.json")));
   const clam = reportMatches ? checks.scanners?.clamav : null;
-  const clamPassed = clam?.status === "passed" && required.length > 0 && required.every((hash) => clam.artifacts?.some((file) => file.sha256 === hash && file.status === "passed"));
+  const clamPassed = clam?.status === "passed" && clam.detections === 0 && clam.exit_code === 0 && required.length > 0 && required.every((hash) => clam.artifacts?.some((file) => file.sha256 === hash && file.status === "passed"));
   const analysis = reportMatches ? checks.static_analysis : null;
   const analysisDone = analysis?.status === "completed" && analysis.errors === 0;
-  rows.append(checkRow("ClamAV antivirus", clamPassed ? "0 detections" : "Pending", clamPassed ? clam.engine + " · " + clam.signatures + " signatures. Full archive scanning; see the exact file hashes and log." : "No matching completed ClamAV scan for every release file.", clamPassed));
-  rows.append(checkRow("Semgrep Community Edition", analysisDone ? analysis.findings + (analysis.findings === 1 ? " finding" : " findings") : "See report", analysis?.summary || "No automated source scan has been published.", analysisDone && analysis.findings === 0));
+  rows.append(checkRow("ClamAV antivirus", clamPassed ? "0 detections" : "See report", clamPassed ? clam.engine + " · " + clam.signatures + " signatures. Full archive scanning; see the exact file hashes and log." : "No matching completed ClamAV scan for every release file.", clamPassed, reportLink("clamav","/security/clamav-report.json")));
+  rows.append(checkRow("Semgrep Community Edition", analysisDone ? analysis.findings + (analysis.findings === 1 ? " finding" : " findings") : "See report", analysis?.summary || "No automated source scan has been published.", analysisDone && analysis.findings === 0, reportLink("semgrep","/security/semgrep-report.json")));
+  const releaseUrl = "https://github.com/akiondev/darkwhispers/releases/tag/v" + release.version;
+  const immutable = publicRun && provenance.immutable === true && provenance.release_url === releaseUrl;
+  if (publicRun && checks.codeql) {
+    rows.append(checkRow("CodeQL", checks.codeql.findings + " findings", "JavaScript and Python analysis. Open the original SARIF report for every result.", checks.codeql.findings === 0, reportLink("codeql","/security/codeql-report.sarif")));
+    rows.append(checkRow("Signed provenance", immutable ? "Immutable release" : "See report", "Verify the source commit and file attestations on GitHub.", immutable, releaseUrl));
+  }
   rows.append(checkRow("Addon integrity", "Verified on install", "Ed25519 catalog signature and SHA-256 checks for every file before it is written.", true));
   const meta = document.createElement("p");
   meta.className = "report-meta";
@@ -212,14 +221,14 @@ function renderSecurity() {
   rows.append(hashes);
   const grid = $("evidence-grid");
   grid.replaceChildren(
-    evidenceCard("Microsoft Defender", scanPassed ? "0 detections · " + artifacts.length + " release files" : "Scan pending", reportLink("defender","/security/defender-report.json"), scanPassed),
-    evidenceCard("ClamAV", clamPassed ? "0 detections · " + artifacts.length + " release files" : "Scan pending", reportLink("clamav","/security/clamav-report.json"), clamPassed),
+    evidenceCard("Microsoft Defender", scanPassed ? "0 detections · " + artifacts.length + " release files" : "Check results · see report", reportLink("defender","/security/defender-report.json"), scanPassed),
+    evidenceCard("ClamAV", clamPassed ? "0 detections · " + artifacts.length + " release files" : "Check results · see report", reportLink("clamav","/security/clamav-report.json"), clamPassed),
     evidenceCard("Semgrep · code analysis", analysisDone ? (analysis.findings && analysis.reviewed_findings === analysis.findings ? analysis.findings + " reviewed note" : analysis.findings + (analysis.findings === 1 ? " finding" : " findings")) + " · " + analysis.scanned_files + " files scanned" : "Analysis pending", reportLink("semgrep","/security/semgrep-report.json"), analysisDone && analysis.findings === 0),
-    evidenceCard("RustSec · dependencies", noVulnerabilities ? "0 vulnerabilities · " + audit.warnings + " advisory notes" : "Audit pending", reportLink("rustsec","/security/dependency-audit.json"), noVulnerabilities && !audit.warnings)
+    evidenceCard("RustSec · dependencies", noVulnerabilities ? "0 vulnerabilities · " + audit.warnings + " advisory notes" : Number.isInteger(audit?.vulnerabilities) ? audit.vulnerabilities + " vulnerabilities · see report" : "Audit unavailable", reportLink("rustsec","/security/dependency-audit.json"), noVulnerabilities && !audit.warnings)
   );
   if (publicRun && checks.codeql) {
     grid.append(evidenceCard("CodeQL · code analysis", checks.codeql.findings + " findings · JavaScript & Python", reportLink("codeql","/security/codeql-report.sarif"), checks.codeql.findings === 0));
-    grid.append(evidenceCard("Signed provenance", provenance.immutable ? "Immutable GitHub release" : "Verify on GitHub", provenance.release_url, !!provenance.immutable));
+    grid.append(evidenceCard("Signed provenance", immutable ? "Immutable GitHub release" : "Verify on GitHub", releaseUrl, immutable));
   }
   const stamp = checks.checked_at ? new Date(checks.checked_at) : null;
   $("evidence-version").textContent = reportMatches ? "v" + release.version + (stamp && !Number.isNaN(stamp.getTime()) ? " · " + stamp.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "") : "Reports pending";

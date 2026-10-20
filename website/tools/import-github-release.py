@@ -10,12 +10,13 @@ import json
 import re
 import shutil
 import subprocess
+from release_validation import require, validate_evidence
 
 args = argparse.ArgumentParser()
 args.add_argument("--version",required=True)
 args.add_argument("--gh",default="gh")
 options = args.parse_args()
-assert re.fullmatch(r"\d+\.\d+\.\d+",options.version)
+require(re.fullmatch(r"\d+\.\d+\.\d+",options.version), "Invalid release version")
 repo = "akiondev/darkwhispers"
 tag = "v"+options.version
 site = Path(__file__).resolve().parents[1]
@@ -27,44 +28,40 @@ def gh(*arguments):
     return subprocess.check_output([options.gh,*arguments],text=True,encoding="utf-8")
 
 metadata = json.loads(gh("api","repos/"+repo+"/releases/tags/"+tag))
-assert metadata["tag_name"] == tag and metadata["immutable"] and not metadata["draft"], "Only published immutable releases may be mirrored"
+require(metadata["tag_name"] == tag and metadata["immutable"] and not metadata["draft"], "Only published immutable releases may be mirrored")
 subprocess.run([options.gh,"release","download",tag,"--repo",repo,"--dir",str(directory),"--clobber"],check=True)
 evidence_path = directory/"release-evidence.json"
 evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
-assert evidence["repository"] == repo and evidence["version"] == options.version
-assert re.fullmatch(r"[a-f0-9]{40}",evidence["commit"])
+require(evidence["repository"] == repo and evidence["version"] == options.version, "Release identity mismatch")
+require(re.fullmatch(r"[a-f0-9]{40}",evidence["commit"]), "Invalid source commit")
 tag_object = json.loads(gh("api","repos/"+repo+"/git/ref/tags/"+tag))["object"]
 if tag_object["type"] == "tag":
     tag_object = json.loads(gh("api","repos/"+repo+"/git/tags/"+tag_object["sha"]))["object"]
-assert tag_object["type"] == "commit" and tag_object["sha"] == evidence["commit"], "Release tag differs from attested source"
+require(tag_object["type"] == "commit" and tag_object["sha"] == evidence["commit"], "Release tag differs from attested source")
 checksums = {}
 for line in (directory/"SHA256SUMS.txt").read_text(encoding="utf-8").splitlines():
     digest,name = line.split("  ",1)
-    assert re.fullmatch(r"[a-f0-9]{64}",digest) and re.fullmatch(r"[A-Za-z0-9_.-]+",name)
-    assert name not in checksums
+    require(re.fullmatch(r"[a-f0-9]{64}",digest) and re.fullmatch(r"[A-Za-z0-9_.-]+",name), "Invalid checksum entry")
+    require(name not in checksums, "Duplicate checksum entry")
     checksums[name] = digest
-    assert hashlib.sha256((directory/name).read_bytes()).hexdigest() == digest, name
+    require(hashlib.sha256((directory/name).read_bytes()).hexdigest() == digest, "Changed file: " + name)
 verification = []
-assert {item["filename"] for item in evidence["artifacts"]}.issubset(checksums)
-assert all(re.fullmatch(r"[A-Za-z0-9_.-]+",item["filename"]) for item in evidence["artifacts"])
+require({item["filename"] for item in evidence["artifacts"]}.issubset(checksums), "Missing package checksums")
+require(all(re.fullmatch(r"[A-Za-z0-9_.-]+",item["filename"]) for item in evidence["artifacts"]), "Unsafe package name")
 for name in ["release-evidence.json","SHA256SUMS.txt"]+[item["filename"] for item in evidence["artifacts"]]:
     result = json.loads(gh("attestation","verify",str(directory/name),"--repo",repo,
                           "--signer-workflow",repo+"/.github/workflows/release.yml",
                           "--source-digest",evidence["commit"],"--source-ref","refs/heads/main",
                           "--deny-self-hosted-runners","--format","json"))
-    assert result, "No verified attestation"
+    require(result, "No verified attestation")
     verification.append({"file":name,"result":result})
-assert checksums["release-evidence.json"] == hashlib.sha256(evidence_path.read_bytes()).hexdigest()
-assert {item["filename"] for item in evidence["artifacts"]}.issubset(checksums)
-for item in evidence["artifacts"]:
-    assert item["sha256"] == checksums[item["filename"]]
-for name,item in evidence["reports"].items():
-    assert item["sha256"] == checksums[name]
+require(checksums["release-evidence.json"] == hashlib.sha256(evidence_path.read_bytes()).hexdigest(), "Evidence changed")
+validate_evidence(evidence, options.version, checksums, directory)
 prefix = "https://github.com/"+repo+"/releases/download/"+tag+"/"
 platforms = {}
 for item in evidence["artifacts"]:
     name = item["filename"]
-    assert item["url"] == prefix+name
+    require(item["url"] == prefix+name, "Invalid package URL")
     platform = "windows" if name.endswith("-windows-x64-setup.exe") else "linux" if name.endswith("-linux-amd64.deb") else None
     if platform:
         destination = public/"launcher/downloads"/name
@@ -78,7 +75,7 @@ for item in evidence["artifacts"]:
     elif name.endswith(".zip"):
         destination = public/"downloads"/name
         shutil.copyfile(directory/name,destination)
-assert set(platforms) == {"windows","linux"}
+require(set(platforms) == {"windows","linux"}, "Missing launcher platform")
 release = {"version":options.version,"platforms":platforms,"note":"Public GitHub build · Windows installer is unsigned.","github_release":evidence["release_url"]}
 (public/"launcher/releases.json").write_text(json.dumps(release,indent=2)+"\n")
 (public/"launcher/downloads/SHA256SUMS.txt").write_text("".join(item["sha256"]+"  "+Path(item["url"]).name+"\n" for item in platforms.values()))

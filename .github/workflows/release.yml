@@ -38,6 +38,8 @@ jobs:
           python ci/prepare.py
           (cd addons && lua5.1 ../tests/smoke.lua) | tee reports-source/addon-tests.txt
           node --test website/tests/browser-installer.test.mjs | tee reports-source/browser-tests.txt
+          python -m unittest discover -s website/tests -p 'test_*.py' 2>&1 | tee -a reports-source/browser-tests.txt
+          python -O -m unittest discover -s website/tests -p 'test_*.py' 2>&1 | tee -a reports-source/browser-tests.txt
           node --test launcher/tests/catalog-publisher.test.mjs | tee reports-source/catalog-tests.txt
           rustup toolchain install 1.99.1 --profile minimal
           rustup default 1.99.1
