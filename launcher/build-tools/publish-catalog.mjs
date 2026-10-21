@@ -58,7 +58,7 @@ function collectRuntime(directory, prefix = "") {
     const relative = prefix ? prefix + "/" + entry.name : entry.name;
     const sourceFile = resolve(directory, entry.name);
     if (entry.isDirectory()) { collectRuntime(sourceFile, relative); continue; }
-    if (!/\.(lua|toc|tga)$/.test(entry.name)) continue;
+    if (!/\.(lua|toc|tga|ttf)$/.test(entry.name)) continue;
     const content = readFileSync(sourceFile);
     const output = resolve(root, "website/public/addons/DarkWhisperRaidTools", version, relative);
     mkdirSync(dirname(output), {recursive:true});
@@ -73,7 +73,7 @@ function collectRuntime(directory, prefix = "") {
   }
 }
 collectRuntime(runtimeRoot);
-if (files.length !== 8) throw new Error("Unexpected runtime inventory. Review the release allowlist.");
+if (files.length !== 9) throw new Error("Unexpected runtime inventory. Review the release allowlist.");
 const payload = Buffer.from(JSON.stringify({
   schema:1,
   published_at:publishedAt,

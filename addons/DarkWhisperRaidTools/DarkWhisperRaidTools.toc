@@ -3,7 +3,7 @@
 ## Notes: Standalone manual raid marker compass, layouts and heading calibration.
 ## IconTexture: Interface\AddOns\DarkWhisperRaidTools\Media\RaidTools
 ## Author: Robin
-## Version: 1.0.3
+## Version: 1.0.4
 ## SavedVariables: DarkWhisperRaidToolsDB
 
 Core.lua

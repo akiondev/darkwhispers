@@ -1,7 +1,7 @@
 local _, ns = ...
 local C = ns.Compass
 local panel, updating
-local FONT = "Fonts\\ARIALN.TTF"
+local FONT = "Interface\\AddOns\\DarkWhisperRaidTools\\Media\\Carlito-Regular.ttf"
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local WIDTH, HEIGHT = 1090, 728
 
@@ -12,7 +12,7 @@ local function Label(parent, text, size, x, y, width)
     label:SetWidth(width)
     label:SetJustifyH("LEFT")
     label:SetWordWrap(false)
-    label:SetTextColor(0.92, 0.92, 0.9)
+    label:SetTextColor(0.94, 0.9, 0.94)
     label:SetText(text)
     return label
 end
@@ -21,8 +21,8 @@ local function Box(kind, parent, width, height)
     local frame = CreateFrame(kind, nil, parent, "BackdropTemplate")
     frame:SetSize(width, height)
     frame:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
-    frame:SetBackdropColor(0.14, 0.135, 0.12, 0.96)
-    frame:SetBackdropBorderColor(0.035, 0.035, 0.03, 1)
+    frame:SetBackdropColor(0.12, 0.075, 0.13, 0.98)
+    frame:SetBackdropBorderColor(0.28, 0.16, 0.25, 1)
     return frame
 end
 
@@ -33,8 +33,8 @@ local function Button(parent, text, x, y, width, callback)
     button.label:SetJustifyH("CENTER")
     button.label:SetWordWrap(false)
     function button:RefreshBorder()
-        if self.hovered or self.selected then self:SetBackdropBorderColor(0.2, 0.65, 0.61, 1)
-        else self:SetBackdropBorderColor(0.035, 0.035, 0.03, 1) end
+        if self.hovered or self.selected then self:SetBackdropBorderColor(0.7, 0.38, 0.54, 1)
+        else self:SetBackdropBorderColor(0.28, 0.16, 0.25, 1) end
     end
     button:SetScript("OnClick", callback)
     button:SetScript("OnEnter", function(self)
@@ -60,11 +60,11 @@ local function Slider(text, y, key, minimum, maximum, step, factor)
     slider:SetObeyStepOnDrag(true)
     slider:EnableMouse(true)
     local track = slider:CreateTexture(nil, "BACKGROUND")
-    track:SetColorTexture(0.28, 0.27, 0.24, 1)
+    track:SetColorTexture(0.25, 0.16, 0.25, 1)
     track:SetPoint("CENTER", slider, "CENTER", 0, 0)
     track:SetSize(174, 4)
     local thumb = slider:CreateTexture(nil, "ARTWORK")
-    thumb:SetColorTexture(0.72, 0.64, 0.3, 1)
+    thumb:SetColorTexture(0.68, 0.29, 0.43, 1)
     thumb:SetSize(12, 18)
     slider:SetThumbTexture(thumb)
     slider.valueLabel = Label(parent, "", 13, 318, y, 58)
@@ -108,8 +108,8 @@ local function RefreshLayoutMenu()
             button.selected = C.Config().active == index
             button:RefreshBorder()
             button.label:SetText(profile.name)
-            button:SetBackdropColor(0.12, C.Config().active == index and 0.3 or 0.135,
-                C.Config().active == index and 0.28 or 0.12, 1)
+            button:SetBackdropColor(C.Config().active == index and 0.23 or 0.1,
+                C.Config().active == index and 0.1 or 0.06, C.Config().active == index and 0.19 or 0.11, 1)
         end
     end
     menu.up:ClearAllPoints()
@@ -130,7 +130,7 @@ end
 
 local function CreateLayoutMenu()
     local menu = Box("Frame", panel, 330, 80)
-    menu:SetBackdropColor(0.075, 0.07, 0.055, 1)
+    menu:SetBackdropColor(0.055, 0.035, 0.065, 1)
     panel.layoutMenu = menu
     menu:Hide()
     menu:EnableMouse(true)
@@ -193,14 +193,14 @@ end
 
 local function CreatePicker()
     local picker = Box("Frame", panel, 394, 142)
-    picker:SetBackdropColor(0.075, 0.07, 0.055, 1)
+    picker:SetBackdropColor(0.055, 0.035, 0.065, 1)
     picker:Hide()
     picker:EnableMouse(true)
     picker:SetFrameLevel(panel:GetFrameLevel() + 10)
-    picker:SetBackdropBorderColor(0.48, 0.43, 0.22, 1)
+    picker:SetBackdropBorderColor(0.48, 0.28, 0.4, 1)
     picker.title = Label(picker, "", 14, 12, 12, 330)
     picker.hint = Label(picker, "", 12, 12, 34, 370)
-    picker.hint:SetTextColor(0.5, 0.8, 0.85)
+    picker.hint:SetTextColor(0.7, 0.58, 0.7)
     picker.choices = {}
     for icon = 1, 8 do
         local choice = Button(picker, "", 12 + (icon - 1) * 47, 56, 41, function()
@@ -212,7 +212,7 @@ local function CreatePicker()
         choice.icon:SetSize(30, 30)
         choice.icon:SetPoint("CENTER", choice, "CENTER", 0, 0)
         choice:SetScript("OnEnter", function(self)
-            self:SetBackdropBorderColor(0, 0.8, 0.92, 1)
+            self:SetBackdropBorderColor(0.7, 0.38, 0.54, 1)
             local text = C.names[icon]
             for slot, marker in ipairs(C.Profile().markers) do
                 if marker.icon == icon and slot ~= picker.slot then
@@ -223,7 +223,7 @@ local function CreatePicker()
             picker.hint:SetText(text)
         end)
         choice:SetScript("OnLeave", function(self)
-            self:SetBackdropBorderColor(0.18, 0.27, 0.3, 1)
+            self:SetBackdropBorderColor(0.28, 0.16, 0.25, 1)
             picker.hint:SetText("An existing marker moves to this position.")
         end)
         picker.choices[icon] = choice
@@ -240,7 +240,7 @@ function C.UpdateStatus()
     local text, available = C.Status()
     panel.status:SetText(available and ("Heading: " .. text .. " · " .. C.Reference())
         or (text .. " You can still edit markers."))
-    panel.status:SetTextColor(available and 0.45 or 1, available and 0.9 or 0.67, available and 0.72 or 0.3)
+    panel.status:SetTextColor(available and 0.75 or 1, available and 0.67 or 0.7, available and 0.78 or 0.5)
     panel.northButton:SetEnabled(available)
     panel.northButton:SetAlpha(available and 1 or 0.4)
 end
@@ -265,12 +265,12 @@ function C.RefreshOptions()
         row.select.label:SetText(id .. ". " .. (C.names[marker.icon] or "Empty"))
         row.select.selected = C.selected == id
         row.select:RefreshBorder()
-        row.select.label:SetTextColor(marker.enabled and 0.93 or 0.48, marker.enabled and 0.96 or 0.52,
-            marker.enabled and 0.97 or 0.55)
+        row.select.label:SetTextColor(marker.enabled and 0.93 or 0.42, marker.enabled and 0.88 or 0.36,
+            marker.enabled and 0.93 or 0.44)
         row.angle:SetText(string.format("%.0f°", marker.angle))
         row.toggle:SetShown(marker.icon > 0)
         row.toggle.label:SetText(marker.enabled and "Shown" or "Hidden")
-        row.toggle.label:SetTextColor(marker.enabled and 0.4 or 0.55, marker.enabled and 1 or 0.6, 0.7)
+        row.toggle.label:SetTextColor(marker.enabled and 0.83 or 0.48, marker.enabled and 0.64 or 0.41, marker.enabled and 0.77 or 0.5)
     end
     panel.markerCount:SetText("MARKERS · " .. count .. " of 8 shown")
     local marker = profile.markers[C.selected]
@@ -282,7 +282,8 @@ function C.RefreshOptions()
     panel.opacitySlider:Refresh()
     panel.cardinals.label:SetText(profile.cardinals and "Cardinals: on" or "Cardinals: off")
     panel.enableButton.label:SetText(cfg.enabled and "Disable compass" or "Enable compass")
-    panel.enableButton:SetBackdropColor(0.12, cfg.enabled and 0.3 or 0.135, cfg.enabled and 0.28 or 0.12, 1)
+    panel.enableButton:SetBackdropColor(cfg.enabled and 0.23 or 0.1,
+        cfg.enabled and 0.1 or 0.06, cfg.enabled and 0.19 or 0.11, 1)
     panel.moveButton.label:SetText(C.unlocked and "Lock position" or "Move HUD")
     panel.liveButton.label:SetText(C.live and "Edit layout" or "Test live")
     panel.previewTitle:SetText(C.live and "LIVE · forward is up" or "EDIT · north is up")
@@ -306,8 +307,8 @@ local function CreatePanel()
         C.ClosePicker()
     end)
     panel:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
-    panel:SetBackdropColor(0.035, 0.03, 0.018, 0.88)
-    panel:SetBackdropBorderColor(0.47, 0.4, 0.19, 1)
+    panel:SetBackdropColor(0.045, 0.03, 0.055, 0.98)
+    panel:SetBackdropBorderColor(0.42, 0.24, 0.36, 1)
     tinsert(UISpecialFrames, "DarkWhisperRaidToolsCompassOptions")
 
     local function Surface(parent, x, y, width, height, r, g, b, alpha)
@@ -317,7 +318,7 @@ local function CreatePanel()
         texture:SetColorTexture(r, g, b, alpha or 1)
     end
     local function Heading(parent, text, x, y, width)
-        return Label(parent, text, 12, x, y, width):SetTextColor(0.96, 0.82, 0.27)
+        return Label(parent, text, 12, x, y, width):SetTextColor(0.79, 0.62, 0.74)
     end
     -- Only the title bar moves the window; controls and the circle keep their input.
     panel.titleBar = CreateFrame("Frame", nil, panel)
@@ -327,24 +328,24 @@ local function CreatePanel()
     panel.titleBar:RegisterForDrag("LeftButton")
     panel.titleBar:SetScript("OnDragStart", function() panel:StartMoving() end)
     panel.titleBar:SetScript("OnDragStop", function() panel:StopMovingOrSizing() end)
-    Surface(panel, 2, 2, WIDTH - 4, 26, 0.06, 0.055, 0.04, 0.95)
+    Surface(panel, 2, 2, WIDTH - 4, 26, 0.035, 0.022, 0.04, 0.98)
     panel.scaleLabel = Label(panel.titleBar, "", 11, 10, 7, 140)
-    panel.scaleLabel:SetTextColor(0.85, 0.75, 0.38)
+    panel.scaleLabel:SetTextColor(0.68, 0.52, 0.65)
     local logo = panel.titleBar:CreateTexture(nil, "ARTWORK")
     logo:SetSize(23, 23)
     logo:SetPoint("TOPLEFT", panel.titleBar, "TOPLEFT", 153, -1)
     logo:SetTexture("Interface\\AddOns\\DarkWhisperRaidTools\\Media\\RaidTools")
     local title = Label(panel.titleBar, "DarkWhispers Raid Tool", 15, 180, 4, WIDTH - 360)
     title:SetJustifyH("CENTER")
-    title:SetTextColor(0.18, 0.85, 0.82)
+    title:SetTextColor(0.94, 0.84, 0.91)
     panel.closeButton = Button(panel, "X", WIDTH - 30, 3, 26, function() panel:Hide() end)
     panel.closeButton:SetHeight(22)
 
-    Surface(panel, 8, 36, 146, HEIGHT - 64, 0.08, 0.075, 0.06, 0.75)
-    Surface(panel, 160, 34, 1, HEIGHT - 61, 0.4, 0.35, 0.18, 0.65)
+    Surface(panel, 8, 36, 146, HEIGHT - 64, 0.04, 0.025, 0.05, 0.96)
+    Surface(panel, 160, 34, 1, HEIGHT - 61, 0.3, 0.16, 0.25, 0.65)
     Heading(panel, "RAID TOOLS", 18, 49, 126)
     panel.compassTab = Button(panel, "Marker compass", 10, 72, 142, function() C.SetLive(false) end)
-    panel.compassTab:SetBackdropColor(0.1, 0.28, 0.26, 1)
+    panel.compassTab:SetBackdropColor(0.22, 0.095, 0.18, 1)
     panel.compassTab.selected = true
     panel.compassTab:RefreshBorder()
     Heading(panel, "DISPLAY", 18, 122, 126)
@@ -356,10 +357,10 @@ local function CreatePanel()
     panel.resetButton = Button(panel, "Map north", 10, 326, 142, C.ResetNorth)
     local northHint = Label(panel, "Face your preferred direction, then click Set north.", 12, 18, 368, 126)
     northHint:SetWordWrap(true)
-    northHint:SetTextColor(0.66, 0.65, 0.59)
+    northHint:SetTextColor(0.62, 0.51, 0.63)
     local moveHint = Label(panel, "Drag the title bar to move this window.", 11, 18, HEIGHT - 94, 126)
     moveHint:SetWordWrap(true)
-    moveHint:SetTextColor(0.55, 0.55, 0.5)
+    moveHint:SetTextColor(0.55, 0.44, 0.56)
 
     panel.content = CreateFrame("Frame", nil, panel)
     local body = panel.content
@@ -377,7 +378,7 @@ local function CreatePanel()
     arrow:SetTexCoord(0, 1, 1, 0)
     arrow:SetSize(12, 12)
     arrow:SetPoint("RIGHT", panel.layoutButton, "RIGHT", -8, 0)
-    arrow:SetVertexColor(0.85, 0.74, 0.28, 1)
+    arrow:SetVertexColor(0.8, 0.58, 0.72, 1)
     panel.addLayout = Button(body, "+", 264, 30, 32, function()
         CommitName()
         panel.name:ClearFocus()
@@ -385,11 +386,12 @@ local function CreatePanel()
     end)
     panel.removeLayout = Button(body, "−", 304, 30, 32, C.RemoveLayout)
     panel.layoutHint = Label(body, "", 11, 12, 64, 360)
-    panel.layoutHint:SetTextColor(0.6, 0.6, 0.55)
+    panel.layoutHint:SetTextColor(0.6, 0.49, 0.61)
     Heading(body, "Layout name", 410, 8, 476)
     panel.name = Box("EditBox", body, 476, 26)
     panel.name:SetPoint("TOPLEFT", body, "TOPLEFT", 410, -30)
     panel.name:SetFont(FONT, 13, "")
+    panel.name:SetTextColor(0.94, 0.9, 0.94)
     panel.name:SetAutoFocus(false)
     panel.name:SetMaxLetters(28)
     panel.name:SetTextInsets(8, 8, 0, 0)
@@ -399,13 +401,13 @@ local function CreatePanel()
         self:SetText(C.Profile().name)
         self:ClearFocus()
     end)
-    Surface(body, 12, 88, 874, 1, 0.35, 0.31, 0.19, 0.6)
-    Surface(body, 390, 98, 1, 526, 0.35, 0.31, 0.19, 0.45)
+    Surface(body, 12, 88, 874, 1, 0.3, 0.16, 0.25, 0.6)
+    Surface(body, 390, 98, 1, 526, 0.3, 0.16, 0.25, 0.45)
     panel.previewTitle = Label(body, "", 12, 12, 102, 365)
-    panel.previewTitle:SetTextColor(0.96, 0.82, 0.27)
+    panel.previewTitle:SetTextColor(0.79, 0.62, 0.74)
     panel.previewHint = Label(body, "", 12, 12, 434, 365)
     panel.previewHint:SetWordWrap(true)
-    panel.previewHint:SetTextColor(0.7, 0.7, 0.64)
+    panel.previewHint:SetTextColor(0.67, 0.56, 0.68)
     panel.previewMessage = Label(body, "Heading unavailable here.\nChoose Edit layout to change your markers.", 15, 42, 246, 300)
     panel.previewMessage:SetJustifyH("CENTER")
     panel.previewMessage:SetWordWrap(true)
@@ -417,7 +419,7 @@ local function CreatePanel()
     C.preview:SetPoint("CENTER", panel.previewViewport, "CENTER", 0, 0)
     panel.rows = {}
     panel.markerCount = Label(body, "", 12, 410, 102, 290)
-    panel.markerCount:SetTextColor(0.96, 0.82, 0.27)
+    panel.markerCount:SetTextColor(0.79, 0.62, 0.74)
     panel.clearButton = Button(body, "Clear circle", 782, 96, 104, C.ClearMarkers)
     for id = 1, 8 do
         local y = 132 + (id - 1) * 32
@@ -440,7 +442,7 @@ local function CreatePanel()
         end)
         panel.rows[id] = row
     end
-    Surface(body, 410, 396, 476, 1, 0.35, 0.31, 0.19, 0.6)
+    Surface(body, 410, 396, 476, 1, 0.3, 0.16, 0.25, 0.6)
     panel.selected = Label(body, "", 14, 410, 410, 476)
     Label(body, "Angle", 13, 410, 448, 220)
     panel.angleMinus = Button(body, "−", 704, 442, 36, function()
@@ -464,18 +466,18 @@ local function CreatePanel()
     end)
     local markerHint = Label(body, "Click a position or a numbered slot to choose a marker. Assigning a marker already in use moves it to the selected position.", 12, 410, 566, 476)
     markerHint:SetWordWrap(true)
-    markerHint:SetTextColor(0.64, 0.64, 0.58)
+    markerHint:SetTextColor(0.62, 0.51, 0.63)
     Heading(body, "Appearance", 12, 492, 365)
     panel.sizeSlider = Slider("Circle size", 520, "size", 160, 420, 10, 1)
     panel.iconSlider = Slider("Icon size", 556, "iconSize", 16, 64, 2, 1)
     panel.opacitySlider = Slider("Background", 592, "opacity", 0, 100, 5, 100)
-    Surface(body, 12, 628, 874, 1, 0.35, 0.31, 0.19, 0.6)
+    Surface(body, 12, 628, 874, 1, 0.3, 0.16, 0.25, 0.6)
     panel.status = Label(body, "", 12, 12, 642, 874)
     panel.status:SetWordWrap(true)
-    Label(panel, "DarkWhispers Raid Tool  " .. ns.version, 11, 12, HEIGHT - 18, 340):SetTextColor(0.3, 0.72, 0.69)
-    local footer = Label(panel, "/dwrt  ·  /acomp", 11, WIDTH - 180, HEIGHT - 18, 166)
+    Label(panel, "DarkWhispers Raid Tool  " .. ns.version, 11, 12, HEIGHT - 18, 340):SetTextColor(0.68, 0.52, 0.65)
+    local footer = Label(panel, "/dwrt", 11, WIDTH - 180, HEIGHT - 18, 166)
     footer:SetJustifyH("RIGHT")
-    footer:SetTextColor(0.6, 0.59, 0.52)
+    footer:SetTextColor(0.6, 0.49, 0.61)
     CreatePicker()
     CreateLayoutMenu()
     panel:SetScript("OnHide", function(self)
@@ -495,8 +497,7 @@ local function CreatePanel()
     Fit()
 end
 
-SLASH_DARKWHISPERRAIDTOOLS1 = "/acomp"
-SLASH_DARKWHISPERRAIDTOOLS2 = "/dwrt"
+SLASH_DARKWHISPERRAIDTOOLS1 = "/dwrt"
 SlashCmdList.DARKWHISPERRAIDTOOLS = function()
     if not ns.ready then return end
     if not panel then CreatePanel() end

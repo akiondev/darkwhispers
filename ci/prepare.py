@@ -16,7 +16,7 @@ for name in ("DarkWhisperRaidTools",):
     version = re.search(r"^## Version:\s*([\d.]+)\s*$",(source/(name+".toc")).read_text(),re.M).group(1)
     with zipfile.ZipFile(out/f"{name}-{version}.zip","w",compression=zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
         for path in sorted(source.rglob("*")):
-            if path.is_file() and path.suffix in {".lua",".toc",".tga"}:
+            if path.is_file() and path.suffix in {".lua",".toc",".tga",".ttf"}:
                 assert not path.is_symlink()
                 entry = zipfile.ZipInfo(path.relative_to(base).as_posix(),(2026,10,20,0,0,0))
                 entry.create_system = 0

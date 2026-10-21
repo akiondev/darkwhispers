@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const invoke = window.__TAURI__?.core.invoke;
 let state = null, busy = false, pendingRemoval = null;
-let launcherVersion = "0.3.4", availableLauncher = null, reportsLoaded = false, lastAddonCheck = 0;
+let launcherVersion = "0.3.5", availableLauncher = null, reportsLoaded = false, lastAddonCheck = 0;
 function updateMotion() {
   document.documentElement.classList.toggle("motion-paused", document.hidden || !document.hasFocus());
 }

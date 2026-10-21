@@ -19,7 +19,7 @@ foreach ($addonName in $addonNames) {
     $source = (Resolve-Path -LiteralPath (Join-Path $sourceDirectory $addonName)).Path
     $destination = Join-Path $addonsDirectory $addonName
     $files = @(Get-ChildItem -LiteralPath $source -File -Recurse |
-        Where-Object { $_.Extension -in @('.lua', '.toc', '.tga') })
+        Where-Object { $_.Extension -in @('.lua', '.toc', '.tga', '.ttf') })
     foreach ($file in $files) {
         $relativePath = $file.FullName.Substring($source.Length).TrimStart('\')
         $targetFile = Join-Path $destination $relativePath

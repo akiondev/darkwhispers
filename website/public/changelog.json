@@ -1,6 +1,17 @@
 {
   "entries": [
     {
+      "version": "0.3.5",
+      "date": "21 Oct 2026",
+      "title": "A matching home for your compass",
+      "changes": [
+        "DarkWhispers Raid Tool 1.0.4 matches the launcher with a restrained dark gothic palette.",
+        "A clean light-blue compass and softer Carlito font; existing layouts and functions stay intact.",
+        "Open addon settings with /dwrt. The old /acomp command is removed.",
+        "Update the addon directly in your current launcher; a launcher update is optional."
+      ]
+    },
+    {
       "version": "0.3.4",
       "date": "20 Oct 2026",
       "title": "Sharper identity, simpler controls",

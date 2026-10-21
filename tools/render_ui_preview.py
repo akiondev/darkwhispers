@@ -99,6 +99,8 @@ class Preview:
         return (f["scale"] or 1) * (self.scale(f["parent"]["id"]) if f["parent"] else 1)
 
     def font(self, f):
+        if "Carlito-Regular.ttf" in (f["font"] or ""):
+            return ImageFont.truetype(str(ADDONS / "DarkWhisperRaidTools/Media/Carlito-Regular.ttf"), max(1, round((f["fontSize"] or 14) * self.scale(f["id"]))))
         face = "arialn.ttf" if "ARIALN" in (f["font"] or "") else "arial.ttf"
         return ImageFont.truetype("C:/Windows/Fonts/" + face, max(1, round((f["fontSize"] or 14) * self.scale(f["id"]))))
 
@@ -253,7 +255,7 @@ class Preview:
                 if "UI-RaidTargetingIcon_" in path:
                     image = self.symbol(int(path[-1]), max(w, h)).resize((w, h))
                 elif "\\Media\\" in path:
-                    image = Image.open(ADDONS / path.split("\\")[-3] / "Media" / path.split("\\")[-1]).convert("RGBA").resize((w,h), Image.Resampling.LANCZOS)
+                    image = Image.open(ADDONS / path.split("\\")[-3] / "Media" / (path.split("\\")[-1] if "." in path.split("\\")[-1] else path.split("\\")[-1] + ".tga")).convert("RGBA").resize((w,h), Image.Resampling.LANCZOS)
                     image = ImageChops.multiply(image, Image.new("RGBA", image.size, rgba(f["vertex"])))
                 if image:
                     if f["texCoord"] is not None and values(f["texCoord"]) == [0, 1, 1, 0]:

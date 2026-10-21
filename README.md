@@ -16,7 +16,7 @@ manager and a gothic download site.
 | --- | --- |
 | launcher/ | Rust installation core, Tauri desktop app, plain HTML/CSS/JS interface |
 | website/ | Static download site, browser addon installer and scoped VPS deployment tools |
-| addons/DarkWhisperRaidTools/ | Standalone marker compass, commands /dwrt and /acomp |
+| addons/DarkWhisperRaidTools/ | Standalone marker compass, command /dwrt |
 | ci/ | Public build, scan, packaging and evidence scripts |
 | .github/workflows/ | Source checks and attested release pipeline |
 | docs/ | Usage, trust model and implementation research |

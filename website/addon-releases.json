@@ -1,10 +1,10 @@
 {
-  "published_at": "2026-10-20T20:53:26Z",
+  "published_at": "2026-10-21T05:45:26Z",
   "addons": {
     "DarkWhisperRaidTools": {
-      "version": "1.0.3",
-      "released_at": "2026-10-20T20:53:26Z",
-      "release_notes": "A dedicated gothic shield with crossed tools identifies the raid addon in WoW and the launcher. Saved layouts and the default marker preset are unchanged."
+      "version": "1.0.4",
+      "released_at": "2026-10-21T05:45:26Z",
+      "release_notes": "A launcher-inspired dark gothic palette, clean light-blue compass and softer bundled Carlito font. Open settings with /dwrt. Saved layouts and all compass functions are preserved."
     }
   }
 }

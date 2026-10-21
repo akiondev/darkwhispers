@@ -1,6 +1,7 @@
 * text=auto eol=lf
 addons/** -text
 *.tga binary
+*.ttf binary
 *.png binary
 *.webp binary
 *.woff2 binary

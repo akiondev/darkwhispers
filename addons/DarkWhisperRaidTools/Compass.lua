@@ -4,7 +4,7 @@ ns.Compass = C
 C.names = { "Star", "Circle", "Diamond", "Triangle", "Moon", "Square", "Cross", "Skull" }
 C.selected = 1
 local cfg, driver, hud, facing, reason, mapKey, instanceKey, nextLocationCheck
-local FONT = "Fonts\\ARIALN.TTF"
+local FONT = "Interface\\AddOns\\DarkWhisperRaidTools\\Media\\Carlito-Regular.ttf"
 local MEDIA = "Interface\\AddOns\\DarkWhisperRaidTools\\Media\\"
 local directions = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
 local defaultIcons = { 8, 4, 5, 6, 7, 1, 2, 3 }
@@ -128,7 +128,7 @@ local function CenterLabel(parent, text, size, x, y)
     local label = parent:CreateFontString(nil, "OVERLAY")
     label:SetFont(FONT, size, "OUTLINE")
     label:SetPoint("CENTER", parent, "CENTER", x, y)
-    label:SetTextColor(0.9, 0.96, 1)
+    label:SetTextColor(0.72, 0.89, 1)
     label:SetText(text)
     return label
 end
@@ -139,15 +139,15 @@ function C.CreateDial(parent, editable)
     dial.disc = dial:CreateTexture(nil, "BACKGROUND")
     dial.disc:SetTexture(MEDIA .. "CompassDisc.tga")
     dial.disc:SetAllPoints(dial)
-    dial.disc:SetVertexColor(0.07, 0.065, 0.055, 1)
+    dial.disc:SetVertexColor(0.025, 0.06, 0.09, 1)
     dial.ring = dial:CreateTexture(nil, "BORDER")
     dial.ring:SetTexture(MEDIA .. "CompassRing.tga")
     dial.ring:SetAllPoints(dial)
-    dial.ring:SetVertexColor(0.65, 0.56, 0.29, 0.8)
+    dial.ring:SetVertexColor(0.43, 0.78, 1, 0.9)
     dial.arrow = dial:CreateTexture(nil, "OVERLAY")
     dial.arrow:SetTexture(MEDIA .. "CompassArrow.tga")
     dial.arrow:SetPoint("CENTER", dial, "CENTER", 0, 0)
-    dial.arrow:SetVertexColor(0.85, 0.96, 1, 1)
+    dial.arrow:SetVertexColor(0.68, 0.9, 1, 1)
     dial.labels, dial.markers = {}, {}
     for id, text in ipairs({ "N", "E", "S", "W" }) do
         dial.labels[id] = CenterLabel(dial, text, 12, 0, 0)
@@ -209,8 +209,8 @@ function C.RenderDial(dial, size, heading)
         marker:SetShown(placeholder or (setting.enabled and setting.icon > 0))
         marker:EnableMouse(editing)
         if marker.slotNumber then marker.slotNumber:SetShown(placeholder) end
-        marker:SetBackdropColor(0.035, 0.08, 0.1, placeholder and 0.95 or 0)
-        marker:SetBackdropBorderColor(0, 0.85, 1, editing and id == C.selected and 1 or (placeholder and 0.45 or 0))
+        marker:SetBackdropColor(0.035, 0.075, 0.11, placeholder and 0.95 or 0)
+        marker:SetBackdropBorderColor(0.48, 0.82, 1, editing and id == C.selected and 1 or (placeholder and 0.45 or 0))
     end
 end
 

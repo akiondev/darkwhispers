@@ -1,6 +1,6 @@
 # DarkWhispers maintainer review notes
 
-Release: launcher 0.3.4 and DarkWhispers Raid Tool 1.0.3.
+Release: launcher 0.3.5 and DarkWhispers Raid Tool 1.0.4.
 Scope: implementation notes, not an independent audit or security certification.
 The original automated reports, source commit and exact package hashes are in
 the immutable GitHub release and its public workflow.
@@ -66,3 +66,11 @@ Undecorated window shadow is disabled to avoid Tauri’s extra Windows border;
 the custom frame remains. The landing page links to GitHub reports rather than
 fetching duplicate scan cards. The raid addon has an original tools mark and
 unchanged saved settings and compass behavior.
+
+## Raid addon appearance
+
+The menu retains its layout and handlers, with launcher-inspired colors. The
+compass ring, arrow and cardinals use light blue; standard raid icon colors
+remain intact. Carlito Regular is bundled unmodified, with its full SIL OFL
+notice in Core.lua. Existing native/browser font support is used; no installer
+file types or permissions are expanded. /dwrt is the sole addon command.
