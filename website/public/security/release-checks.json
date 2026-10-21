@@ -1,7 +1,7 @@
 {
   "schema": 2,
-  "version": "0.3.6",
-  "checked_at": "2026-10-21T06:22:21.260983+00:00",
+  "version": "0.3.7",
+  "checked_at": "2026-10-21T06:37:09.757298+00:00",
   "malware": {
     "schema": 1,
     "status": "passed",
@@ -11,12 +11,15 @@
     "engine_version": "1.1.26090.9",
     "signature_version": "1.461.119.0",
     "update_log": [
-      "Direct MMPC signature update completed."
+      "MMPC update failed: Virus and spyware definitions update was completed with errors.",
+      "Validated Microsoft publisher: CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+      "Definitions package SHA-256: 931a551e20f100d6d25ad47064b8ffd107d16e07577efc39b82bc8b34ef3b66e",
+      "Official offline definitions updater exit: 0"
     ],
     "maximum_signature_age_hours": 72,
     "signatures_updated_at": "2026-10-20T08:34:39.0000000Z",
-    "started_at": "2026-10-21T06:21:48.5236236Z",
-    "checked_at": "2026-10-21T06:21:56.4569248Z",
+    "started_at": "2026-10-21T06:36:09.4153027Z",
+    "checked_at": "2026-10-21T06:36:55.9168205Z",
     "artifacts": [
       {
         "filename": "DarkWhisperRaidTools-1.0.4.zip",
@@ -24,14 +27,14 @@
         "bytes": 302223
       },
       {
-        "filename": "DarkWhispers-Addons-0.3.6-linux-amd64.deb",
-        "sha256": "52262b96cfd9933075ca2177bbddad149618f55e4432872ab4e77a4e51e7070c",
-        "bytes": 3105448
+        "filename": "DarkWhispers-Addons-0.3.7-linux-amd64.deb",
+        "sha256": "43ded670fac5bd231ab0e55525a25fb3ac1cb9d5f3138455d96e496e64787c2f",
+        "bytes": 3587322
       },
       {
-        "filename": "DarkWhispers-Addons-0.3.6-windows-x64-setup.exe",
-        "sha256": "4fb200c1449d0111a95eee6f5e3c6e558b2991160a1b2b7b126f5659a9f89d49",
-        "bytes": 2295521
+        "filename": "DarkWhispers-Addons-0.3.7-windows-x64-setup.exe",
+        "sha256": "4c6ceb4ac08eb23d0f3cad40e1e5bef048f4f17386bb4b5b7b140d232cba5be5",
+        "bytes": 2366803
       }
     ],
     "scope": "All downloaded release packages; custom scan with archive scanning and remediation disabled. No exclusions added."
@@ -41,7 +44,7 @@
       "filename": "DarkWhisperRaidTools-1.0.4.zip",
       "sha256": "b47c1f04e6b8b774b802b6b98ca1358ba0e36bc41a6e7148c76dd4eb394cfe40",
       "bytes": 302223,
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/DarkWhisperRaidTools-1.0.4.zip",
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/DarkWhisperRaidTools-1.0.4.zip",
       "scan": {
         "status": "passed",
         "detections": 0,
@@ -50,10 +53,10 @@
       }
     },
     {
-      "filename": "DarkWhispers-Addons-0.3.6-linux-amd64.deb",
-      "sha256": "52262b96cfd9933075ca2177bbddad149618f55e4432872ab4e77a4e51e7070c",
-      "bytes": 3105448,
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/DarkWhispers-Addons-0.3.6-linux-amd64.deb",
+      "filename": "DarkWhispers-Addons-0.3.7-linux-amd64.deb",
+      "sha256": "43ded670fac5bd231ab0e55525a25fb3ac1cb9d5f3138455d96e496e64787c2f",
+      "bytes": 3587322,
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/DarkWhispers-Addons-0.3.7-linux-amd64.deb",
       "scan": {
         "status": "passed",
         "detections": 0,
@@ -62,10 +65,10 @@
       }
     },
     {
-      "filename": "DarkWhispers-Addons-0.3.6-windows-x64-setup.exe",
-      "sha256": "4fb200c1449d0111a95eee6f5e3c6e558b2991160a1b2b7b126f5659a9f89d49",
-      "bytes": 2295521,
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/DarkWhispers-Addons-0.3.6-windows-x64-setup.exe",
+      "filename": "DarkWhispers-Addons-0.3.7-windows-x64-setup.exe",
+      "sha256": "4c6ceb4ac08eb23d0f3cad40e1e5bef048f4f17386bb4b5b7b140d232cba5be5",
+      "bytes": 2366803,
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/DarkWhispers-Addons-0.3.7-windows-x64-setup.exe",
       "scan": {
         "status": "passed",
         "detections": 0,
@@ -80,8 +83,8 @@
       "status": "passed",
       "engine": "ClamAV 1.5.4/28159/Tue Oct 20 06:24:12 2026",
       "signatures": 3628175,
-      "started_at": "2026-10-21T06:21:41Z",
-      "checked_at": "2026-10-21T06:21:56Z",
+      "started_at": "2026-10-21T06:36:04Z",
+      "checked_at": "2026-10-21T06:36:19Z",
       "exit_code": 0,
       "detections": 0,
       "artifacts": [
@@ -92,15 +95,15 @@
           "status": "passed"
         },
         {
-          "filename": "DarkWhispers-Addons-0.3.6-linux-amd64.deb",
-          "sha256": "52262b96cfd9933075ca2177bbddad149618f55e4432872ab4e77a4e51e7070c",
-          "bytes": 3105448,
+          "filename": "DarkWhispers-Addons-0.3.7-linux-amd64.deb",
+          "sha256": "43ded670fac5bd231ab0e55525a25fb3ac1cb9d5f3138455d96e496e64787c2f",
+          "bytes": 3587322,
           "status": "passed"
         },
         {
-          "filename": "DarkWhispers-Addons-0.3.6-windows-x64-setup.exe",
-          "sha256": "4fb200c1449d0111a95eee6f5e3c6e558b2991160a1b2b7b126f5659a9f89d49",
-          "bytes": 2295521,
+          "filename": "DarkWhispers-Addons-0.3.7-windows-x64-setup.exe",
+          "sha256": "4c6ceb4ac08eb23d0f3cad40e1e5bef048f4f17386bb4b5b7b140d232cba5be5",
+          "bytes": 2366803,
           "status": "passed"
         }
       ],
@@ -120,7 +123,7 @@
     ],
     "metrics": "off",
     "suppressed_findings": false,
-    "report_url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/semgrep.json",
+    "report_url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/semgrep.json",
     "summary": "Public GitHub-hosted Semgrep Community Edition scan. All findings are retained; see the original report and workflow logs."
   },
   "dependencies": {
@@ -142,24 +145,24 @@
       "Python"
     ],
     "report": {
-      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/codeql-report.sarif",
-      "sha256": "d0607ebfc2502b068df71e89330dae5cd2c09000e2374389573381168bb3b9c2"
+      "url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/codeql-report.sarif",
+      "sha256": "14df186ca27f57d019456a12bbd69566145d6372d8889ec25dbcf9f05b2c362b"
     }
   },
   "provenance": {
     "repository": "akiondev/darkwhispers",
-    "commit": "6bec145d94f6930a772987c7a63061f1b4483ee3",
-    "run_url": "https://github.com/akiondev/darkwhispers/actions/runs/39554452284",
-    "source_url": "https://github.com/akiondev/darkwhispers/tree/6bec145d94f6930a772987c7a63061f1b4483ee3",
-    "release_url": "https://github.com/akiondev/darkwhispers/releases/tag/v0.3.6",
+    "commit": "0c202770dd32fda231f3404997737fc5cfaf14bf",
+    "run_url": "https://github.com/akiondev/darkwhispers/actions/runs/39555850937",
+    "source_url": "https://github.com/akiondev/darkwhispers/tree/0c202770dd32fda231f3404997737fc5cfaf14bf",
+    "release_url": "https://github.com/akiondev/darkwhispers/releases/tag/v0.3.7",
     "immutable": true,
     "report_links": {
-      "defender": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/defender.json",
-      "clamav": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/clamav.json",
-      "semgrep": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/semgrep.json",
-      "rustsec": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/cargo-audit.json",
-      "evidence": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/release-evidence.json",
-      "codeql": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/codeql-report.sarif"
+      "defender": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/defender.json",
+      "clamav": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/clamav.json",
+      "semgrep": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/semgrep.json",
+      "rustsec": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/cargo-audit.json",
+      "evidence": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/release-evidence.json",
+      "codeql": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.7/codeql-report.sarif"
     }
   },
   "limitations": [
