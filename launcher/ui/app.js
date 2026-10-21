@@ -1,8 +1,8 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const invoke = window.__TAURI__?.core.invoke;
-let state = null, busy = false, pendingRemoval = null;
-let launcherVersion = "0.3.5", availableLauncher = null, reportsLoaded = false, lastAddonCheck = 0;
+let state = null, busy = false, pendingRemoval = null, pendingInstall = null;
+let launcherVersion = "0.3.6", availableLauncher = null, reportsLoaded = false, lastAddonCheck = 0;
 function updateMotion() {
   document.documentElement.classList.toggle("motion-paused", document.hidden || !document.hasFocus());
 }
@@ -46,8 +46,8 @@ function render(next) {
   state = next;
   const path = next.game_path?.replace(/^\\\\\?\\/, "") || "Choose your WoW Retail folder to get started.";
   $("game-path").textContent = path; $("game-path").title = path;
-  $("auto-update").checked = !!next.auto_update;
-  $("auto-detail").textContent = next.auto_update ? "On" : "Off";
+  $("auto-update").checked = !!next.auto_check_updates;
+  $("auto-detail").textContent = next.auto_check_updates ? "On" : "Off";
   $("addons").replaceChildren();
   const columns = document.createElement("div"); columns.className = "addon-list-head"; columns.setAttribute("aria-hidden","true");
   for (const text of ["ADDON","INSTALLED","LATEST","ACTIONS"]) { const label = document.createElement("span"); label.textContent = text; columns.append(label); }
@@ -83,8 +83,8 @@ function render(next) {
     }
     const check = document.createElement("button"); check.className = "row-check"; check.dataset.checkUpdates = "true"; check.type = "button"; check.textContent = "Check updates";
     check.setAttribute("aria-label","Check updates for " + item.addon.title); check.addEventListener("click",refresh); actions.append(check);
-    const toggle = document.createElement("button"); toggle.className = "row-details"; toggle.type = "button"; toggle.textContent = "⌄"; toggle.setAttribute("aria-label","Release notes and options for " + item.addon.title); toggle.setAttribute("aria-controls",details.id); toggle.setAttribute("aria-expanded",String(!details.hidden));
-    toggle.addEventListener("click",()=>{ details.hidden = !details.hidden; toggle.setAttribute("aria-expanded",String(!details.hidden)); }); actions.append(toggle);
+    const toggle = document.createElement("button"); toggle.className = "row-expand-hitbox"; toggle.type = "button"; toggle.setAttribute("aria-label","Release notes and options for " + item.addon.title); toggle.setAttribute("aria-controls",details.id); toggle.setAttribute("aria-expanded",String(!details.hidden));
+    toggle.addEventListener("click",()=>{ details.hidden = !details.hidden; toggle.setAttribute("aria-expanded",String(!details.hidden)); card.classList.toggle("expanded",!details.hidden); }); card.querySelector(".addon-row-main").prepend(toggle);
     if (item.installed && !item.issue) {
       const maintenance = card.querySelector(".maintenance");
       const reinstall = document.createElement("button"); reinstall.className = "remove"; reinstall.dataset.operation = "reinstall"; reinstall.textContent = "Reinstall";
@@ -110,13 +110,24 @@ function checkOnReturn() {
 }
 window.addEventListener("focus",checkOnReturn);
 document.addEventListener("visibilitychange",checkOnReturn);
-async function installAddon(item, reinstall = false) {
-  await operation((reinstall ? "Reinstalling " : item.installed ? "Updating " : "Installing ") + item.addon.title + "…", async () => {
-    await invoke("install_addon",{id:item.addon.id});
-    const next = await invoke("get_status",{checkUpdates:true}); render(next);
-    statusMessage(next,item.addon.title + (reinstall ? " reinstalled." : item.installed ? " updated." : " installed.") + " Start WoW to load it.");
-  });
+function installAddon(item, reinstall = false) {
+  if (busy || !invoke) return;
+  pendingInstall = {id:item.addon.id, title:item.addon.title, version:item.addon.version, installed:item.installed, reinstall};
+  const action = reinstall ? "Reinstall" : item.installed ? "Update" : "Install";
+  $("install-title").textContent = action + " " + item.addon.title + "?";
+  $("install-description").textContent = item.installed ? "Installed: " + item.installed_version + " → " + (reinstall ? "Reinstall: " : "Latest: ") + item.addon.version : "Install version " + item.addon.version + " into your selected WoW Retail folder.";
+  $("confirm-install").textContent = action + " addon · " + item.addon.version;
+  $("install-dialog").returnValue = "cancel"; $("install-dialog").showModal();
 }
+$("install-dialog").addEventListener("close", () => {
+  const approved = pendingInstall; pendingInstall = null;
+  if (!approved || $("install-dialog").returnValue !== "install") return;
+  operation("Installing approved addon version " + approved.version + "…", async () => {
+    await invoke("install_addon", {id:approved.id, approvedVersion:approved.version});
+    const next = await invoke("get_status", {checkUpdates:true}); render(next);
+    statusMessage(next, approved.title + " " + approved.version + " installed. Start WoW to load it.");
+  });
+});
 $("refresh").addEventListener("click", refresh);
 $("choose-folder").addEventListener("click", () => operation("Choose your WoW folder…", async () => {
   if (await invoke("choose_game")) {
@@ -133,9 +144,9 @@ $("remove-dialog").addEventListener("close", () => {
 });
 $("auto-update").addEventListener("change", () => {
   const enabled = $("auto-update").checked;
-  operation("Saving automatic update preference…", async () => {
-    try { await invoke("set_auto_update",{enabled}); render(await invoke("get_status",{checkUpdates:false})); message(enabled ? "Automatic updates enabled. Only installed addons are updated, while WoW is closed." : "Automatic updates off. No background checks."); }
-    catch (error) { $("auto-update").checked = !!state?.auto_update; throw error; }
+  operation("Saving background check preference…", async () => {
+    try { await invoke("set_auto_check_updates",{enabled}); render(await invoke("get_status",{checkUpdates:false})); message(enabled ? "Automatic checks enabled. Updates require your approval." : "Automatic checks off. Addon installation always requires your approval."); }
+    catch (error) { $("auto-update").checked = !!state?.auto_check_updates; throw error; }
   });
 });
 async function openResource(resource) {
@@ -194,10 +205,10 @@ async function checkLauncher() {
 }
 $("launcher-update").addEventListener("click", () => operation(availableLauncher ? "Downloading signed launcher update…" : "Checking launcher updates…",async () => {
   if (availableLauncher) await invoke("install_launcher_update");
-  else { const info = await checkLauncher(); message(info.available ? "A new launcher is ready. Click Update launcher to install and restart." : "Your launcher is up to date."); }
+  else { const info = await checkLauncher(); message(info.available ? "A new launcher is ready. Click Update launcher to restart it. Your addons will not be changed." : "Your launcher is up to date."); }
 }));
 $("copy-status").addEventListener("click",async () => {
-  const lines = ["DarkWhispers Addons " + launcherVersion,"WoW folder selected: " + !!state?.game_path,"Automatic updates: " + !!state?.auto_update,"Catalog checked online: " + !!state?.catalog_online,"Last check: " + (releaseDate(state?.catalog_checked_at,true) || "not checked")];
+  const lines = ["DarkWhispers Addons " + launcherVersion,"WoW folder selected: " + !!state?.game_path,"Automatic checks: " + !!state?.auto_check_updates,"Catalog checked online: " + !!state?.catalog_online,"Last check: " + (releaseDate(state?.catalog_checked_at,true) || "not checked")];
   for (const item of state?.addons || []) lines.push(item.addon.id + ": " + (item.installed_version || "not installed") + "; available " + item.addon.version + "; issue " + !!item.issue);
   try { await navigator.clipboard.writeText(lines.join("\n")); message("Status copied. No personal paths or WoW saved settings included."); }
   catch { message("Could not copy status. Launcher version: " + launcherVersion + ".","warning"); }
@@ -206,11 +217,14 @@ if (invoke) {
   refresh().then(()=>checkLauncher().catch(()=>{$("launcher-update").title = "Update check unavailable. Click to retry.";}));
   window.__TAURI__.event?.listen("launcher-download",({payload})=>{if(busy)message(payload.total ? "Downloading launcher… " + Math.min(100,Math.round(payload.downloaded/payload.total*100)) + "%" : "Downloading launcher…","busy");});
   window.__TAURI__.event?.listen("launcher-installing",()=>message("Signature verified. Installing launcher update and restarting…","busy"));
-  window.__TAURI__.event?.listen("addon-auto-update",async ({payload})=>{
+  window.__TAURI__.event?.listen("addon-update-check",({payload})=>{
     if (busy) return;
-    try { render(await invoke("get_status",{checkUpdates:false})); message(String(payload)); } catch {}
+    render(payload);
+    const count = payload.addons.filter(item=>item.update_available).length;
+    statusMessage(payload, count ? count + " addon update available. Click Update and approve to install." : "Background check complete. No addon files were changed.");
   });
+  window.__TAURI__.event?.listen("addon-check-error",({payload})=>{ if (!busy) message(String(payload),"warning"); });
 } else {
-  render({game_path:null,auto_update:false,warning:null,catalog_online:false,catalog_checked_at:null,addons:[{addon:{id:"DarkWhisperRaidTools",title:"DarkWhispers Raid Tool",description:"Your raid markers. Your north. A standalone compass with custom layouts.",version:"1.0.2",released_at:1792525213},installed:false,installed_version:null,update_available:false}]});
+  render({game_path:null,auto_check_updates:false,warning:null,catalog_online:false,catalog_checked_at:null,addons:[{addon:{id:"DarkWhisperRaidTools",title:"DarkWhispers Raid Tool",description:"Your raid markers. Your north. A standalone compass with custom layouts.",version:"1.0.2",released_at:1792525213},installed:false,installed_version:null,update_available:false}]});
   message("Design preview. Open the desktop launcher to manage addons.");
 }

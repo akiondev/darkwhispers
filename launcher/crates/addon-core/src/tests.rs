@@ -231,7 +231,7 @@ fn addon_update_is_independent_of_the_launcher_version() {
 }
 
 #[test]
-fn recovery_restores_a_crash_between_directory_swaps() {
+fn status_leaves_recovery_pending_until_an_approved_install() {
     let (temp, game) = game();
     let config = temp.path().join("config");
     select_game(&config, &game).unwrap();
@@ -244,8 +244,11 @@ fn recovery_restores_a_crash_between_directory_swaps() {
     let journal = addons.join(".darkwhispers-pending/DarkWhisperRaidTools.json");
     write_atomic(&journal, &serde_json::to_vec(&serde_json::json!({"schema":1,"backup_dir":name})).unwrap()).unwrap();
     let state = status(&config, false).unwrap();
-    assert!(state.addons[0].installed);
-    assert!(state.warning.unwrap().contains("Recovered"));
+    assert!(!state.addons[0].installed);
+    assert!(state.warning.unwrap().contains("waiting for approval"));
+    assert!(journal.exists());
+    assert!(!destination.exists());
+    install_bytes(&game, &addon, &bytes).unwrap();
     assert_eq!(fs::read(destination.join("Main.lua")).unwrap(), b"original");
     assert!(!journal.exists());
 }
@@ -261,6 +264,8 @@ fn recovery_preserves_committed_install_and_blocks_unsafe_records() {
     let journal = addons.join(".darkwhispers-pending/DarkWhisperRaidTools.json");
     write_atomic(&journal, br#"{"schema":1,"backup_dir":null}"#).unwrap();
     assert!(status(&config, false).unwrap().addons[0].installed);
+    assert!(journal.exists(), "Checking status must not clear recovery files");
+    install_bytes(&game, &addon, &bytes).unwrap();
     assert!(!journal.exists());
     write_atomic(&journal, br#"{"schema":1,"backup_dir":"DarkWhisperRaidTools-../../OtherAddon"}"#).unwrap();
     let state = status(&config, false).unwrap();
@@ -288,15 +293,15 @@ fn updates_and_removal_leave_no_retained_versions_and_preserve_wtf() {
 }
 
 #[test]
-fn auto_update_is_opt_in_and_survives_folder_changes() {
+fn auto_check_updates_is_opt_in_and_survives_folder_changes() {
     let (temp, game) = game();
     let config = temp.path().join("config");
-    assert!(!load_settings(&config).unwrap().auto_update);
-    set_auto_update(&config, true).unwrap();
+    assert!(!load_settings(&config).unwrap().auto_check_updates);
+    set_auto_check_updates(&config, true).unwrap();
     select_game(&config, &game).unwrap();
-    assert!(load_settings(&config).unwrap().auto_update);
-    set_auto_update(&config, false).unwrap();
-    assert!(!load_settings(&config).unwrap().auto_update);
+    assert!(load_settings(&config).unwrap().auto_check_updates);
+    set_auto_check_updates(&config, false).unwrap();
+    assert!(!load_settings(&config).unwrap().auto_check_updates);
 }
 
 #[test]
@@ -349,7 +354,7 @@ fn live_signed_release_installs_and_removes() {
     assert!(before.catalog_checked_at.is_some());
     assert!(before.addons[0].update_available);
     let expected = before.addons[0].addon.version.clone();
-    install(&config, "DarkWhisperRaidTools").unwrap();
+    install_version(&config, "DarkWhisperRaidTools", &expected).unwrap();
     // Compare with the same live channel. During release builds the bundled
     // catalog may describe the next, not-yet-published addon version.
     let state = status(&config, true).unwrap();
@@ -389,21 +394,50 @@ fn linked_addons_and_linked_addons_folder_are_not_modified() {
 }
 
 #[test]
-fn automatic_updates_exclude_removed_unknown_and_disabled_addons() {
+fn legacy_auto_install_setting_is_ignored() {
+    let (temp, _) = game();
+    let config = temp.path().join("config");
+    fs::create_dir_all(&config).unwrap();
+    fs::write(config.join("settings.json"), br#"{"game_path":null,"auto_update":true}"#).unwrap();
+    assert!(!load_settings(&config).unwrap().auto_check_updates);
+    assert!(background_status(&config).unwrap().is_none());
+    set_auto_check_updates(&config, true).unwrap();
+    let saved = fs::read_to_string(config.join("settings.json")).unwrap();
+    assert!(!saved.contains("auto_update"));
+}
+
+#[test]
+fn status_and_disabled_background_checks_do_not_change_addon_files() {
     let (temp, game) = game();
     let config = temp.path().join("config");
     select_game(&config, &game).unwrap();
-    set_auto_update(&config, true).unwrap();
-    assert!(automatic_update_ids(&status(&config, false).unwrap()).is_empty());
-    let (addon, bytes) = package("0.9.0", &[]);
+    let (addon, bytes) = package("1.0.3", &[("DarkWhisperRaidTools/Main.lua", "keep exactly")]);
     install_bytes(&game, &addon, &bytes).unwrap();
-    assert_eq!(automatic_update_ids(&status(&config, false).unwrap()), vec![addon.id.clone()]);
-    let mut snapshot = status(&config, false).unwrap();
-    snapshot.addons[0].issue = Some("Unrecognized folder".into());
-    assert!(automatic_update_ids(&snapshot).is_empty());
-    set_auto_update(&config, false).unwrap();
-    assert!(automatic_update_ids(&status(&config, false).unwrap()).is_empty());
-    set_auto_update(&config, true).unwrap();
-    remove(&config, &addon.id).unwrap();
-    assert!(automatic_update_ids(&status(&config, false).unwrap()).is_empty());
+    let folder = game.join("Interface/AddOns/DarkWhisperRaidTools");
+    let before = fs::read(folder.join("DarkWhisperRaidTools.toc")).unwrap();
+    let state = status(&config, false).unwrap();
+    assert!(state.addons[0].update_available);
+    assert_eq!(state.addons[0].addon.version, "1.0.4");
+    assert_eq!(fs::read(folder.join("DarkWhisperRaidTools.toc")).unwrap(), before);
+    assert_eq!(fs::read(folder.join("Main.lua")).unwrap(), b"keep exactly");
+    assert!(background_status(&config).unwrap().is_none());
+}
+
+#[test]
+#[ignore = "Explicit live check, temporary WoW fixture only"]
+fn live_checks_and_rejected_approval_leave_addon_unchanged() {
+    let (temp, game) = game();
+    let config = temp.path().join("config");
+    select_game(&config, &game).unwrap();
+    let (addon, bytes) = package("1.0.3", &[("DarkWhisperRaidTools/Main.lua", "keep exactly")]);
+    install_bytes(&game, &addon, &bytes).unwrap();
+    let folder = game.join("Interface/AddOns/DarkWhisperRaidTools");
+    let manifest = fs::read(folder.join("DarkWhisperRaidTools.toc")).unwrap();
+    set_auto_check_updates(&config, true).unwrap();
+    let state = background_status(&config).unwrap().unwrap();
+    assert!(state.catalog_online && state.addons[0].update_available);
+    assert!(install_version(&config, &addon.id, "0.0.0").unwrap_err().contains("version changed"));
+    assert_eq!(fs::read(folder.join("DarkWhisperRaidTools.toc")).unwrap(), manifest);
+    assert_eq!(fs::read(folder.join("Main.lua")).unwrap(), b"keep exactly");
+    assert_eq!(fs::read_dir(folder).unwrap().count(), 2);
 }

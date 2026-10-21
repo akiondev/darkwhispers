@@ -56,12 +56,12 @@ async fn choose_game(app: tauri::AppHandle, state: State<'_, AppState>) -> core:
 }
 
 #[tauri::command]
-async fn install_addon(id: String, state: State<'_, AppState>) -> core::Result<()> {
+async fn install_addon(id: String, approved_version: String, state: State<'_, AppState>) -> core::Result<()> {
     let config = state.config.clone();
     let operation = state.operation.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = operation.blocking_lock();
-        core::install(&config, &id)
+        core::install_version(&config, &id, &approved_version)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -155,7 +155,7 @@ fn main() {
             app.manage(AppState { config: config.clone(), operation: operation.clone(), auto_wake: auto_wake.clone() });
             // If a desktop has no usable tray, minimization stays in its taskbar.
             let _ = desktop::create_tray(app);
-            desktop::start_auto_updates(app.handle().clone(), config, operation, auto_wake);
+            desktop::start_auto_checks(app.handle().clone(), config, operation, auto_wake);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -163,7 +163,7 @@ fn main() {
             choose_game,
             install_addon,
             remove_addon,
-            desktop::set_auto_update,
+            desktop::set_auto_check_updates,
             desktop::window_action,
             desktop::get_release_checks,
             desktop::open_resource,

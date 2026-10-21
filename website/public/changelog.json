@@ -1,6 +1,18 @@
 {
   "entries": [
     {
+      "version": "0.3.6",
+      "date": "21 Oct 2026",
+      "title": "Your approval, every addon update",
+      "changes": [
+        "Background checks only notify. Addons are never installed by a launcher update or startup.",
+        "Install, update and reinstall ask for your approval and show the exact addon version.",
+        "Click anywhere on an addon row to open its details; the arrow button is removed.",
+        "Existing launchers can discover Raid Tool 1.0.4 independently of the launcher updater.",
+        "Original launcher and in-game screenshots flank the download page. Click either image to enlarge."
+      ]
+    },
+    {
       "version": "0.3.5",
       "date": "21 Oct 2026",
       "title": "A matching home for your compass",

@@ -78,21 +78,23 @@ pub(super) fn recover_locked(addons: &Path, id: &str) -> Result<bool> {
     Ok(true)
 }
 
-pub(super) fn recover_if_needed(game: &Path, id: &str) -> Result<bool> {
+pub(super) fn pending_install(game: &Path, id: &str) -> Result<bool> {
     let destination = addon_folder(game, id)?;
     let addons = destination.parent().ok_or("Invalid addon path")?;
     let journal = journal_path(addons, id)?;
-    let pending = journal.exists();
-    let legacy = addons.join(".darkwhispers-backups").is_dir()
-        || addons.join(".darkwhispers-web-backups").is_dir();
-    if !pending && !legacy { return Ok(false); }
-    // Legacy retained copies are cleaned only while the game is closed.
-    if !pending && ensure_game_closed().is_err() { return Ok(false); }
-    let _lock = acquire_lock(addons)?;
-    ensure_game_closed()?;
-    let recovered = recover_locked(addons, id)?;
-    purge_backups(addons, id)?;
-    Ok(recovered)
+    let file = match File::open(&journal) {
+        Ok(file) => file,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(error("Could not read recovery record", e)),
+    };
+    let mut bytes = Vec::new();
+    file.take(4097).read_to_end(&mut bytes).map_err(|e| error("Could not read recovery record", e))?;
+    if bytes.len() > 4096 { return Err("Recovery record is too large. No files were changed.".into()); }
+    let pending: PendingInstall = serde_json::from_slice(&bytes)
+        .map_err(|e| error("Invalid recovery record; no files were changed", e))?;
+    if pending.schema != 1 { return Err("Unsupported recovery record. No files were changed.".into()); }
+    if let Some(name) = pending.backup_dir { backup_path(addons, id, &name)?; }
+    Ok(true)
 }
 
 pub(super) fn swap_addon(addons: &Path, id: &str, source: &Path, destination: &Path) -> Result<()> {

@@ -28,7 +28,7 @@
         <button class="source-button" data-resource="source" type="button"><span>&lt;/&gt;</span>Open source<br><small>on GitHub ↗</small></button>
         <button class="manual-button" data-resource="manual" type="button">Manual download ↗<small>GitHub · review it yourself</small></button>
       </div>
-      <span class="sidebar-version" id="launcher-version">v0.3.5</span>
+      <span class="sidebar-version" id="launcher-version">v0.3.6</span>
     </aside>
     <main>
       <section class="game-location" aria-labelledby="location-title">
@@ -39,7 +39,7 @@
       <section id="library-panel" aria-labelledby="library-title">
         <div class="section-heading"><div><p class="eyebrow">YOUR NEXT RAID STARTS HERE</p><h1 id="library-title">Your addons</h1></div><button class="refresh" id="refresh" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></svg>Check addon updates</button></div>
         <div class="library-controls">
-          <label class="auto-update"><span id="auto-title">Auto-update</span><input type="checkbox" id="auto-update" role="switch" aria-labelledby="auto-title" disabled><span id="auto-detail">Off</span></label>
+          <label class="auto-update"><span id="auto-title">Auto-check updates</span><input type="checkbox" id="auto-update" role="switch" aria-labelledby="auto-title" title="Check for updates only. Addons are installed only after you approve." disabled><span id="auto-detail">Off</span></label>
           <p class="catalog-status" id="catalog-status" aria-live="polite"></p>
         </div>
         <div id="addons" aria-busy="true"><div class="loading-card">Loading your addons…</div></div>
@@ -57,6 +57,11 @@
     </main>
   </div>
 </div>
+<dialog id="install-dialog" aria-labelledby="install-title" aria-describedby="install-description"><form method="dialog">
+  <p class="eyebrow">YOUR APPROVAL</p><h2 id="install-title">Update addon?</h2>
+  <p id="install-description"></p><p>Only this addon will be changed. Updating the launcher never installs addons.</p>
+  <div class="dialog-actions"><button class="button quiet" value="cancel" autofocus>Cancel</button><button class="button primary" id="confirm-install" value="install">Update addon</button></div>
+</form></dialog>
 <dialog id="remove-dialog" aria-labelledby="remove-title" aria-describedby="remove-description"><form method="dialog">
   <p class="eyebrow">REMOVE ADDON</p><h2 id="remove-title">Remove this addon?</h2>
   <p id="remove-description">The addon files will be deleted. Your saved WoW settings are kept. You can reinstall the latest version anytime.</p>

@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -43,6 +44,8 @@ jobs:
           rustup default 1.99.1
           (cd launcher && cargo test --locked -p darkwhispers-core) | tee reports-source/rust-tests.txt
           (cd launcher && cargo test --locked -p darkwhispers-core live_signed_release_installs_and_removes -- --ignored) | tee -a reports-source/rust-tests.txt
+          (cd launcher && cargo test --locked -p darkwhispers-core live_checks_and_rejected_approval_leave_addon_unchanged -- --ignored) | tee -a reports-source/rust-tests.txt
+          python ci/check-existing-launcher.py 2>&1 | tee -a reports-source/rust-tests.txt
       - name: RustSec dependency audit, no ignored advisories
         shell: bash
         run: |

@@ -1,7 +1,7 @@
 // Browser-only QA adapter. This directory is outside Tauri's frontendDist.
 // It performs no downloads and no filesystem operations.
 let installed = false;
-let autoUpdate = false;
+let autoCheck = false;
 let availableUpdate = false;
 let selectedFolder = null;
 let failNext = false;
@@ -18,14 +18,14 @@ const addon = {
 window.__TAURI__ = {core: {invoke: async (command, args = {}) => {
   await new Promise(resolve => setTimeout(resolve, 150));
   if (failNext) { failNext = false; throw "Test download failed. Nothing was installed."; }
-  if (command === "check_launcher_update") return {current:"0.3.5",available:null,supported:true};
-  if (command === "set_auto_update") { autoUpdate = args.enabled; return; }
+  if (command === "check_launcher_update") return {current:"0.3.6",available:null,supported:true};
+  if (command === "set_auto_check_updates") { autoCheck = args.enabled; return; }
   if (command === "window_action" || command === "open_resource") return;
   if (command === "get_release_checks") return (await fetch("/build/release-checks.json")).json();
   if (command === "get_status") {
     if (args.checkUpdates && !offline) lastCheck = Math.floor(Date.now()/1000);
     return {
-    game_path: selectedFolder, warning: offline ? "Could not check for addon updates. Showing the last known release." : null, auto_update: autoUpdate,
+    game_path: selectedFolder, warning: offline ? "Could not check for addon updates. Showing the last known release." : null, auto_check_updates: autoCheck,
     catalog_online: !!args.checkUpdates && !offline, catalog_checked_at: lastCheck,
     addons: [{addon, installed: folderIssue ? false : installed, installed_version: installed ? (unknownVersion ? "Unknown" : availableUpdate ? "1.0.1" : "1.0.2") : null, update_available: availableUpdate,
       issue: folderIssue ? "DarkWhisperRaidTools already exists but is not a recognized addon. It was not changed." : null}]

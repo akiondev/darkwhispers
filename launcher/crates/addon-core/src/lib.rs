@@ -50,7 +50,7 @@ struct SignedCatalog {
 pub struct Settings {
     pub game_path: Option<PathBuf>,
     #[serde(default)]
-    pub auto_update: bool,
+    pub auto_check_updates: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -67,7 +67,7 @@ pub struct Status {
     pub game_path: Option<PathBuf>,
     pub addons: Vec<AddonStatus>,
     pub warning: Option<String>,
-    pub auto_update: bool,
+    pub auto_check_updates: bool,
     pub catalog_online: bool,
     pub catalog_checked_at: Option<u64>,
 }
@@ -227,18 +227,10 @@ pub fn select_game(config: &Path, selected: &Path) -> Result<PathBuf> {
     Ok(path)
 }
 
-pub fn set_auto_update(config: &Path, enabled: bool) -> Result<()> {
+pub fn set_auto_check_updates(config: &Path, enabled: bool) -> Result<()> {
     let mut settings = load_settings(config)?;
-    settings.auto_update = enabled;
+    settings.auto_check_updates = enabled;
     save_settings(config, &settings)
-}
-
-pub fn automatic_update_ids(status: &Status) -> Vec<String> {
-    if !status.auto_update || status.warning.is_some() || status.game_path.is_none() {
-        return Vec::new();
-    }
-    status.addons.iter().filter(|item| item.installed && item.update_available && item.issue.is_none())
-        .map(|item| item.addon.id.clone()).collect()
 }
 
 pub fn release_checks() -> Result<serde_json::Value> {
@@ -425,8 +417,8 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
     let mut addons = Vec::new();
     for addon in catalog.addons {
         let (version, issue) = if let Some(game) = &game {
-            match recovery::recover_if_needed(game, &addon.id).and_then(|recovered| {
-                if recovered { warning = Some("Recovered an interrupted addon operation. Your files are safe.".into()); }
+            match recovery::pending_install(game, &addon.id).and_then(|pending| {
+                if pending { warning = Some("An interrupted addon operation is waiting for approval. Install, update or reinstall this addon to recover it.".into()); }
                 installed_version(game, &addon.id)
             }) {
                 Ok(version) => (version, None),
@@ -452,7 +444,7 @@ pub fn status(config: &Path, check_updates: bool) -> Result<Status> {
         game_path: game,
         addons,
         warning,
-        auto_update: settings.auto_update,
+        auto_check_updates: settings.auto_check_updates,
         catalog_online,
         catalog_checked_at,
     })
@@ -485,7 +477,7 @@ fn acquire_lock(addons: &Path) -> Result<File> {
     Ok(lock)
 }
 
-pub fn install(config: &Path, id: &str) -> Result<()> {
+pub fn install_version(config: &Path, id: &str, approved_version: &str) -> Result<()> {
     let settings = load_settings(config)?;
     let game = settings.game_path.ok_or("Choose your WoW folder first.")?;
     let catalog = fetch_catalog(config)?;
@@ -494,8 +486,16 @@ pub fn install(config: &Path, id: &str) -> Result<()> {
         .iter()
         .find(|a| a.id == id)
         .ok_or("This addon is not in the verified catalog.")?;
+    if approved_version != addon.version {
+        return Err("The available addon version changed. Check updates and approve the displayed version again. Nothing was installed.".into());
+    }
     let bytes = download(&addon.download_url, MAX_DOWNLOAD)?;
     install_bytes(&game, addon, &bytes)
+}
+
+pub fn background_status(config: &Path) -> Result<Option<Status>> {
+    if !load_settings(config)?.auto_check_updates { return Ok(None); }
+    status(config, true).map(Some)
 }
 
 pub fn install_bytes(game: &Path, addon: &Addon, bytes: &[u8]) -> Result<()> {

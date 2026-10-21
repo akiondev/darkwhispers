@@ -49,22 +49,21 @@ pub fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
-pub fn start_auto_updates(app: tauri::AppHandle, config: PathBuf, operation: Arc<Mutex<()>>, wake: Arc<AutoWake>) {
+pub fn start_auto_checks(app: tauri::AppHandle, config: PathBuf, operation: Arc<Mutex<()>>, wake: Arc<AutoWake>) {
     std::thread::spawn(move || {
         let mut seen = 0;
         loop {
-            let enabled = core::load_settings(&config).map(|s| s.auto_update).unwrap_or(false);
+            let enabled = core::load_settings(&config).map(|s| s.auto_check_updates).unwrap_or(false);
             if enabled {
                 let _guard = operation.blocking_lock();
                 // Recheck after the operation lock, so switching off or removing an
-                // addon wins over an update that was waiting for another operation.
-                if core::load_settings(&config).is_ok_and(|s| s.auto_update) {
-                    let result = auto_cycle(&config);
-                    let message = match result {
-                        Ok(message) => message,
-                        Err(_) => "Automatic update check unavailable. Will retry in five minutes.".into(),
-                    };
-                    let _ = app.emit("addon-auto-update", message);
+                // addon wins over an update that was waiting for another operation. Checks never install addons.
+                if core::load_settings(&config).is_ok_and(|s| s.auto_check_updates) {
+                    match core::background_status(&config) {
+                        Ok(Some(status)) => { let _ = app.emit("addon-update-check", &status); },
+                        Ok(None) => (),
+                        Err(_) => { let _ = app.emit("addon-check-error", "Background update check unavailable. No addon files were changed."); },
+                    }
                 }
             }
             let Ok(revision) = wake.revision.lock() else { break; };
@@ -75,7 +74,7 @@ pub fn start_auto_updates(app: tauri::AppHandle, config: PathBuf, operation: Arc
                     Err(_) => break,
                 }
             } else {
-                // No network polling or timer wakeups while automatic updates are off.
+                // No network polling or timer wakeups while automatic checks are off.
                 match wake.changed.wait_while(revision, |r| *r == seen) {
                     Ok(value) => { seen = *value; continue; },
                     Err(_) => break,
@@ -86,31 +85,14 @@ pub fn start_auto_updates(app: tauri::AppHandle, config: PathBuf, operation: Arc
     });
 }
 
-fn auto_cycle(config: &std::path::Path) -> core::Result<String> {
-    if core::ensure_game_closed().is_err() {
-        return Ok("Automatic updates paused while WoW is running. Retrying in five minutes.".into());
-    }
-    let status = core::status(config, true)?;
-    if status.warning.is_some() { return Err("Online catalog unavailable".into()); }
-    let mut count = 0;
-    for id in core::automatic_update_ids(&status) {
-            // A fresh signed catalog, game-process guard and filesystem lock are
-            // checked again by install. Uninstalled addons are never auto-installed.
-            core::install(config, &id)?;
-            count += 1;
-    }
-    Ok(if count > 0 { "Installed addons updated. Start WoW to load the latest version.".into() }
-       else { "Automatic update check complete. Installed addons are up to date.".into() })
-}
-
 #[tauri::command]
-pub async fn set_auto_update(enabled: bool, state: State<'_, AppState>) -> core::Result<()> {
+pub async fn set_auto_check_updates(enabled: bool, state: State<'_, AppState>) -> core::Result<()> {
     let config = state.config.clone();
     let operation = state.operation.clone();
     let wake = state.auto_wake.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = operation.blocking_lock();
-        core::set_auto_update(&config, enabled)?;
+        core::set_auto_check_updates(&config, enabled)?;
         wake.notify();
         Ok(())
     }).await.map_err(|e| e.to_string())?

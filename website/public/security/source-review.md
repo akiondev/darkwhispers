@@ -1,6 +1,6 @@
 # DarkWhispers maintainer review notes
 
-Release: launcher 0.3.5 and DarkWhispers Raid Tool 1.0.4.
+Release: launcher 0.3.6 and DarkWhispers Raid Tool 1.0.4.
 Scope: implementation notes, not an independent audit or security certification.
 The original automated reports, source commit and exact package hashes are in
 the immutable GitHub release and its public workflow.
@@ -74,3 +74,12 @@ compass ring, arrow and cardinals use light blue; standard raid icon colors
 remain intact. Carlito Regular is bundled unmodified, with its full SIL OFL
 notice in Core.lua. Existing native/browser font support is used; no installer
 file types or permissions are expanded. /dwrt is the sole addon command.
+
+## Explicit addon approval
+
+Automatic addon installation is removed, including the background install path.
+Legacy auto_update preferences do not enable background checks. Status reads no
+longer perform recovery writes: interrupted operations wait for a manually
+approved install or removal. Manual installation binds approval to the displayed
+version and rejects a changed catalog version. Launcher packages contain no addon
+runtime files and their updater does not invoke addon installation.

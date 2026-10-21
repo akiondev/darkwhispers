@@ -24,15 +24,12 @@ AppImage need desktop compatibility checks before publication.
 Saved settings in WTF and unrelated addons are never edited. Completed addon
 updates do not retain previous versions. A temporary copy and small journal
 protect the directory swap; both are cleared once the update commits. Interrupted
-swaps recover on the next launch. Recognized copies retained by earlier launcher
-versions are cleaned when WoW is closed. Reinstall downloads the signed latest
+swaps wait for a manually approved install or removal before recovery. Status checks never modify the WoW addon directory. Reinstall downloads the signed latest
 release again; Remove deletes only the selected known addon directory.
 
 The custom window minimizes to the system tray where a tray is available.
 Left-click the tray icon or choose Open to return; Quit exits. Closing the window
-also exits. Optional automatic updates check every five minutes only while this
-process is open or in the tray, never auto-install removed addons, and wait until
-WoW is closed. With the option off there are no background update timers or
+also exits. Optional background checks only report available updates every five minutes. They never install addons. Install, update and reinstall require explicit approval of the displayed version; launcher updates do not change addons. With the option off there are no background update timers or
 catalog requests. Manual startup/check actions can still fetch current metadata.
 No operating-system autostart entry is created.
 

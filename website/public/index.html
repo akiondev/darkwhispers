@@ -18,6 +18,12 @@
     <div class="ice-glow"></div><div class="rune-ring"></div><canvas id="snow"></canvas>
     <div class="vignette"></div>
   </div>
+  <div class="page-layout">
+    <aside class="demo-panel launcher-demo" aria-labelledby="launcher-demo-title">
+      <p class="demo-eyebrow">THE LAUNCHER</p><h2 id="launcher-demo-title">Your addons. Your choice.</h2>
+      <button type="button" class="demo-frame" data-demo="launcher" aria-label="Enlarge launcher screenshot"><img src="/assets/launcher-demo.webp" width="1019" height="741" alt="DarkWhispers launcher with its addon list" decoding="async"></button>
+      <p>Install, update and remove addons.<br>Every addon change needs your approval.</p>
+    </aside>
   <main class="sanctum">
     <img class="sigil" src="/assets/vampire-logo.webp" width="118" height="118" alt="">
     <h1 class="brand-wordmark">DARKWHISPERS</h1>
@@ -28,7 +34,7 @@
         <span class="download-label"><strong id="download-title">Download launcher</strong><small id="download-detail">Finding your platform…</small></span>
         <svg class="download-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>
       </a>
-      <p class="launcher-description">Automatically installs addons into WoW.<br>Update, reinstall or remove them. Auto-updates are optional.</p>
+      <p class="launcher-description">Install, update or remove addons with your approval.<br>Launcher updates never install addons.</p>
       <button class="download-main browser-main" type="button" id="open-addons">
         <span class="platform-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="outline-icon"><rect x="2.5" y="3.5" width="19" height="17" rx="2"/><path d="M3 8h18M6 5.8h.01M9 5.8h.01M12 11v6m-3-3 3 3 3-3"/></svg></span>
         <span class="download-label"><strong>Install addon directly from Chrome</strong><small>No launcher installation needed</small></span>
@@ -61,6 +67,13 @@
     </section>
     <noscript><p class="no-script">Enable JavaScript to choose your download.</p></noscript>
   </main>
+    <aside class="demo-panel raid-demo" aria-labelledby="raid-demo-title">
+      <p class="demo-eyebrow">DARKWHISPERS RAID TOOL</p><h2 id="raid-demo-title">Your markers. Your north.</h2>
+      <button type="button" class="demo-frame" data-demo="raid" aria-label="Enlarge Raid Tools screenshot"><img src="/assets/raid-tools-demo.webp" width="1088" height="726" alt="In-game Raid Tools menu with the light-blue marker compass" decoding="async"></button>
+      <p>Place markers, save layouts and set your north.<br>More raid tools are coming.</p>
+    </aside>
+  </div>
+  <dialog id="demo-dialog" class="demo-dialog" aria-labelledby="demo-title"><button class="dialog-close" type="button" data-close="demo-dialog" aria-label="Close screenshot">�</button><h2 id="demo-title">Screenshot</h2><img id="demo-image" alt=""></dialog>
 
   <dialog id="addons-dialog" aria-labelledby="addons-title">
     <button class="dialog-close" type="button" data-close="addons-dialog" aria-label="Close addon installer">×</button>
