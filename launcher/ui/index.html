@@ -28,7 +28,7 @@
         <button class="source-button" data-resource="source" type="button"><span>&lt;/&gt;</span>Open source<br><small>on GitHub ↗</small></button>
         <button class="manual-button" data-resource="manual" type="button">Manual download ↗<small>GitHub · review it yourself</small></button>
       </div>
-      <span class="sidebar-version" id="launcher-version">v0.3.6</span>
+      <span class="sidebar-version" id="launcher-version">v0.3.7</span>
     </aside>
     <main>
       <section class="game-location" aria-labelledby="location-title">
@@ -36,8 +36,12 @@
         <div class="location"><h2 id="location-title">WORLD OF WARCRAFT <span>RETAIL</span></h2><p id="game-path">Looking for your Retail installation…</p></div>
         <button class="button quiet" id="choose-folder" disabled>Choose folder</button>
       </section>
+      <section id="launcher-alert" class="update-alert launcher-alert" aria-label="Launcher update available" hidden>
+        <div><strong id="launcher-alert-title">Launcher update available</strong><p>Your addons will not be changed.</p></div><button class="button primary" type="button" id="launcher-alert-action">Update launcher</button>
+      </section>
       <section id="library-panel" aria-labelledby="library-title">
         <div class="section-heading"><div><p class="eyebrow">YOUR NEXT RAID STARTS HERE</p><h1 id="library-title">Your addons</h1></div><button class="refresh" id="refresh" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></svg>Check addon updates</button></div>
+        <p id="addon-update-alert" class="update-alert addon-alert" role="status" hidden></p>
         <div class="library-controls">
           <label class="auto-update"><span id="auto-title">Auto-check updates</span><input type="checkbox" id="auto-update" role="switch" aria-labelledby="auto-title" title="Check for updates only. Addons are installed only after you approve." disabled><span id="auto-detail">Off</span></label>
           <p class="catalog-status" id="catalog-status" aria-live="polite"></p>

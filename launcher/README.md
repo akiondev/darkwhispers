@@ -142,3 +142,7 @@ The addon is a separate project; this license covers the launcher, not Blizzard
 assets or third-party dependencies. Dependency license notices are generated during
 release preparation. No paid signing service or paid hosting product is required
 by this code.
+
+Launcher release checks run at startup and every 15 minutes, even in the tray.
+A new launcher version triggers one desktop notification per session and a clear
+in-app alert. Addon updates only show in-app alerts and need separate approval.

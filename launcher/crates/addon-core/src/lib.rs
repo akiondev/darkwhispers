@@ -238,6 +238,16 @@ pub fn release_checks() -> Result<serde_json::Value> {
     serde_json::from_slice(&bytes).map_err(|e| error("Could not load release reports", e))
 }
 
+pub fn latest_launcher_version(current: &str) -> Result<Option<String>> {
+    let bytes = download("https://darkwhispers.akion.se/launcher/releases.json", 65536)?;
+    let document: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|e| error("Could not read launcher release", e))?;
+    let published = document.get("version").and_then(|v| v.as_str()).ok_or("Missing launcher version")?;
+    let remote = semver::Version::parse(published).map_err(|_| "Invalid launcher release version")?;
+    let local = semver::Version::parse(current).map_err(|_| "Invalid current launcher version")?;
+    Ok((remote > local).then(|| published.to_string()))
+}
+
 pub fn validate_game(selected: &Path) -> Result<PathBuf> {
     let selected = selected
         .canonicalize()

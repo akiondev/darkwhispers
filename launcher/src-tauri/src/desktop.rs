@@ -4,6 +4,43 @@ use std::time::Duration;
 use tauri::{menu::{Menu, MenuItem}, tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}};
 
 #[derive(Default)]
+pub struct LauncherNotices {
+    last_version: StdMutex<Option<String>>,
+}
+
+pub fn announce_launcher_update(app: &tauri::AppHandle, info: &LauncherUpdate) {
+    let _ = app.emit("launcher-update-available", info);
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let tooltip = info.available.as_ref().map(|v| format!("DarkWhispers · Launcher {v} update available"))
+            .unwrap_or_else(|| "DarkWhispers Addons".into());
+        let _ = tray.set_tooltip(Some(&tooltip));
+    }
+    let Some(version) = &info.available else { return; };
+    let notices = app.state::<LauncherNotices>();
+    let Ok(mut last) = notices.last_version.lock() else { return; };
+    if last.as_ref() == Some(version) { return; }
+    use tauri_plugin_notification::NotificationExt;
+    if app.notification().builder().title("DarkWhispers launcher update")
+        .body(format!("Version {version} is ready. Open DarkWhispers to update the launcher. Your addons will not be changed."))
+        .show().is_ok() {
+        *last = Some(version.clone());
+    }
+}
+
+pub fn start_launcher_checks(app: tauri::AppHandle, operation: Arc<Mutex<()>>) {
+    tauri::async_runtime::spawn(async move {
+        // Startup is checked by the UI; continue while minimized to the tray.
+        loop {
+            tokio::time::sleep(Duration::from_secs(900)).await;
+            let _guard = operation.lock().await;
+            if let Ok(info) = super::launcher_update_info(&app).await {
+                announce_launcher_update(&app, &info);
+            }
+        }
+    });
+}
+
+#[derive(Default)]
 pub struct AutoWake {
     revision: StdMutex<u64>,
     changed: Condvar,

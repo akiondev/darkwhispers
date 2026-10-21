@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "version": "0.3.7",
+      "date": "21 Oct 2026",
+      "title": "Clear updates, separate choices",
+      "changes": [
+        "Launcher updates show a tray notification and a clear in-app alert. Checks continue every 15 minutes while open or minimized.",
+        "Addon updates show an in-app alert only. They always need separate version approval.",
+        "Click an addon row for details. Original screenshots flank the website, with click-to-enlarge previews."
+      ]
+    },
+    {
       "version": "0.3.6",
       "date": "21 Oct 2026",
       "title": "Your approval, every addon update",

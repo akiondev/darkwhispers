@@ -1,21 +1,21 @@
 {
-  "version": "0.3.5",
+  "version": "0.3.6",
   "platforms": {
     "linux": {
-      "url": "/launcher/downloads/DarkWhispers-Addons-0.3.5-linux-amd64.deb",
-      "sha256": "607ff6300eb8bb4e82f8566650708931dce66485d3b74407b97bc83fcd665a3a",
-      "bytes": 3104716,
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.3.6-linux-amd64.deb",
+      "sha256": "52262b96cfd9933075ca2177bbddad149618f55e4432872ab4e77a4e51e7070c",
+      "bytes": 3105448,
       "label": "Debian / Ubuntu \u00b7 .deb",
-      "github_url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.5/DarkWhispers-Addons-0.3.5-linux-amd64.deb"
+      "github_url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/DarkWhispers-Addons-0.3.6-linux-amd64.deb"
     },
     "windows": {
-      "url": "/launcher/downloads/DarkWhispers-Addons-0.3.5-windows-x64-setup.exe",
-      "sha256": "b04b5a341e304866578c71aeb5949d3f6320fd7ff929105967714960e9d73c0e",
-      "bytes": 2294188,
-      "label": "v0.3.5 \u00b7 x64 \u00b7 2.2 MB",
-      "github_url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.5/DarkWhispers-Addons-0.3.5-windows-x64-setup.exe"
+      "url": "/launcher/downloads/DarkWhispers-Addons-0.3.6-windows-x64-setup.exe",
+      "sha256": "4fb200c1449d0111a95eee6f5e3c6e558b2991160a1b2b7b126f5659a9f89d49",
+      "bytes": 2295521,
+      "label": "v0.3.6 \u00b7 x64 \u00b7 2.2 MB",
+      "github_url": "https://github.com/akiondev/darkwhispers/releases/download/v0.3.6/DarkWhispers-Addons-0.3.6-windows-x64-setup.exe"
     }
   },
   "note": "Public GitHub build \u00b7 Windows installer is unsigned.",
-  "github_release": "https://github.com/akiondev/darkwhispers/releases/tag/v0.3.5"
+  "github_release": "https://github.com/akiondev/darkwhispers/releases/tag/v0.3.6"
 }

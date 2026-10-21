@@ -2,7 +2,8 @@
 const $ = id => document.getElementById(id);
 const invoke = window.__TAURI__?.core.invoke;
 let state = null, busy = false, pendingRemoval = null, pendingInstall = null;
-let launcherVersion = "0.3.6", availableLauncher = null, reportsLoaded = false, lastAddonCheck = 0;
+let launcherUpdateSupported = true;
+let launcherVersion = "0.3.7", availableLauncher = null, reportsLoaded = false, lastAddonCheck = 0;
 function updateMotion() {
   document.documentElement.classList.toggle("motion-paused", document.hidden || !document.hasFocus());
 }
@@ -14,7 +15,7 @@ function message(text, kind = "") {
 }
 function setBusy(value) {
   busy = value;
-  for (const id of ["choose-folder","refresh","launcher-update","auto-update"]) $(id).disabled = value || !invoke;
+  for (const id of ["choose-folder","refresh","launcher-update","launcher-alert-action","auto-update"]) $(id).disabled = value || !invoke;
   $("auto-update").disabled = value || !invoke || !state?.game_path;
   $("addons").setAttribute("aria-busy", String(value));
   document.querySelectorAll("[data-operation]").forEach(button => button.disabled = value || !state?.game_path || !invoke);
@@ -48,6 +49,9 @@ function render(next) {
   $("game-path").textContent = path; $("game-path").title = path;
   $("auto-update").checked = !!next.auto_check_updates;
   $("auto-detail").textContent = next.auto_check_updates ? "On" : "Off";
+  const pendingCount = next.addons.filter(item=>item.update_available).length;
+  $("addon-update-alert").hidden = pendingCount === 0;
+  $("addon-update-alert").textContent = pendingCount + (pendingCount===1 ? " addon update waiting for approval" : " addon updates waiting for approval");
   $("addons").replaceChildren();
   const columns = document.createElement("div"); columns.className = "addon-list-head"; columns.setAttribute("aria-hidden","true");
   for (const text of ["ADDON","INSTALLED","LATEST","ACTIONS"]) { const label = document.createElement("span"); label.textContent = text; columns.append(label); }
@@ -197,16 +201,29 @@ async function loadReports() {
     $("report-grid").append(detail,retry);
   }
 }
-async function checkLauncher() {
-  const info = await invoke("check_launcher_update"); launcherVersion = info.current; availableLauncher = info.available;
-  $("launcher-version").textContent = "v" + info.current; $("launcher-update").hidden = !info.supported;
-  $("launcher-update").textContent = info.available ? "Update launcher · " + info.available : "Check launcher updates";
-  $("launcher-update").classList.toggle("update-ready",!!info.available); return info;
+function renderLauncherUpdate(info) {
+  launcherVersion = info.current; availableLauncher = info.available; launcherUpdateSupported = info.supported;
+  $("launcher-version").textContent = "v" + info.current;
+  $("launcher-update").hidden = false;
+  $("launcher-update").textContent = info.available ? (info.supported ? "Update launcher · " : "Download launcher · ") + info.available : "Check launcher updates";
+  $("launcher-update").classList.toggle("update-ready",!!info.available);
+  $("launcher-alert").hidden = !info.available;
+  $("launcher-alert-title").textContent = "Launcher " + (info.available || "") + " · update available";
+  $("launcher-alert-action").textContent = info.supported ? "Update launcher" : "Download update";
 }
-$("launcher-update").addEventListener("click", () => operation(availableLauncher ? "Downloading signed launcher update…" : "Checking launcher updates…",async () => {
-  if (availableLauncher) await invoke("install_launcher_update");
-  else { const info = await checkLauncher(); message(info.available ? "A new launcher is ready. Click Update launcher to restart it. Your addons will not be changed." : "Your launcher is up to date."); }
-}));
+async function checkLauncher() {
+  const info = await invoke("check_launcher_update"); renderLauncherUpdate(info); return info;
+}
+function updateLauncher() {
+  operation(availableLauncher ? "Opening launcher update…" : "Checking launcher updates…",async () => {
+    if (availableLauncher) {
+      if (launcherUpdateSupported) await invoke("install_launcher_update");
+      else await openResource("manual");
+    } else { const info = await checkLauncher(); message(info.available ? "A launcher update is waiting. Addons require separate approval." : "Your launcher is up to date."); }
+  });
+}
+$("launcher-update").addEventListener("click",updateLauncher);
+$("launcher-alert-action").addEventListener("click",updateLauncher);
 $("copy-status").addEventListener("click",async () => {
   const lines = ["DarkWhispers Addons " + launcherVersion,"WoW folder selected: " + !!state?.game_path,"Automatic checks: " + !!state?.auto_check_updates,"Catalog checked online: " + !!state?.catalog_online,"Last check: " + (releaseDate(state?.catalog_checked_at,true) || "not checked")];
   for (const item of state?.addons || []) lines.push(item.addon.id + ": " + (item.installed_version || "not installed") + "; available " + item.addon.version + "; issue " + !!item.issue);
@@ -215,6 +232,7 @@ $("copy-status").addEventListener("click",async () => {
 });
 if (invoke) {
   refresh().then(()=>checkLauncher().catch(()=>{$("launcher-update").title = "Update check unavailable. Click to retry.";}));
+  window.__TAURI__.event?.listen("launcher-update-available",({payload})=>renderLauncherUpdate(payload));
   window.__TAURI__.event?.listen("launcher-download",({payload})=>{if(busy)message(payload.total ? "Downloading launcher… " + Math.min(100,Math.round(payload.downloaded/payload.total*100)) + "%" : "Downloading launcher…","busy");});
   window.__TAURI__.event?.listen("launcher-installing",()=>message("Signature verified. Installing launcher update and restarting…","busy"));
   window.__TAURI__.event?.listen("addon-update-check",({payload})=>{

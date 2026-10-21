@@ -1,6 +1,6 @@
 # DarkWhispers maintainer review notes
 
-Release: launcher 0.3.6 and DarkWhispers Raid Tool 1.0.4.
+Release: launcher 0.3.7 and DarkWhispers Raid Tool 1.0.4.
 Scope: implementation notes, not an independent audit or security certification.
 The original automated reports, source commit and exact package hashes are in
 the immutable GitHub release and its public workflow.
@@ -36,8 +36,7 @@ Older saved catalogs cannot hide a more recent bundled catalog during offline fa
 
 The custom frame uses native window operations. A system tray offers Open and
 Quit; unsupported desktop trays fall back to normal taskbar minimization.
-Automatic addon updates are off by default, update installed addons only, and
-wait while WoW is running. With the option off no background catalog timer runs.
+Background addon checks are off by default and only report updates; they never install. No addon check timer runs when the option is off.
 There are no accounts, telemetry, autostart entries or system services.
 
 External browser targets are selected from a fixed resource allowlist.
@@ -61,7 +60,7 @@ transitive dependency advisory. No report or provenance claim guarantees safety.
 ## Identity and compact controls
 
 Cinzel Bold is a self-hosted, renamed Latin subset under its embedded SIL OFL.
-The auto-update toggle moved above the list without changing opt-in semantics.
+The background check toggle sits above the addon list; only manual approved operations can install addons.
 Undecorated window shadow is disabled to avoid Tauri’s extra Windows border;
 the custom frame remains. The landing page links to GitHub reports rather than
 fetching duplicate scan cards. The raid addon has an original tools mark and
@@ -83,3 +82,10 @@ longer perform recovery writes: interrupted operations wait for a manually
 approved install or removal. Manual installation binds approval to the displayed
 version and rejects a changed catalog version. Launcher packages contain no addon
 runtime files and their updater does not invoke addon installation.
+
+## Update notifications
+
+Launcher versions are checked at startup and every 15 minutes while open. A new
+launcher version sets the tray tooltip and emits one native notification per
+version per running session. The in-app banner remains until updated. Addon
+checks emit only in-app status, never desktop notifications or installation.

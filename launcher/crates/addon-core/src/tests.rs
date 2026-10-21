@@ -441,3 +441,10 @@ fn live_checks_and_rejected_approval_leave_addon_unchanged() {
     assert_eq!(fs::read(folder.join("Main.lua")).unwrap(), b"keep exactly");
     assert_eq!(fs::read_dir(folder).unwrap().count(), 2);
 }
+
+#[test]
+#[ignore = "Explicit live launcher metadata check; no install operations"]
+fn live_launcher_version_check_only_reports_newer_versions() {
+    assert!(latest_launcher_version("0.0.0").unwrap().is_some());
+    assert!(latest_launcher_version("9999.0.0").unwrap().is_none());
+}

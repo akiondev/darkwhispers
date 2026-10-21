@@ -98,6 +98,12 @@ fn validate_launcher_update(update: &tauri_plugin_updater::Update) -> core::Resu
 #[tauri::command]
 async fn check_launcher_update(app: tauri::AppHandle, state: State<'_, AppState>) -> core::Result<LauncherUpdate> {
     let _guard = state.operation.lock().await;
+    let info = launcher_update_info(&app).await?;
+    desktop::announce_launcher_update(&app, &info);
+    Ok(info)
+}
+
+async fn launcher_update_info(app: &tauri::AppHandle) -> core::Result<LauncherUpdate> {
     #[cfg(windows)]
     {
         use tauri_plugin_updater::UpdaterExt;
@@ -109,7 +115,10 @@ async fn check_launcher_update(app: tauri::AppHandle, state: State<'_, AppState>
     #[cfg(not(windows))]
     {
         let _ = app;
-        Ok(LauncherUpdate { current: env!("CARGO_PKG_VERSION").into(), available: None, supported: false })
+        let current = env!("CARGO_PKG_VERSION");
+        let available = tauri::async_runtime::spawn_blocking(move || core::latest_launcher_version(current))
+            .await.map_err(|e| e.to_string())??;
+        Ok(LauncherUpdate { current: current.into(), available, supported: false })
     }
 }
 
@@ -146,6 +155,7 @@ fn main() {
     }));
     builder
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             #[cfg(windows)]
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -153,8 +163,10 @@ fn main() {
             let operation = Arc::new(Mutex::new(()));
             let auto_wake = Arc::new(desktop::AutoWake::default());
             app.manage(AppState { config: config.clone(), operation: operation.clone(), auto_wake: auto_wake.clone() });
+            app.manage(desktop::LauncherNotices::default());
             // If a desktop has no usable tray, minimization stays in its taskbar.
             let _ = desktop::create_tray(app);
+            desktop::start_launcher_checks(app.handle().clone(), operation.clone());
             desktop::start_auto_checks(app.handle().clone(), config, operation, auto_wake);
             Ok(())
         })
