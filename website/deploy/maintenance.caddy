@@ -1,0 +1,15 @@
+darkwhispers.akion.se {
+	header {
+		-Server
+		Content-Type "text/plain; charset=utf-8"
+		Cache-Control "no-store, max-age=0"
+		X-Robots-Tag "noindex, noarchive"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+		Strict-Transport-Security "max-age=31536000"
+	}
+	# A 5xx response makes the proxied CDN serve stale public downloads.
+	# Use a non-cacheable text response for every path during maintenance.
+	respond "Temporarily under maintenance." 200
+}
