@@ -220,6 +220,6 @@ initialize();
 for (const button of document.querySelectorAll("[data-demo]")) button.addEventListener("click",()=>{
   const image=button.querySelector("img"), enlarged=$("demo-image");
   enlarged.src=image.src; enlarged.alt=image.alt;
-  $("demo-title").textContent=button.dataset.demo==="launcher" ? "DarkWhispers Launcher" : "DarkWhispers Raid Tool · in game";
+  $("demo-title").textContent=button.dataset.demo==="launcher" ? "DarkWhispers Launcher" : "DarkWhispers Raid Tool Â· in game";
   $("demo-dialog").showModal();
 });
