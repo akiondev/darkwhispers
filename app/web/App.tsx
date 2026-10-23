@@ -1333,7 +1333,7 @@ export default function App() {
             <div>
               <Swords size={21} />
               <h3>More than damage</h3>
-              <p>Mechanics, survival, role-aware output and assigned utility.</p>
+              <p>Verified mechanics, survival, class/spec output and role context.</p>
             </div>
           </section>
         )}
