@@ -23,7 +23,11 @@ export function supportsTempest(fight: Fight, abilities: Map<number, string>): b
     abilities.get(1287083) === 'Tempest'
   );
 }
-/** Only grade the verified, narrow Tempest rule. Never guess assignment or soak failures. */
+/**
+ * Only grade the verified, narrow Tempest rule. Never guess assignment or soak failures.
+ * Input damage must use WCL's type = "damage" predicate to exclude misses/immunities;
+ * the API's serialized type alone does not make that distinction. Absorbs still count.
+ */
 export function applyTempest(
   report: Report,
   fight: Fight,

@@ -1,10 +1,12 @@
-# Ranking reliability audit · engine 0.2.0
+# Ranking reliability audit · engine 0.2.1
 
 Acceptance report: `6fjJxRFC21YHdTXB`, 22 completed pulls, four bosses, 26 participating report actors. The Sszorak Mythic selection contains 18 wipes and 20 players. Verification used authenticated API v2 queries, not screenshots or the synthetic demo. Credentials and raw player event files remain private.
 
 ## Measurements and corrections
 
-Separately requested report-wide damage, healing and damage-taken tables matched the sum of the per-pull measurements for every participant. A new 138,720-event timeline (19 pages) provided an independent check of life, utility, tank context and mechanic processing. The candidate ingestion and scoring-window calculations passed 3,326 independent comparisons with no mismatches; those checks include full-pull and truncated-window life/Tempest values. Healing-over-time/absorbs use the Warcraft Logs healing table total; overheal is recorded separately and is not added to HPS.
+Separately requested report-wide damage, healing and damage-taken tables matched the sum of the per-pull measurements for every participant. A new 138,720-event timeline (19 pages) provided an independent check of life, utility, tank context and mechanic processing. The offline ingestion and scoring-window replay passed 3,326 independent comparisons with no mismatches. A separate deployed-data check passed 5,905 comparisons, including life/Tempest values, utility, healing cooldowns, taunts, Ravage, aggregate output, available overhealing and the actual Sszorak score formula. Healing/absorbs use the Warcraft Logs healing table total; overheal is recorded separately and is not added to HPS.
+
+A separately requested `type = "miss"` timeline identified 12 Tempest misses/immunities that the API serialized as `type: "damage"`. They are excluded by the production query's WCL damage predicate. The broad offline export must apply that classification too; a serialized type or zero amount alone is not sufficient. Of 572 non-periodic records, 560 were real direct contacts, including 20 fully absorbed contacts. Ravage also explicitly uses WCL's damage predicate. No numeric hit-type enumeration is guessed, and full absorbs are not discarded as misses.
 
 The raw timeline contained 11 Feign Death events. Nine belonged to participating actors and had incorrectly entered the old app's death/life measurements. Eight affected Sszorak. Explicit `feign: true` events are now excluded. The corrected result has **381 real deaths across the whole report**, including **369 on Sszorak**, rather than the previous 377 Sszorak death count. Battle resurrections still restore life intervals. An unlabelled environmental death remains a real death.
 
@@ -22,7 +24,7 @@ The combined 0–100 order remains a provisional comparison of the measured comm
 
 The UI defaults to comparing before raid collapse. On **audited Sszorak Mythic wipes only**, the scoring window ends at the earlier of a logged Unbound Ferocity application or the point after which at least half the roster remains simultaneously dead for the rest of the pull. Same-timestamp deaths/resurrections are grouped and Feign Death is ignored. Kills, other bosses and other difficulties retain their full durations.
 
-This is a versioned comparison convention, **not a detected raid-leader wipe call or proof that the fight was unrecoverable**. The control can be switched off. Full-pull damage, healing, damage taken and real death totals remain visible either way; the shorter window affects survival and Tempest scoring only. Evidence after the cutoff stays accessible and is marked unscored. Ravage review context is explicitly restricted to the active window.
+This is a versioned comparison convention, **not a detected raid-leader wipe call or proof that the fight was unrecoverable**. The control can be switched off. Full-pull damage, healing, damage taken and real death totals remain visible either way; the shorter window affects survival and Tempest scoring only. Evidence outside the selected scoring window stays accessible and is marked unscored. Ravage review context always ends at the recorded comparison cutoff when present, otherwise at encounter end; that observation window is independent of the survival/Tempest scoring toggle.
 
 ## Reliability is not just repeatability
 

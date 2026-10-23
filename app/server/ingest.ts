@@ -201,7 +201,11 @@ export async function ingestPull(
     'type = "death"',
     'type = "resurrect"',
     'type = "taunt"',
-    ...(tankContext ? ['(ability.id = 1277101 or ability.id = 1277105)'] : []),
+    // WCL's damage predicate excludes misses/immunities even when the API
+    // serializes those records as type: damage. Full absorbs remain real hits.
+    ...(tankContext
+      ? ['((type = "damage" and ability.id = 1277101) or ability.id = 1277105)']
+      : []),
     ...(fight.encounterId === 3420 &&
     fight.difficulty === 5 &&
     abilities.get(1296898) === 'Unbound Ferocity'

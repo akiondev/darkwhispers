@@ -300,6 +300,10 @@ test('tank vulnerability and healer cooldown/overheal context are observations w
       };
     }
     async events(...args: Parameters<WclClient['events']>) {
+      assert.ok(
+        args[4]?.includes('((type = "damage" and ability.id = 1277101) or ability.id = 1277105)'),
+        'Use WCL hit classification for Ravage; serialized damage also includes misses/immunities',
+      );
       args[3]([
         { type: 'taunt', sourceID: 1, targetID: 202, timestamp: 5000 },
         { type: 'cast', sourceID: 3, abilityGameID: 740, timestamp: 6000 },

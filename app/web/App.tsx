@@ -163,7 +163,7 @@ function EventList({ events, analysis }: { events: Evidence[]; analysis: Analysi
                 <span className="tag">
                   {event.kind === 'mechanic-observed' ? 'observation' : event.kind}
                 </span>
-                {afterCutoff && <span className="tag">After cutoff · not scored</span>}
+                {afterCutoff && <span className="tag">Outside scoring window · not scored</span>}
               </div>
               <strong>{event.ability}</strong>
               <p>{event.description}</p>
@@ -257,7 +257,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
         <div>
           <span>Deaths</span>
           <strong>{player.deaths}</strong>
-          {!!player.lateDeaths && <small>{player.lateDeaths} after scoring cutoff</small>}
+          {!!player.lateDeaths && <small>{player.lateDeaths} outside scoring window</small>}
         </div>
         <div>
           <span>
@@ -296,11 +296,12 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
             </strong>
             {player.role === 'tank' ? (
               <p>
-                Required tank damage is not a penalty. Ravage contacts before collapse:{' '}
+                Required tank damage is not a penalty. Ravage contacts before the recorded cutoff:{' '}
                 {player.ravageHits ?? 'not measured'}; while prior vulnerability was active:{' '}
                 {player.ravageVulnerableHits ?? 'not measured'} (review swaps and immunities).
                 Logged taunts: {player.taunts ?? 0}. Logged healing:{' '}
-                {compact.format(player.healing)}.
+                {compact.format(player.healing)}. Ravage uses the full encounter when no cutoff was
+                recorded; the scoring toggle only changes survival and Tempest grades.
               </p>
             ) : (
               <p>
