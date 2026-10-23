@@ -620,6 +620,13 @@ export default function App() {
                     >
                       Select all matching
                     </button>
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => change({ fightIds: [] })}
+                    >
+                      Clear selection
+                    </button>
                   </div>
                   {selectFights(report, { ...selection, fightIds: null }).map((f) => (
                     <label key={f.id}>

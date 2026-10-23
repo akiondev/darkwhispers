@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tar -czf darkwhispers-app.tar.gz dist package.json package-lock.json deploy README.md
+          tar -czf darkwhispers-app.tar.gz dist package.json package-lock.json deploy docs README.md
           sha256sum darkwhispers-app.tar.gz > reports/SHA256SUMS.txt
           printf '%s\n' "${GITHUB_SHA}" > reports/source-commit.txt
       - name: Attest application and validation reports
