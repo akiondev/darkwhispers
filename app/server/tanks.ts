@@ -145,6 +145,9 @@ function measureTank(
     deathsUnderPressure: 0,
     selfHealing: 0,
     pressureMs: 0,
+    responseKnownWindows: 0,
+    responseCoveredWindows: 0,
+    responseUnknownWindows: 0,
   };
   const evidence: Evidence[] = [];
   const active = new Set<number>(),
@@ -179,6 +182,34 @@ function measureTank(
     lastEnemyHit = -Infinity,
     lastGap = -Infinity;
   const pressure: [number, number][] = [];
+  const response = new Map<number, { known: boolean; covered: boolean }>();
+  const recovery = new Set<number>();
+  const physicalResponses = new Set([
+    'Bone Shield',
+    'Dancing Rune Weapon',
+    'Icebound Fortitude',
+    'Vampiric Blood',
+    'Shield Block',
+    'Ignore Pain',
+    'Shield Wall',
+    'Last Stand',
+    'Shield of the Righteous',
+    'Ardent Defender',
+    'Guardian of Ancient Kings',
+    'Divine Protection',
+    'Divine Shield',
+    'Ironfur',
+    'Barkskin',
+    'Survival Instincts',
+    'Frenzied Regeneration',
+    'Incarnation: Guardian of Ursoc',
+    'Shuffle',
+    'Fortifying Brew',
+    'Dampen Harm',
+    'Celestial Brew',
+    'Demon Spikes',
+    'Metamorphosis',
+  ]);
   for (const e of relevant) {
     const name = abilities.get(e.abilityGameID) ?? '';
     if (e.type === 'combatantinfo' && e.sourceID === id && Array.isArray(e.auras)) {
@@ -219,8 +250,10 @@ function measureTank(
       e.targetID === id &&
       typeof e.amount === 'number' &&
       e.amount >= 0
-    )
+    ) {
       facts.selfHealing += e.amount;
+      if (e.amount > 0) recovery.add(Math.floor((e.timestamp - fight.startTime) / 5000));
+    }
     if (
       e.type !== 'damage' ||
       e.targetID !== id ||
@@ -254,6 +287,14 @@ function measureTank(
       }
     }
     if (e.abilityGameID !== 1) continue;
+    const bin = Math.floor((e.timestamp - fight.startTime) / 5000);
+    const prior = response.get(bin) ?? { known: true, covered: true };
+    const recordedResponse =
+      [...active].some((id) => physicalResponses.has(abilities.get(id) ?? '')) ||
+      !!branded.get(e.sourceID)?.size;
+    prior.known &&= (known || recordedResponse) && !ambiguous.has(e.timestamp);
+    prior.covered &&= recordedResponse;
+    response.set(bin, prior);
     facts.meleeEvents++;
     const previous = pressure.at(-1),
       until = Math.min(end, e.timestamp + 5000);
@@ -288,6 +329,19 @@ function measureTank(
     }
   }
   const alive = aliveIntervals({ ...fight, endTime: end }, life);
+  for (const [bin, r] of response) {
+    if (recovery.has(bin)) {
+      facts.responseKnownWindows!++;
+      facts.responseCoveredWindows!++;
+      continue;
+    }
+    if (!r.known) {
+      facts.responseUnknownWindows!++;
+      continue;
+    }
+    facts.responseKnownWindows!++;
+    if (r.covered || recovery.has(bin)) facts.responseCoveredWindows!++;
+  }
   for (const [a, b] of pressure)
     for (const [c, d] of alive) facts.pressureMs += Math.max(0, Math.min(b, d) - Math.max(a, c));
   return { facts, evidence };

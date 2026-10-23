@@ -34,6 +34,8 @@ import PlayerSummary from './PlayerSummary.js';
 import { bossContributions, CATEGORY_NAMES } from '../shared/player-explanation.js';
 import { analysisLink, sharedAnalysisId } from '../shared/share.js';
 import ShareLink from './ShareLink.js';
+import { RoleFactors } from './RoleAssessment.js';
+import { ROLE_WEIGHTS } from '../shared/role-model.js';
 const roleLabel = (player: Pick<RankedPlayer, 'role' | 'spec'>) =>
   player.role === 'unknown'
     ? player.spec === 'Mixed'
@@ -225,7 +227,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
           evidenceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }}
       />
-      {player.roleRank && (
+      {player.roleRank && player.role !== 'unknown' && (
         <p className="small muted">
           Within-role rank: #{player.roleRank} of {player.rolePeers} {player.role} players ·
           measured factors only
@@ -234,11 +236,13 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
       <div className="notice subtle">
         <ShieldCheck size={17} />
         <div>
-          {player.tankReview
-            ? player.score === null
-              ? 'Tank composite not graded'
-              : 'Tank task score'
-            : `${player.provisional ? 'Provisional comparison' : 'Complete scoring coverage'} · ${player.coverage.toFixed(0)}% scoring coverage`}{' '}
+          {player.assessment
+            ? `Universal role index · ${player.coverage.toFixed(1)}% measured weight`
+            : player.tankReview
+              ? player.score === null
+                ? 'Tank composite not graded'
+                : 'Tank task score'
+              : `${player.provisional ? 'Provisional comparison' : 'Complete scoring coverage'} · ${player.coverage.toFixed(0)}% scoring coverage`}{' '}
           · {player.pulls} pulls across {player.bosses} bosses
           {player.provisional && !player.tankReview && (
             <p>
@@ -248,7 +252,14 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
           )}
         </div>
       </div>
-      {player.tankReview ? (
+      {player.assessment ? (
+        player.tankReview ? (
+          <details className="tank-method">
+            <summary>Detailed tank observations</summary>
+            <TankReview review={player.tankReview} observedOnly />
+          </details>
+        ) : null
+      ) : player.tankReview ? (
         <TankReview review={player.tankReview} />
       ) : (
         <div className="category-grid">
@@ -367,7 +378,14 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
               <span>
                 {b.name}
                 <small>
-                  {b.pulls} pulls · {b.coverage}% scoring coverage
+                  {b.pulls === 0 ? (
+                    'Not attended · unknown weight'
+                  ) : (
+                    <>
+                      {b.pulls} pulls · {b.coverage.toFixed(1)}%{' '}
+                      {b.assessment ? 'measured weight' : 'scoring coverage'}
+                    </>
+                  )}
                 </small>
               </span>
               {b.tankReview && b.score === null ? (
@@ -383,33 +401,40 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
                 />
               )}
             </div>
-            <details className="boss-calculation">
-              <summary>Score calculation & measured inputs</summary>
-              {categories.map((key) => {
-                const c = b.categories[key];
-                const contribution = bossContributions(b).find((item) => item.key === key);
-                return (
-                  <div key={key}>
-                    <strong>
-                      {CATEGORY_NAMES[key]} ·{' '}
-                      {c.score === null ? 'Not measured' : `${c.score.toFixed(1)} / 100`}
-                    </strong>
-                    <p>{c.explanation}</p>
-                    <small>
-                      {contribution
-                        ? `${contribution.weight.toFixed(1)}% effective weight · ${contribution.points.toFixed(2)} score points`
-                        : 'Not part of this composite score.'}
-                    </small>
-                  </div>
-                );
-              })}
-              {b.tankReview && (
-                <p className="small muted">
-                  Tank composite uses verified task criteria separately. Common factors above are
-                  context only.
-                </p>
-              )}
-            </details>
+            {b.assessment ? (
+              <details className="boss-calculation">
+                <summary>Score calculation & measured inputs</summary>
+                <RoleFactors assessment={b.assessment} compact />
+              </details>
+            ) : (
+              <details className="boss-calculation">
+                <summary>Score calculation & measured inputs</summary>
+                {categories.map((key) => {
+                  const c = b.categories[key];
+                  const contribution = bossContributions(b).find((item) => item.key === key);
+                  return (
+                    <div key={key}>
+                      <strong>
+                        {CATEGORY_NAMES[key]} ·{' '}
+                        {c.score === null ? 'Not measured' : `${c.score.toFixed(1)} / 100`}
+                      </strong>
+                      <p>{c.explanation}</p>
+                      <small>
+                        {contribution
+                          ? `${contribution.weight.toFixed(1)}% effective weight · ${contribution.points.toFixed(2)} score points`
+                          : 'Not part of this composite score.'}
+                      </small>
+                    </div>
+                  );
+                })}
+                {b.tankReview && (
+                  <p className="small muted">
+                    Tank composite uses verified task criteria separately. Common factors above are
+                    context only.
+                  </p>
+                )}
+              </details>
+            )}
           </div>
         ))}
       </div>
@@ -421,7 +446,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
           onChange={(e) => setEventType(e.target.value)}
         >
           <option value="all">All observations</option>
-          <option value="scored-mechanics">Mechanics · scoring window only</option>
+          <option value="scored-mechanics">Mechanics · evaluated window only</option>
           <option value="mechanic">Confirmed mechanics</option>
           <option value="mechanic-observed">Unscored observations</option>
           <option value="death">Deaths</option>
@@ -871,7 +896,7 @@ export default function App() {
                   onChange={(e) => change({ excludeWipeTail: e.target.checked })}
                 />{' '}
                 Compare before raid collapse{' '}
-                <span className="muted">Sszorak Mythic wipes · full totals stay visible</span>
+                <span className="muted">All raid wipes · full totals stay visible</span>
               </label>
               {pullPicker && (
                 <div className="pull-picker">
@@ -958,6 +983,21 @@ export default function App() {
         )}
         {analysis && (
           <section ref={resultRef} className="results">
+            {analysis.report.source === 'warcraftlogs' &&
+              !analysis.players.some((p) => p.assessment) && (
+                <div className="notice subtle">
+                  <div>
+                    <strong>Saved with the earlier scoring model</strong>
+                    <p>
+                      Reanalyze to use the current universal role engine for all bosses,
+                      difficulties and tanks. This saved snapshot stays unchanged.
+                    </p>
+                    <button className="primary" disabled={busy} onClick={() => void start()}>
+                      Update analysis
+                    </button>
+                  </div>
+                </div>
+              )}
             <div className="section-heading">
               <div>
                 <p className="eyebrow">THE SELECTED SESSION</p>
@@ -1048,7 +1088,9 @@ export default function App() {
                     {role === 'all'
                       ? `all ${analysis.players.length} players included · ${analysis.players.filter((p) => p.role === 'tank').length} tanks · ungraded is not last place`
                       : role === 'tank'
-                        ? 'tank composite withheld · measurements only'
+                        ? analysis.players.some((p) => p.assessment)
+                          ? 'tank role index · measured response and evidence range'
+                          : 'tank composite withheld · measurements only'
                         : 'rank within selected role'}{' '}
                     · click a player for details
                   </p>
@@ -1126,16 +1168,30 @@ export default function App() {
                         <td>
                           {p.tankReview ? (
                             <span>
-                              {p.tankReview.protectionPercent === null
-                                ? 'Not measured'
-                                : `${p.tankReview.protectionPercent.toFixed(1)}%`}
+                              {p.assessment
+                                ? (p.assessment.factors
+                                    .find((f) => f.key === 'protection')
+                                    ?.score?.toFixed(1) ?? 'Unknown')
+                                : p.tankReview.protectionPercent === null
+                                  ? 'Not measured'
+                                  : `${p.tankReview.protectionPercent.toFixed(1)}%`}
                               <small className="cell-sub">
-                                Primary protection · {p.tankReview.facts.knownMeleeEvents} known
-                                melee attempts
+                                {p.assessment
+                                  ? 'Tank defensive response · see calculation'
+                                  : `Primary protection · ${p.tankReview.facts.knownMeleeEvents} known melee attempts`}
                               </small>
                             </span>
                           ) : p.mechanicFailures === null ? (
-                            <span className="muted">Not scored</span>
+                            <span className="muted">
+                              {p.assessment ? (
+                                <>
+                                  Role index active
+                                  <small className="cell-sub">Boss mechanics unverified</small>
+                                </>
+                              ) : (
+                                'Not scored'
+                              )}
+                            </span>
                           ) : (
                             <span>
                               {p.mechanicFailures}
@@ -1274,14 +1330,36 @@ export default function App() {
       {method && analysis && (
         <Modal title="How scoring works" onClose={() => setMethod(false)}>
           <p>{analysis.methodology.bossWeighting}</p>
-          <div className="weight-list">
-            {categories.map((c) => (
-              <div key={c}>
-                <span>{c}</span>
-                <strong>{analysis.methodology.weights[c]}%</strong>
-              </div>
-            ))}
-          </div>
+          {analysis.players.some((p) => p.assessment) ? (
+            <>
+              {(['tank', 'healer', 'dps'] as const).map((role) => (
+                <div className="tank-method" key={role}>
+                  <h3>{role} weights</h3>
+                  {Object.entries(ROLE_WEIGHTS[role])
+                    .filter(([, w]) => w > 0)
+                    .map(([name, weight]) => (
+                      <p key={name}>
+                        {name}: {weight}%
+                      </p>
+                    ))}
+                </div>
+              ))}
+              <p>
+                Score = measured weighted points + neutral midpoint for unknown evidence. Exact
+                lower/upper missing-evidence bounds and sample coverage are shown for every player
+                and boss. Boss-specific assignment and mechanic coverage remain explicit.
+              </p>
+            </>
+          ) : (
+            <div className="weight-list">
+              {categories.map((c) => (
+                <div key={c}>
+                  <span>{c}</span>
+                  <strong>{analysis.methodology.weights[c]}%</strong>
+                </div>
+              ))}
+            </div>
+          )}
           <p>
             100 is a weighted perfect score with complete scoring evidence, never a prize simply for
             topping DPS. 99 is pink; 90–98 purple; 70–89 blue; 50–69 green; 30–49 yellow; 0–29 grey.
@@ -1289,9 +1367,10 @@ export default function App() {
           </p>
           <h3>Limits & interpretation</h3>
           <p>
-            Tanks have a separate class-aware review on every encounter. Physical protection
-            coverage is an observation, not a 0–100 performance score. A tank composite and raid
-            rank are withheld while core duty and defensive decision rules remain unvalidated.
+            Every tank class receives a role index on every boss and difficulty. Personal response
+            is measured during melee exposure, with reactive recovery and class-specific auras.
+            Optimal swaps, assignments and resource use require further verified criteria; required
+            damage intake is never treated as an avoidance error.
           </p>
           <p>
             <a

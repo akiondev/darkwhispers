@@ -1,5 +1,7 @@
 # Tank evidence review and task scoring · engine 0.4.1
 
+**Historical 0.4 model.** Current live ranking uses the [0.5 universal role index](universal-role-model.md), including numerical tank indices. The task-verdict kernel below remains separate from the general observed-response index; old shared snapshots preserve their original scores.
+
 ## Scope and grading boundary
 
 All six current tank specializations have class-specific evidence profiles. The collector runs on **any completed encounter and difficulty**, including bosses without a hand-written mechanic module. It does not require Sszorak or Blood DK.

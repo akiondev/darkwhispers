@@ -2,7 +2,7 @@ import type { Evidence, Fight, Metric, Report } from '../shared/types.js';
 import { aliveIntervals, type LifeEvent } from '../shared/life.js';
 import { evidenceUrl } from '../shared/report-url.js';
 
-export const TEMPEST_RULE = 'sszorak-tempest-mythic/v2';
+export const TEMPEST_RULE = 'sszorak-tempest/v3';
 // Journal effect 1287073 lasts 55 s; allow its 3.5 s parent cast from begincast.
 const MAX_WINDOW_MS = 58500;
 export type MechanicEvent = {
@@ -18,7 +18,7 @@ export type MechanicEvent = {
 export function supportsTempest(fight: Fight, abilities: Map<number, string>): boolean {
   return (
     fight.encounterId === 3420 &&
-    fight.difficulty === 5 &&
+    [1, 3, 4, 5, 17].includes(fight.difficulty) &&
     abilities.get(1287072) === 'Tempest' &&
     abilities.get(1287083) === 'Tempest'
   );

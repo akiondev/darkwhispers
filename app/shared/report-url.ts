@@ -50,5 +50,6 @@ export function evidenceUrl(
   return `https://www.warcraftlogs.com/reports/${report.code}?fight=${fight}&type=${view}&source=${actor}&start=${Math.max(0, Math.floor(time - 5000))}&end=${Math.floor(time + 5000)}`;
 }
 export const difficultyName = (value: number) =>
-  ({ 1: 'LFR', 2: 'Flex', 3: 'Normal', 4: 'Heroic', 5: 'Mythic', 10: 'Mythic+' })[value] ??
-  `Difficulty ${value}`;
+  ({ 1: 'LFR', 2: 'Flex', 3: 'Normal', 4: 'Heroic', 5: 'Mythic', 10: 'Mythic+', 17: 'LFR' })[
+    value
+  ] ?? `Difficulty ${value}`;

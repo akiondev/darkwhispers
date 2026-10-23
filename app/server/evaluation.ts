@@ -2,20 +2,14 @@ import type { Fight } from '../shared/types.js';
 import type { LifeEvent } from '../shared/life.js';
 
 /** An explicit comparison policy, not an inference about a raid leader's wipe call.
- * Restricted to the audited Sszorak encounter. Kills always retain their full duration.
+ * Sustained terminal 50% mortality works on any raid. Kills retain their full duration.
  */
 export function evaluationWindow(
   fight: Fight,
   life: Map<number, LifeEvent[]>,
   enrage: number | null,
 ) {
-  if (
-    fight.kill ||
-    fight.encounterId !== 3420 ||
-    fight.difficulty !== 5 ||
-    fight.friendlyPlayers.length < 10
-  )
-    return undefined;
+  if (fight.kill || fight.friendlyPlayers.length < 10) return undefined;
   const roster = new Set(fight.friendlyPlayers),
     dead = new Set<number>();
   const events = [...life]
@@ -42,8 +36,12 @@ export function evaluationWindow(
     if (dead.size < threshold) collapse = null;
   }
   const candidates = [
-    ...(collapse === null ? [] : [{ endTime: collapse, reason: 'raid-collapse' as const }]),
-    ...(enrage === null ? [] : [{ endTime: enrage, reason: 'boss-enrage' as const }]),
+    ...(collapse === null || fight.endTime - collapse < 5000
+      ? []
+      : [{ endTime: collapse, reason: 'raid-collapse' as const }]),
+    ...(enrage === null || fight.encounterId !== 3420 || fight.difficulty !== 5
+      ? []
+      : [{ endTime: enrage, reason: 'boss-enrage' as const }]),
   ].filter((x) => x.endTime > fight.startTime && x.endTime < fight.endTime);
   candidates.sort((a, b) => a.endTime - b.endTime);
   return candidates[0]

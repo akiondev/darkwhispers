@@ -80,7 +80,7 @@ test('unmatched contacts are ungraded; no observed waves means zero opportunitie
         [1287083, 'Tempest'],
       ]),
     ),
-    false,
+    true,
   );
   assert.equal(
     supportsTempest(

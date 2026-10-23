@@ -16,6 +16,7 @@ import { VERSION } from './version.js';
 import { roleFromSpec, summarizeSpecs } from './players.js';
 import { summarizeTankFacts } from './tanks.js';
 import { combineTankGrades, gradeTankTasks } from './tank-scoring.js';
+import { applyRoleModel } from './role-model.js';
 export const ENGINE_VERSION = VERSION;
 export const WEIGHTS = { mechanics: 35, survival: 35, output: 20, utility: 10 } as const;
 export const CATEGORIES = Object.keys(WEIGHTS) as Category[];
@@ -469,7 +470,7 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
     warnings.push(
       'Some bosses do not yet have validated mechanic-scoring rules. Their mechanic events are not automatically labelled as mistakes.',
     );
-  return {
+  const result: Analysis = {
     version: ENGINE_VERSION,
     generatedAt: new Date().toISOString(),
     report,
@@ -505,4 +506,5 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       ],
     },
   };
+  return report.source === 'warcraftlogs' ? applyRoleModel(result,pulls) : result;
 }

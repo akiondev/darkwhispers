@@ -140,9 +140,12 @@ export function summarizeTankFacts(
     'deathsUnderPressure',
     'selfHealing',
     'pressureMs',
+    'responseKnownWindows',
+    'responseCoveredWindows',
+    'responseUnknownWindows',
   ] as const;
   const facts = Object.fromEntries(
-    keys.map((key) => [key, measured.reduce((n, x) => n + x[key], 0)]),
+    keys.map((key) => [key, measured.reduce((n, x) => n + (x[key] ?? 0), 0)]),
   ) as TankReview['facts'];
   const profiles = [...new Set(measured.map((x) => x.profile))];
   const grade = gradeTankTasks(

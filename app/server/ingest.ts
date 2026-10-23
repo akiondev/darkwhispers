@@ -5,6 +5,7 @@ import { evaluationWindow } from './evaluation.js';
 import { applyTempest, supportsTempest, type MechanicEvent } from './mechanics.js';
 import { ApiError, finite, list, object, text, WclClient } from './wcl.js';
 import { tankRecorder } from './tanks.js';
+import { actionContinuity } from './activity.js';
 
 // Observed cast catalogue only. No availability assumptions, cooldown guesses or non-use penalties.
 const DEFENSIVES = new Set([
@@ -198,6 +199,7 @@ export async function ingestPull(
   const ravageEvents: Record<string, any>[] = [];
   let enrage: number | null = null;
   const mechanicEvents: MechanicEvent[] = [];
+  const actionEvents: { sourceID: number; timestamp: number }[] = [];
   const contextCastIds = [...abilities]
     .filter(
       ([id, name]) =>
@@ -205,6 +207,7 @@ export async function ingestPull(
     )
     .map(([id]) => id);
   const filter = [
+    '(type = "cast" and source.type = "player")',
     ...tanks.filter,
     ...(tempest
       ? [
@@ -242,6 +245,8 @@ export async function ingestPull(
       tanks.observe(events);
       for (const event of events) {
         if (event.type === 'death' && event.feign === true) continue;
+        if (event.type === 'cast' && metrics.has(event.sourceID))
+          actionEvents.push({ sourceID: event.sourceID, timestamp: event.timestamp });
         if (tankContext && [1277101, 1277105].includes(event.abilityGameID))
           ravageEvents.push(event);
         if (
@@ -324,6 +329,8 @@ export async function ingestPull(
     { includeResources: tanks.active },
   );
   for (const [id, metric] of metrics) metric.aliveMs = aliveTime(fight, life.get(id) ?? []);
+  const activity = actionContinuity(report, fight, actionEvents, life, fight.endTime);
+  for (const [id, m] of metrics) m.activity = activity.get(id);
   for (const { count, event } of observedAuras.values())
     evidence(
       finite(event.targetID),
@@ -360,6 +367,8 @@ export async function ingestPull(
         mechanicFailures: evaluatedMetrics.get(id)!.mechanicFailures,
         mechanicOpportunities: evaluatedMetrics.get(id)!.mechanicOpportunities,
       };
+    const cutActivity = actionContinuity(report, fight, actionEvents, life, end);
+    for (const [id, m] of metrics) m.evaluated!.activity = cutActivity.get(id);
   }
   if (tankContext) {
     const vulnerable = new Map<number, number>();

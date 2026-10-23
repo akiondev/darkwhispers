@@ -1,6 +1,7 @@
 import type { Analysis, RankedPlayer } from '../shared/types.js';
 import { bossContributions, playerExplanation } from '../shared/player-explanation.js';
 import { scoreLabel } from '../shared/score.js';
+import RoleSummary from './RoleAssessment.js';
 
 export default function PlayerSummary({
   player,
@@ -11,6 +12,8 @@ export default function PlayerSummary({
   analysis: Analysis;
   onEvidence: () => void;
 }) {
+  if (player.assessment)
+    return <RoleSummary player={player} analysis={analysis} onEvidence={onEvidence} />;
   const { mechanics, alive, scored, losses, strengths } = playerExplanation(player);
   const tank = player.tankReview;
   const tempest = analysis.pulls.some(

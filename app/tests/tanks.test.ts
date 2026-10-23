@@ -193,7 +193,7 @@ test('melee parries/misses are still attack opportunities, and hostile NPC-owned
   assert.equal(metrics.get(1)!.tank!.protectedMeleeEvents, 2);
 });
 
-test('a mixed tank/damage selection does not reintroduce an invalid common-factor tank rank', () => {
+test('mixed tank/damage selections keep separate role contexts and a provisional index', () => {
   const { report, fight, metrics } = fixture();
   const second = {
     ...fight,
@@ -217,8 +217,9 @@ test('a mixed tank/damage selection does not reintroduce an invalid common-facto
     { encounterId: null, difficulty: null, mode: 'all', fightIds: null, excludeWipeTail: false },
   ).players[0];
   assert.equal(result.role, 'unknown');
-  assert.equal(result.score, null);
-  assert.equal(result.rank, null);
+  assert.ok(result.score !== null && result.provisional);
+  assert.equal(result.rank, 1);
+  assert.equal(result.assessment!.contexts.length, 2);
   assert.ok(result.tankReview);
 });
 
@@ -235,7 +236,7 @@ test('a stack removal without a remaining stack count leaves protection unknown'
   assert.equal(metrics.get(1)!.tank!.unknownMeleeEvents, 1);
 });
 
-test('the live tank composite is withheld on every boss; Tempest cannot inherit missing core tank weights', () => {
+test('every tank class receives a role index; required contacts and raw intake do not create penalties', () => {
   for (let i = 0; i < TANK_PROFILES.length; i++) {
     const { report, fight, ability, abilities, metrics, hit } = fixture(i, i % 2 ? 3420 : 99999);
     const r = tankRecorder(report, fight, abilities);
@@ -269,15 +270,15 @@ test('the live tank composite is withheld on every boss; Tempest cannot inherit 
         },
       ).players[0];
     const p = analyzeOne(m);
-    assert.equal(p.score, null);
-    assert.equal(p.rank, null);
-    assert.equal(p.roleRank, null);
-    assert.equal(p.perBoss[0].score, null);
+    assert.ok(p.score !== null && p.provisional);
+    assert.equal(p.rank, 1);
+    assert.equal(p.roleRank, 1);
+    assert.equal(p.perBoss[0].score, p.score);
     assert.equal(p.tankReview!.protectionPercent, 100);
     const alt = analyzeOne({ ...m, mechanicFailures: 0, damage: 1e12, damageTaken: 1e12 });
     assert.equal(
       alt.score,
-      null,
+      p.score,
       'Changing avoidance, padding output or required intake cannot manufacture a tank grade',
     );
     assert.equal(summarizeTankFacts([m.tank, undefined]).pullsMissing, 1);
@@ -373,7 +374,7 @@ test('the generic scoring kernel can grade verified synthetic duties for every t
       excludeWipeTail: false,
     };
     const player = analyze(report, [pull], selection).players[0];
-    assert.equal(player.score, 90);
+    assert.ok(player.score !== null && player.provisional);
     assert.equal(player.rank, 1);
     assert.equal(player.roleRank, 1);
     assert.equal(player.tankReview!.grade.score, 90);
@@ -407,7 +408,7 @@ test('complementary missing categories on different bosses cannot manufacture a 
     ].map((p) => ({ ...p, complete: true, warnings: [], mechanicRule: null, wipeTailMs: null })),
     { encounterId: null, difficulty: null, mode: 'all', fightIds: null, excludeWipeTail: false },
   ).players[0];
-  assert.equal(result.score, null);
+  assert.ok(result.score !== null && result.provisional);
   assert.equal(result.tankReview!.grade.complete, false);
   assert.equal(result.tankReview!.status, 'partial');
 });

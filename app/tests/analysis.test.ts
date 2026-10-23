@@ -185,10 +185,10 @@ test('partial live boss rules remain provisional even with all category inputs p
   assert.ok(
     result.players
       .filter((p) => p.role !== 'tank')
-      .every((p) => p.coverage === 100 && p.provisional),
+      .every((p) => p.assessment && p.coverage < 100 && p.provisional),
   );
   assert.ok(
-    result.players.filter((p) => p.role === 'tank').every((p) => p.score === null && p.provisional),
+    result.players.filter((p) => p.role === 'tank').every((p) => p.score !== null && p.provisional),
   );
 });
 test('review priorities start with the most frequent mechanic failures, not the highest ranked player', () => {
@@ -287,12 +287,11 @@ test('scoring-window measurements change grades but preserve full-pull facts and
     assert.equal(p.evaluatedAliveMs, 50000);
     assert.equal(p.evaluatedDurationMs, 50000);
     assert.equal(p.lateDeaths, 1);
-    if (p.role === 'tank') assert.equal(p.score, null);
-    else assert.ok(p.score! > before.score!);
+    assert.ok(p.score! > before.score!);
     assert.equal(p.confidence, 'limited');
     assert.equal(p.perBoss[0].provisional, true);
   }
-  assert.equal(cut.players.filter((p) => p.role === 'tank')[0].roleRank, null);
+  assert.ok(cut.players.filter((p) => p.role === 'tank')[0].roleRank);
   delete pull.metrics[0].evaluated;
   assert.throws(() => analyze(report, [pull], { ...all, excludeWipeTail: true }), /incomplete/);
 });

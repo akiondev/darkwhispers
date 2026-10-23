@@ -51,6 +51,7 @@ export type Evidence = {
   url: string | null;
 };
 export type Metric = {
+  activity?: ActivityFacts;
   actorId: number;
   damage: number;
   healing: number;
@@ -79,7 +80,14 @@ export type Metric = {
     mechanicOpportunities: number | null;
     deaths: number;
     tank?: TankFacts;
+    activity?: ActivityFacts;
   };
+};
+export type ActivityFacts = {
+  activeMs: number;
+  eligibleMs: number;
+  activeWindows: number;
+  eligibleWindows: number;
 };
 export type TankFacts = {
   profile: string;
@@ -96,6 +104,9 @@ export type TankFacts = {
   deathsUnderPressure: number;
   selfHealing: number;
   pressureMs: number;
+  responseKnownWindows?: number;
+  responseCoveredWindows?: number;
+  responseUnknownWindows?: number;
   tasks?: TankTask[];
 };
 export type TankTaskCategory = 'duties' | 'defense' | 'safety' | 'utility' | 'output';
@@ -158,6 +169,7 @@ export type CategoryScore = {
   explanation: string;
 };
 export type PlayerBossScore = {
+  assessment?: RoleAssessment;
   encounterId: number;
   name: string;
   score: number | null;
@@ -169,6 +181,7 @@ export type PlayerBossScore = {
   tankReview?: TankReview;
 };
 export type RankedPlayer = Player & {
+  assessment?: RoleAssessment;
   rank: number | null;
   score: number | null;
   provisional: boolean;
@@ -204,6 +217,34 @@ export type RankedPlayer = Player & {
   ravageHits?: number | null;
   ravageVulnerableHits?: number | null;
   tankReview?: TankReview;
+};
+export type RoleFactorKey = 'survival' | 'activity' | 'output' | 'protection' | 'mechanics';
+export type RoleFactor = {
+  key: RoleFactorKey;
+  name: string;
+  weight: number;
+  score: number | null;
+  measuredWeight: number;
+  points: number;
+  neutralPoints: number;
+  explanation: string;
+};
+export type RoleAssessment = {
+  version: string;
+  score: number;
+  lower: number;
+  upper: number;
+  coverage: number;
+  factors: RoleFactor[];
+  notes: string[];
+  contexts: {
+    encounterId?: number;
+    name?: string;
+    difficulty: number;
+    role: Role;
+    pulls: number;
+    score: number;
+  }[];
 };
 export type Finding = {
   title: string;
