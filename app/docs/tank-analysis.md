@@ -1,4 +1,4 @@
-# Tank evidence review · engine 0.3.0
+# Tank evidence review and task scoring · engine 0.4.0
 
 ## Scope and grading boundary
 
@@ -7,6 +7,16 @@ All six current tank specializations have class-specific evidence profiles. The 
 This is not a claim that every boss's tank duties can now be graded. The previous live tank index was mostly Tempest avoidance and alive time. It must not be presented as a complete tank performance score. Live tank composite scores, per-boss composite scores and ordinal raid/role positions are therefore withheld. Tanks have a separate overview and inspectable evidence; they are not called the worst raiders because core duties are missing. The synthetic demo's broader scoring example remains explicitly synthetic.
 
 The proposed role categories remain fixed: encounter duties 35%, defensive decisions/resources 30%, personal mechanics 20%, assigned utility 10%, relevant output 5%. These are design hypotheses, **not calibrated scientific weights**. No missing weight is transferred to another category. A complete tank composite requires validated core duty/decision rules and sufficient comparable evidence. Coverage percentages below are measurements, not replacement performance scores.
+
+## Generic task scoring kernel
+
+`shared/tank-scoring.ts` implements the 0–100 calculation independently of class and boss IDs. Only trusted server-side rule adapters may provide scoped task verdicts. A task names its actor, pull, timestamp, incident, versioned rule, category, predeclared opportunity weight and earned fraction. Unverified or unresolved verdicts remain unknown. Buff uptime and raw damage are never automatically converted into verified task verdicts.
+
+Identical incident copies are ignored. Conflicting outcomes, duplicate charges across categories and evidence outside its actor/pull/scoring window are rejected. Within a category, the score is the opportunity-weighted earned fraction. Fixed role weights combine categories; unknown opportunity weight produces explicit lower/upper score bounds and prevents a point grade. A wholly missing category keeps its full weight unknown, rather than handing it to avoidance. These bounds describe missing evidence, **not confidence intervals**.
+
+Per-boss grades are combined with equal boss weighting. An unresolved selected tank boss prevents an overall tank composite; individual verified boss grades can remain visible. No best-of-two rescaling is used. A synthetic player who fulfills 90% of weighted criteria receives 90 even when ranked first. The kernel is tested with all six classes and arbitrary encounter IDs.
+
+**Live availability:** the current importer supplies factual tank observations, not complete verified tank task verdicts. Therefore the acceptance report deliberately has no composite tank score or ordinal tank rank. The kernel and class support are implemented; complete live tank-duty/defensive grading for every boss is not claimed. New boss-rule adapters require independent review and data before they can activate point grades.
 
 ## Six class profiles
 

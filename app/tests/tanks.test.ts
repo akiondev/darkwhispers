@@ -4,7 +4,8 @@ import { tankRecorder } from '../server/tanks.js';
 import { baseMetric } from '../server/ingest.js';
 import { TANK_PROFILES, tankProfile, summarizeTankFacts } from '../shared/tanks.js';
 import { analyze } from '../shared/analysis.js';
-import type { Fight, Metric, Report } from '../shared/types.js';
+import type { Fight, Metric, Report, TankTask } from '../shared/types.js';
+import { gradeTankTasks, combineTankGrades, TANK_WEIGHTS } from '../shared/tank-scoring.js';
 
 const primaryIds = [195181, 2565, 132403, 192081, 215479, 203819];
 function fixture(index = 0, encounterId = 999999) {
@@ -280,5 +281,104 @@ test('the live tank composite is withheld on every boss; Tempest cannot inherit 
       'Changing avoidance, padding output or required intake cannot manufacture a tank grade',
     );
     assert.equal(summarizeTankFacts([m.tank, undefined]).pullsMissing, 1);
+  }
+});
+
+function verifiedTasks(fightId = 1): TankTask[] {
+  return Object.keys(TANK_WEIGHTS).map((key, i) => ({
+    actorId: 1,
+    fightId,
+    incidentId: `independent-task-${i}`,
+    timestamp: 5000 + i,
+    ruleId: 'synthetic-reviewed-criterion/v1',
+    category: key as TankTask['category'],
+    weight: 1,
+    earned: key === 'safety' ? 0.5 : 1,
+    verified: true,
+  }));
+}
+test('tank task scoring is fixed-weight, bounded, duplicate-safe and explicit about unknown evidence', () => {
+  const tasks = verifiedTasks(),
+    scope = { actorId: 1, fightIds: [1] };
+  const grade = gradeTankTasks(tasks, scope);
+  assert.equal(grade.score, 90);
+  assert.equal(grade.coverage, 100);
+  assert.equal(grade.knownIncidents, 5);
+  assert.equal(
+    gradeTankTasks([...tasks, { ...tasks[0] }], scope).score,
+    90,
+    'A repeated event must not double-charge an incident',
+  );
+  const unknown = tasks.map((t) => (t.category === 'defense' ? { ...t, earned: null } : t));
+  const partial = gradeTankTasks(unknown, scope);
+  assert.equal(partial.score, null);
+  assert.equal(partial.lowerBound, 60);
+  assert.equal(partial.upperBound, 90);
+  assert.equal(partial.unknownIncidents, 1);
+  assert.equal(
+    gradeTankTasks(
+      tasks.map((t) => ({ ...t, verified: false })),
+      scope,
+    ).score,
+    null,
+    'An unverified conclusion cannot create a score',
+  );
+  assert.throws(
+    () => gradeTankTasks([...tasks, { ...tasks[0], category: 'defense' }], scope),
+    /double-counted/,
+  );
+  assert.throws(() => gradeTankTasks([{ ...tasks[0], actorId: 2 }], scope), /out-of-scope/);
+  assert.throws(() => gradeTankTasks([{ ...tasks[0], earned: 1.01 }], scope), /out-of-scope/);
+});
+test('tank grade aggregation gives each boss equal weight and missing boss evidence remains unknown', () => {
+  const scope = { actorId: 1, fightIds: [1] },
+    perfect = gradeTankTasks(
+      verifiedTasks().map((t) => ({ ...t, earned: 1 })),
+      scope,
+    ),
+    zero = gradeTankTasks(
+      verifiedTasks().map((t) => ({ ...t, earned: 0 })),
+      scope,
+    );
+  assert.equal(combineTankGrades([perfect, zero]).score, 50);
+  const incomplete = combineTankGrades([perfect, gradeTankTasks([])]);
+  assert.equal(incomplete.score, null);
+  assert.equal(incomplete.lowerBound, 50);
+  assert.equal(incomplete.upperBound, 100);
+});
+test('the generic scoring kernel can grade verified synthetic duties for every tank class on any boss', () => {
+  for (let i = 0; i < TANK_PROFILES.length; i++) {
+    const { report, fight, ability, abilities, metrics, hit } = fixture(i, i % 2 ? 3420 : 654321);
+    const r = tankRecorder(report, fight, abilities);
+    r.observe([
+      { type: 'combatantinfo', timestamp: 0, sourceID: 1, auras: [{ ability, stacks: 1 }] },
+      hit(1000),
+    ]);
+    r.finish(metrics, new Map(), 60000);
+    metrics.get(1)!.tank!.tasks = verifiedTasks();
+    const pull = {
+      fight,
+      metrics: [metrics.get(1)!],
+      complete: true,
+      warnings: ['Synthetic criteria, not live boss validation.'],
+      mechanicRule: null,
+      mechanicScope: 'complete' as const,
+      wipeTailMs: null,
+    };
+    const selection = {
+      encounterId: null,
+      difficulty: null,
+      mode: 'all' as const,
+      fightIds: null,
+      excludeWipeTail: false,
+    };
+    const player = analyze(report, [pull], selection).players[0];
+    assert.equal(player.score, 90);
+    assert.equal(player.rank, 1);
+    assert.equal(player.roleRank, 1);
+    assert.equal(player.tankReview!.grade.score, 90);
+    assert.notEqual(player.score, 100, 'Being best of one must not force a perfect score');
+    metrics.get(1)!.tank!.tasks![0].timestamp = 60001;
+    assert.throws(() => analyze(report, [pull], selection), /evaluation window/);
   }
 });

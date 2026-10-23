@@ -211,7 +211,9 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
         <ShieldCheck size={17} />
         <div>
           {player.tankReview
-            ? 'Tank composite not graded'
+            ? player.score === null
+              ? 'Tank composite not graded'
+              : 'Tank task score'
             : `${player.provisional ? 'Provisional comparison' : 'Complete scoring coverage'} · ${player.coverage.toFixed(0)}% scoring coverage`}{' '}
           · {player.pulls} pulls across {player.bosses} bosses
           {player.provisional && !player.tankReview && (
@@ -343,7 +345,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
                 {b.pulls} pulls · {b.coverage}% scoring coverage
               </small>
             </span>
-            {b.tankReview ? (
+            {b.tankReview && b.score === null ? (
               <span className="small muted">
                 {b.tankReview.protectionPercent === null
                   ? 'No melee coverage'
@@ -526,7 +528,7 @@ export default function App() {
         <div className="top-links">
           <span className="prototype">
             <i />
-            Prototype 0.3
+            Prototype 0.4
           </span>
           <a
             href="https://github.com/akiondev/darkwhispers/tree/main/app"
@@ -1007,7 +1009,7 @@ export default function App() {
                           </button>
                         </td>
                         <td>
-                          {p.tankReview ? (
+                          {p.tankReview && p.score === null ? (
                             <span className="tank-review-label">
                               Tank review<small className="cell-sub">Composite not graded</small>
                             </span>

@@ -1,31 +1,37 @@
 import type { Player, TankFacts, TankReview } from './types.js';
+import { gradeTankTasks, TANK_WEIGHTS } from './tank-scoring.js';
 
 export const TANK_REVIEW_VERSION = 'tank-evidence/v1';
 export const TANK_CATEGORIES = [
   {
+    key: 'duties',
     name: 'Encounter duties',
-    weight: 35,
+    weight: TANK_WEIGHTS.duties,
     reason: 'Assignments, swaps and boss control require verified encounter rules.',
   },
   {
+    key: 'defense',
     name: 'Defense and resources',
-    weight: 30,
+    weight: TANK_WEIGHTS.defense,
     reason:
       'Recorded protection is measurable; cooldown availability and complete defensive decisions are not established by uptime alone.',
   },
   {
+    key: 'safety',
     name: 'Personal mechanics',
-    weight: 20,
+    weight: TANK_WEIGHTS.safety,
     reason: 'Contact, consequences and responsibility must be distinguished before grading.',
   },
   {
+    key: 'utility',
     name: 'Assigned utility',
-    weight: 10,
+    weight: TANK_WEIGHTS.utility,
     reason: 'A cast does not establish an assigned opportunity or a missed duty.',
   },
   {
+    key: 'output',
     name: 'Relevant damage',
-    weight: 5,
+    weight: TANK_WEIGHTS.output,
     reason:
       'Class/spec kill percentiles are optional context; they do not fill missing tank duties.',
   },
@@ -117,7 +123,10 @@ export function tankProfile(player: Pick<Player, 'class' | 'spec'>): TankProfile
       normalize(p.spec) === normalize(player.spec),
   );
 }
-export function summarizeTankFacts(values: (TankFacts | undefined)[]): TankReview {
+export function summarizeTankFacts(
+  values: (TankFacts | undefined)[],
+  scope?: { actorId: number; fightIds: number[] },
+): TankReview {
   const measured = values.filter((x): x is TankFacts => x !== undefined);
   const keys = [
     'meleeEvents',
@@ -136,9 +145,13 @@ export function summarizeTankFacts(values: (TankFacts | undefined)[]): TankRevie
     keys.map((key) => [key, measured.reduce((n, x) => n + x[key], 0)]),
   ) as TankReview['facts'];
   const profiles = [...new Set(measured.map((x) => x.profile))];
+  const grade = gradeTankTasks(
+    measured.flatMap((v) => v.tasks ?? []),
+    scope,
+  );
   return {
     version: TANK_REVIEW_VERSION,
-    status: facts.knownMeleeEvents > 0 ? 'partial' : 'insufficient',
+    status: grade.complete ? 'complete' : facts.knownMeleeEvents > 0 ? 'partial' : 'insufficient',
     profiles,
     facts,
     protectionPercent:
@@ -149,7 +162,9 @@ export function summarizeTankFacts(values: (TankFacts | undefined)[]): TankRevie
     pullsMissing: values.length - measured.length,
     reasons: [
       ...profiles.flatMap((id) => TANK_PROFILES.find((p) => p.id === id)?.note ?? []),
-      'A tank composite score is withheld until the core encounter-duty and defensive-decision rules are validated. Missing categories never transfer their weight to Tempest or raw survival.',
+      grade.complete
+        ? 'The task grade uses only verified server-side rule verdicts. It does not establish fault for unmodelled mechanics.'
+        : 'A tank composite score is withheld until the core encounter-duty and defensive-decision rules are validated. Missing categories never transfer their weight to Tempest or raw survival.',
       'Protection coverage, large-hit observations, self-healing and pressure deaths are measurements, not evidence of fault or cooldown availability.',
       'Swaps involving both tanks remain shared review observations without verified individual responsibility.',
       ...(values.length !== measured.length
@@ -163,5 +178,6 @@ export function summarizeTankFacts(values: (TankFacts | undefined)[]): TankRevie
           ]
         : []),
     ],
+    grade,
   };
 }

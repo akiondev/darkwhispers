@@ -1,4 +1,4 @@
-# DarkWhispers App · prototype 0.3
+# DarkWhispers App · prototype 0.4
 
 Evidence-first Warcraft Logs raid analysis. React 19 + TypeScript, Vite 8, Fastify 5, PostgreSQL 16 and pg-boss. API and analysis worker are separate processes. No paid services or AI-generated player grades.
 

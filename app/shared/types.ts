@@ -96,16 +96,43 @@ export type TankFacts = {
   deathsUnderPressure: number;
   selfHealing: number;
   pressureMs: number;
+  tasks?: TankTask[];
+};
+export type TankTaskCategory = 'duties' | 'defense' | 'safety' | 'utility' | 'output';
+export type TankTask = {
+  actorId: number;
+  fightId: number;
+  incidentId: string;
+  timestamp: number;
+  ruleId: string;
+  category: TankTaskCategory;
+  weight: number;
+  earned: number | null;
+  verified: boolean;
+};
+export type TankGrade = {
+  score: number | null;
+  lowerBound: number;
+  upperBound: number;
+  coverage: number;
+  complete: boolean;
+  knownIncidents: number;
+  unknownIncidents: number;
+  categories: Record<
+    TankTaskCategory,
+    { score: number | null; weight: number; known: number; unknown: number }
+  >;
 };
 export type TankReview = {
   version: string;
-  status: 'partial' | 'insufficient';
+  status: 'complete' | 'partial' | 'insufficient';
   profiles: string[];
-  facts: Omit<TankFacts, 'profile' | 'primaryProtection' | 'snapshot'>;
+  facts: Omit<TankFacts, 'profile' | 'primaryProtection' | 'snapshot' | 'tasks'>;
   protectionPercent: number | null;
   pullsMeasured: number;
   pullsMissing: number;
   reasons: string[];
+  grade: TankGrade;
 };
 export type PullData = {
   fight: Fight;

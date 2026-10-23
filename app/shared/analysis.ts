@@ -15,6 +15,7 @@ import { selectFights } from './report-url.js';
 import { VERSION } from './version.js';
 import { roleFromSpec, summarizeSpecs } from './players.js';
 import { summarizeTankFacts } from './tanks.js';
+import { combineTankGrades, gradeTankTasks } from './tank-scoring.js';
 export const ENGINE_VERSION = VERSION;
 export const WEIGHTS = { mechanics: 35, survival: 35, output: 20, utility: 10 } as const;
 export const CATEGORIES = Object.keys(WEIGHTS) as Category[];
@@ -59,10 +60,23 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       return { ...player, ...summarizeSpecs(specs) };
     });
   const scoreMetric = (p: PullData, m: Metric): Metric => {
-    if (!selection.excludeWipeTail || !p.evaluation) return m;
+    const validate = (metric: Metric, end: number) => {
+      if (
+        metric.tank?.tasks?.some(
+          (t) =>
+            t.actorId !== m.actorId ||
+            t.fightId !== p.fight.id ||
+            t.timestamp < p.fight.startTime ||
+            t.timestamp >= end,
+        )
+      )
+        throw new Error('Tank task evidence is outside its player, pull or evaluation window.');
+      return metric;
+    };
+    if (!selection.excludeWipeTail || !p.evaluation) return validate(m, p.fight.endTime);
     if (!m.evaluated)
       throw new Error('The scoring-window measurements are incomplete. No ranking was produced.');
-    return { ...m, ...m.evaluated };
+    return validate({ ...m, ...m.evaluated }, p.evaluation.endTime);
   };
   const scoreDuration = (p: PullData) =>
     (selection.excludeWipeTail && p.evaluation ? p.evaluation.endTime : p.fight.endTime) -
@@ -131,7 +145,12 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       participated.some(
         (p) => roleFromSpec(p.fight.playerSpecs?.[player.id] ?? player.spec) === 'tank',
       )
-        ? { tankReview: summarizeTankFacts(evaluated.map((m) => m.tank)) }
+        ? {
+            tankReview: summarizeTankFacts(
+              evaluated.map((m) => m.tank),
+              { actorId: player.id, fightIds: participated.map((p) => p.fight.id) },
+            ),
+          }
         : {}),
     });
   }
@@ -227,7 +246,12 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
           (report.source === 'warcraftlogs' &&
             bossPulls.some((p) => p.mechanicScope !== 'complete')),
         ...(candidate.player.tankReview
-          ? { tankReview: summarizeTankFacts(candidate.metric.map((m) => m.tank)) }
+          ? {
+              tankReview: summarizeTankFacts(
+                candidate.metric.map((m) => m.tank),
+                { actorId: candidate.player.id, fightIds: bossPulls.map((p) => p.fight.id) },
+              ),
+            }
           : {}),
       });
     }
@@ -240,15 +264,22 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
   for (const player of perPlayer.values())
     if (player.tankReview) {
       for (const boss of player.perBoss) {
-        boss.score = null;
-        boss.coverage = 0;
-        boss.provisional = true;
+        boss.score = boss.tankReview?.grade.score ?? null;
+        boss.coverage = boss.tankReview?.grade.coverage ?? 0;
+        boss.provisional =
+          !boss.tankReview?.grade.complete ||
+          pulls.some(
+            (p) => p.fight.encounterId === boss.encounterId && p.mechanicScope !== 'complete',
+          );
         for (const category of CATEGORIES) {
           boss.categories[category].applied = false;
           boss.categories[category].explanation +=
             ' Context only for tanks: not part of a validated tank composite.';
         }
       }
+      player.tankReview.grade = combineTankGrades(
+        player.perBoss.map((b) => b.tankReview?.grade ?? gradeTankTasks([])),
+      );
     }
   // Boss-relative midrank is context only; the overall score averages weighted
   // boss scores. Ties share a relative value; an all-equal boss gives everyone 50.
@@ -270,6 +301,7 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
     player.bossCoverage = bossIds.length ? (player.bosses / bossIds.length) * 100 : 0;
     player.score =
       comparable.length >= minimumBosses ? mean(comparable.map((b) => b.score!)) : null;
+    if (player.tankReview && !player.tankReview.grade.complete) player.score = null;
     player.coverage = mean(comparable.map((b) => b.coverage)) ?? 0;
     player.provisional =
       comparable.length !== bossIds.length ||

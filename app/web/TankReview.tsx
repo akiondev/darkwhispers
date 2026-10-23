@@ -9,14 +9,27 @@ export default function TankReview({ review }: { review: Review }) {
         <div>
           <strong>
             Tank assessment ·{' '}
-            {review.status === 'partial' ? 'partial evidence' : 'insufficient evidence'}
+            {review.grade.complete
+              ? 'verified task criteria'
+              : review.status === 'partial'
+                ? 'partial evidence'
+                : 'insufficient evidence'}
           </strong>
           <p>
-            Observed class protection and pressure events. No composite score or raid position is
-            assigned while core tank duties cannot be graded reliably.
+            {review.grade.complete
+              ? 'Verified task criteria are graded separately from raw protection and pressure observations.'
+              : 'Observed class protection and pressure events. No composite score or raid position is assigned while core tank duties cannot be graded reliably.'}
           </p>
         </div>
       </div>
+      {review.grade.knownIncidents > 0 && (
+        <p className="small muted">
+          Verified task evidence: {review.grade.knownIncidents} incidents;{' '}
+          {review.grade.unknownIncidents} unresolved. Possible weighted score:{' '}
+          {review.grade.lowerBound.toFixed(1)}–{review.grade.upperBound.toFixed(1)}. This interval
+          reflects missing evidence, not statistical confidence.
+        </p>
+      )}
       <div className="stats mini">
         <div>
           <span>Primary protection · melee attempts</span>
@@ -75,6 +88,9 @@ export default function TankReview({ review }: { review: Review }) {
           <div className="tank-requirement" key={c.name}>
             <strong>
               {c.name} · {c.weight}%
+              {review.grade.categories[c.key].score !== null
+                ? ` · ${review.grade.categories[c.key].score!.toFixed(1)} / 100`
+                : ' · not graded'}
             </strong>
             <span>{c.reason}</span>
           </div>
