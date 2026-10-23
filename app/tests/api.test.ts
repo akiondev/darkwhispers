@@ -7,6 +7,12 @@ import { runAnalysis } from '../server/jobs.js';
 import type { Selection } from '../shared/types.js';
 import { demoData } from '../shared/demo.js';
 import { clientAddress } from '../server/client-ip.js';
+import {
+  analysisLink,
+  sharedAnalysisId,
+  analysisExpiresAt,
+  ANALYSIS_RETENTION_MS,
+} from '../shared/share.js';
 const selection: Selection = {
   encounterId: null,
   difficulty: null,
@@ -14,6 +20,64 @@ const selection: Selection = {
   fightIds: null,
   excludeWipeTail: false,
 };
+
+test('unique analysis links round-trip safely without accepting malformed or duplicate IDs', () => {
+  const id = 'd7642381-42e2-4b47-b0a1-dd6f2d46dbac';
+  const link = new URL(analysisLink('https://darkwhispers.akion.se', id));
+  assert.equal(link.pathname, '/');
+  assert.equal(sharedAnalysisId(link.search), id);
+  assert.equal(sharedAnalysisId(''), null);
+  assert.throws(() => sharedAnalysisId('?analysis='));
+  assert.throws(() => sharedAnalysisId(`?analysis=${id}&analysis=${id}`));
+  assert.throws(() => sharedAnalysisId('?analysis=../../private'));
+  assert.throws(() => analysisLink('https://darkwhispers.akion.se', '<script>'));
+  assert.equal(analysisExpiresAt('2026-10-23T09:00:00Z').toISOString(), '2026-10-30T09:00:00.000Z');
+});
+
+test('share readers get the same immutable selection and result without enqueuing new work', async () => {
+  const store = new MemoryStore(),
+    client = new WclClient('', '');
+  let enqueued = 0;
+  const app = await createApi(store, client, async (id) => {
+    enqueued++;
+    await runAnalysis(id, store, client);
+  });
+  try {
+    const create = async (ids: number[]) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/analyses',
+        payload: {
+          reportCode: 'demo',
+          demo: true,
+          selection: { ...selection, fightIds: ids },
+        },
+      });
+    const first = await create([1, 2]),
+      second = await create([1]);
+    assert.equal(first.statusCode, 202);
+    assert.equal(second.statusCode, 202);
+    assert.notEqual(first.json().id, second.json().id);
+    const firstUrl = `/api/analyses/${first.json().id}`;
+    const original = (await app.inject(firstUrl)).json();
+    const reader = (await app.inject(firstUrl)).json();
+    assert.equal(reader.status, 'complete');
+    assert.deepEqual(reader, original);
+    assert.deepEqual(reader.selection.fightIds, [1, 2]);
+    assert.deepEqual(reader.result.selection.fightIds, [1, 2]);
+    assert.equal(enqueued, 2, 'Opening a shared result must not enqueue or import anything');
+    assert.equal((await app.inject(firstUrl)).headers['cache-control'], 'no-store');
+    store.jobs.get(first.json().id)!.createdAt = new Date(
+      Date.now() - ANALYSIS_RETENTION_MS - 1000,
+    ).toISOString();
+    const expired = await app.inject(firstUrl);
+    assert.equal(expired.statusCode, 404);
+    assert.match(expired.json().message, /seven-day/);
+    assert.equal(enqueued, 2);
+  } finally {
+    await app.close();
+  }
+});
 
 test('Cloudflare visitors have separate rate limits and untrusted headers cannot spoof them', async () => {
   assert.equal(

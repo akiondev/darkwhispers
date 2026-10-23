@@ -1530,6 +1530,41 @@ footer a {
   cursor: pointer;
   font: inherit;
 }
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.share-link > label {
+  display: block;
+  margin: 20px 0 8px;
+  color: #dbc2d3;
+  font-size: 12px;
+}
+.share-link > p {
+  line-height: 1.65;
+}
+.share-copy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.share-copy input {
+  flex: 1 1 220px;
+  min-width: 0;
+  width: 100%;
+  background: #100d16;
+  border: 1px solid #624158;
+  border-radius: 8px;
+  padding: 12px;
+  color: #f3d9e5;
+  font-size: 12px;
+}
+.share-feedback {
+  min-height: 1.65em;
+  font-size: 12px;
+  color: #c9c1ef;
+}
 .boss-breakdown > .boss-detail {
   display: block;
 }

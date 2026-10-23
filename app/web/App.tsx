@@ -10,6 +10,7 @@ import {
   Layers3,
   LoaderCircle,
   Search,
+  Share2,
   ShieldCheck,
   Swords,
   X,
@@ -31,6 +32,8 @@ import ReviewPriorities from './ReviewPriorities.js';
 import TankReview from './TankReview.js';
 import PlayerSummary from './PlayerSummary.js';
 import { bossContributions, CATEGORY_NAMES } from '../shared/player-explanation.js';
+import { analysisLink, sharedAnalysisId } from '../shared/share.js';
+import ShareLink from './ShareLink.js';
 const roleLabel = (player: Pick<RankedPlayer, 'role' | 'spec'>) =>
   player.role === 'unknown'
     ? player.spec === 'Mixed'
@@ -443,6 +446,7 @@ export default function App() {
     [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [pollPaused, setPollPaused] = useState(false),
     [pollRetry, setPollRetry] = useState(0);
+  const [share, setShare] = useState(false);
   const [player, setPlayer] = useState<RankedPlayer | null>(null),
     [method, setMethod] = useState(false),
     [pullPicker, setPullPicker] = useState(false),
@@ -450,6 +454,70 @@ export default function App() {
     [role, setRole] = useState('all');
   const request = useRef<AbortController | null>(null);
   const resultRef = useRef<HTMLElement>(null);
+  function applyJob(next: Job) {
+    setJob(next);
+    if (next.status === 'complete' && next.result) {
+      setReport(next.result.report);
+      setSelection(next.result.selection);
+      setUrl(next.demo ? '' : `https://www.warcraftlogs.com/reports/${next.reportCode}`);
+      setAnalysis(next.result);
+      setBusy(false);
+      setTimeout(
+        () => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+        100,
+      );
+    } else if (next.status === 'failed') {
+      setBusy(false);
+      setError(next.error ?? 'Analysis failed.');
+    } else if (next.status === 'complete') {
+      setBusy(false);
+      setError('This saved analysis has no result. Please start a new analysis.');
+    }
+  }
+  function clearAnalysisLocation() {
+    if (new URLSearchParams(window.location.search).has('analysis'))
+      window.history.pushState(null, '', '/');
+    setShare(false);
+  }
+  useEffect(() => {
+    async function restore() {
+      request.current?.abort();
+      const controller = new AbortController();
+      request.current = controller;
+      setAnalysis(null);
+      setJob(null);
+      setReport(null);
+      setBusy(false);
+      setError('');
+      setPlayer(null);
+      setMethod(false);
+      setShare(false);
+      setQuery('');
+      setRole('all');
+      setPullPicker(false);
+      setPollPaused(false);
+      setSelection(defaults);
+      setUrl('');
+      try {
+        const id = sharedAnalysisId(window.location.search);
+        if (!id) return;
+        setBusy(true);
+        const next = await api<Job>(`/api/analyses/${id}`, undefined, controller.signal);
+        if (!controller.signal.aborted) applyJob(next);
+      } catch (e) {
+        if (!controller.signal.aborted) {
+          setBusy(false);
+          setError(e instanceof Error ? e.message : 'This shared analysis could not be opened.');
+        }
+      }
+    }
+    void restore();
+    window.addEventListener('popstate', restore);
+    return () => {
+      window.removeEventListener('popstate', restore);
+      request.current?.abort();
+    };
+  }, []);
   useEffect(() => {
     api<Status>('/api/status')
       .then(setStatus)
@@ -468,18 +536,8 @@ export default function App() {
         const next = await api<Job>(`/api/analyses/${job.id}`, undefined, controller.signal);
         if (controller.signal.aborted) return;
         failures = 0;
-        setJob(next);
-        if (next.status === 'complete' && next.result) {
-          setAnalysis(next.result);
-          setBusy(false);
-          setTimeout(
-            () => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-            100,
-          );
-        } else if (next.status === 'failed') {
-          setBusy(false);
-          setError(next.error ?? 'Analysis failed.');
-        } else timer = setTimeout(poll, 1200);
+        applyJob(next);
+        if (['queued', 'running'].includes(next.status)) timer = setTimeout(poll, 1200);
       } catch (e) {
         if (!controller.signal.aborted) {
           if (++failures <= 3) timer = setTimeout(poll, 1000 * 2 ** (failures - 1));
@@ -507,6 +565,7 @@ export default function App() {
         (role === 'all' || p.role === role) && p.name.toLowerCase().includes(query.toLowerCase()),
     ) ?? [];
   const change = (patch: Partial<Selection>) => {
+    clearAnalysisLocation();
     setSelection((s) => ({ ...s, ...patch }));
     setAnalysis(null);
     setJob(null);
@@ -517,6 +576,7 @@ export default function App() {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
+    clearAnalysisLocation();
     setBusy(true);
     setError('');
     setAnalysis(null);
@@ -540,6 +600,9 @@ export default function App() {
   }
   async function start() {
     if (!report || busy) return;
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
     setBusy(true);
     setError('');
     setAnalysis(null);
@@ -547,11 +610,17 @@ export default function App() {
     setPollPaused(false);
     const frozen = { ...selection, fightIds: chosen.map((f) => f.id) };
     try {
-      const created = await api<{ id: string; status: Job['status'] }>('/api/analyses', {
-        reportCode: report.code,
-        demo: report.source === 'demo',
-        selection: frozen,
-      });
+      const created = await api<{ id: string; status: Job['status'] }>(
+        '/api/analyses',
+        {
+          reportCode: report.code,
+          demo: report.source === 'demo',
+          selection: frozen,
+        },
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      window.history.pushState(null, '', analysisLink(window.location.origin, created.id));
       setJob({
         id: created.id,
         status: created.status,
@@ -563,6 +632,7 @@ export default function App() {
         demo: report.source === 'demo',
       });
     } catch (e) {
+      if (controller.signal.aborted) return;
       setBusy(false);
       setError(e instanceof Error ? e.message : 'Analysis could not start.');
     }
@@ -656,10 +726,20 @@ export default function App() {
             <div>
               <strong>Unable to continue</strong>
               <p>{error}</p>
+              {new URLSearchParams(window.location.search).has('analysis') && (
+                <a href="/" className="secondary">
+                  Start a new analysis
+                </a>
+              )}
             </div>
             <button className="icon-button" aria-label="Dismiss error" onClick={() => setError('')}>
               <X size={17} />
             </button>
+          </div>
+        )}
+        {busy && !job && !report && new URLSearchParams(window.location.search).has('analysis') && (
+          <div className="notice subtle" role="status">
+            <LoaderCircle size={18} className="spin" /> Opening shared analysis…
           </div>
         )}
         {report && (
@@ -841,41 +921,40 @@ export default function App() {
                 </div>
               )}
             </section>
-            {busy && job && (
-              <section className="panel progress-panel" role="status">
-                <div>
-                  <LoaderCircle size={20} className="spin" />
-                  <strong>{job.message}</strong>
-                  <span>{job.progress}%</span>
-                </div>
-                <progress value={job.progress} max={100} />
-                {pollPaused && (
-                  <div className="notice error" role="alert">
-                    <div>
-                      <strong>Status check interrupted</strong>
-                      <p>
-                        The analysis may still be running. Resume checking the same analysis without
-                        submitting a duplicate.
-                      </p>
-                      <button
-                        className="secondary"
-                        onClick={() => {
-                          setPollPaused(false);
-                          setPollRetry((n) => n + 1);
-                        }}
-                      >
-                        Resume status check
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <p className="small muted">
-                  The worker saves completed pulls. A retry reuses cached data instead of starting
-                  over.
-                </p>
-              </section>
-            )}
           </>
+        )}
+        {busy && job && (
+          <section className="panel progress-panel" role="status">
+            <div>
+              <LoaderCircle size={20} className="spin" />
+              <strong>{job.message}</strong>
+              <span>{job.progress}%</span>
+            </div>
+            <progress value={job.progress} max={100} />
+            {pollPaused && (
+              <div className="notice error" role="alert">
+                <div>
+                  <strong>Status check interrupted</strong>
+                  <p>
+                    The analysis may still be running. Resume checking the same analysis without
+                    submitting a duplicate.
+                  </p>
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setPollPaused(false);
+                      setPollRetry((n) => n + 1);
+                    }}
+                  >
+                    Resume status check
+                  </button>
+                </div>
+              </div>
+            )}
+            <p className="small muted">
+              The worker saves completed pulls. A retry reuses cached data instead of starting over.
+            </p>
+          </section>
         )}
         {analysis && (
           <section ref={resultRef} className="results">
@@ -884,9 +963,16 @@ export default function App() {
                 <p className="eyebrow">THE SELECTED SESSION</p>
                 <h2>Raid performance</h2>
               </div>
-              <button className="secondary" onClick={() => setMethod(true)}>
-                <CircleHelp size={15} /> How scoring works
-              </button>
+              <div className="result-actions">
+                {job?.status === 'complete' && (
+                  <button className="primary" onClick={() => setShare(true)}>
+                    <Share2 size={15} /> Share analysis
+                  </button>
+                )}
+                <button className="secondary" onClick={() => setMethod(true)}>
+                  <CircleHelp size={15} /> How scoring works
+                </button>
+              </div>
             </div>
             <div className="stats">
               <div>
@@ -1175,6 +1261,11 @@ export default function App() {
           </a>
         </footer>
       </main>
+      {share && job && analysis && (
+        <Modal title="Share analysis" onClose={() => setShare(false)}>
+          <ShareLink job={job} />
+        </Modal>
+      )}
       {player && analysis && (
         <Modal title="Player analysis" onClose={() => setPlayer(null)} wide>
           <PlayerDetails key={player.id} player={player} analysis={analysis} />

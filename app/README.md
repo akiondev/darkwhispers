@@ -1,4 +1,4 @@
-# DarkWhispers App · prototype 0.4.1
+# DarkWhispers App · prototype 0.4.2
 
 Evidence-first Warcraft Logs raid analysis. React 19 + TypeScript, Vite 8, Fastify 5, PostgreSQL 16 and pg-boss. API and analysis worker are separate processes. No paid services or AI-generated player grades.
 
@@ -17,6 +17,10 @@ npm run dev
 Visit http://127.0.0.1:8878. Without PostgreSQL configuration, local development uses a disposable in-memory store and inline worker. The explicitly labelled synthetic demo requires no credentials. No real log is substituted with demo data.
 
 To import public Warcraft Logs reports, set `WCL_CLIENT_ID` and `WCL_CLIENT_SECRET` **only on the backend**. Obtain them through the Warcraft Logs API client settings. Client Credentials uses `/oauth/token` and `/api/v2/client`; it does not require a callback or user login. Never prefix secrets with VITE_, include them in a public bundle, commit them, or paste them into a report URL.
+
+## Share an analysis
+
+Every analysis has its own opaque UUID link, `/?analysis=<id>`. The address is saved when analysis starts, so refreshes can resume the same queued job. **Share analysis** opens a copyable URL and its seven-day expiry date. A recipient loads the stored result, exact pull IDs, filters and scoring-window setting without creating another job or calling Warcraft Logs. Completed results are snapshots, not silently recomputed after scoring-engine updates. Anyone possessing a link can read its report/player data; there is no public analysis index. An expired or invalid link shows a recovery message. The clipboard button falls back to a selected URL for manual copying.
 
 ## Data and scoring
 

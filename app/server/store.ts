@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import type { Job, PullData, Report, Selection } from '../shared/types.js';
+import { ANALYSIS_RETENTION_MS } from '../shared/share.js';
 export const MAX_ACTIVE_JOBS = 12;
 const MAX_AGE_MS = 2 * 3600000;
 const active = (job: Job) => job.status === 'queued' || job.status === 'running';
@@ -65,6 +66,10 @@ export class MemoryStore implements Store {
   }
   async getJob(id: string): Promise<Job | null> {
     const job = this.jobs.get(id);
+    if (job && Date.parse(job.createdAt) <= Date.now() - ANALYSIS_RETENTION_MS) {
+      this.jobs.delete(id);
+      return null;
+    }
     if (job && expired(job)) Object.assign(job, expiry);
     return job ?? null;
   }
