@@ -108,11 +108,13 @@ export default function RoleSummary({
         </div>
         <div>
           <span>
-            {player.role === 'tank'
-              ? 'Tank contacts · observation only'
-              : mechanicName
-                ? `${mechanicName} contact windows`
-                : 'Verified mechanic opportunities'}
+            {player.pullReviews
+              ? 'Verified mechanic checks'
+              : player.role === 'tank'
+                ? 'Tank contacts · observation only'
+                : mechanicName
+                  ? `${mechanicName} contact windows`
+                  : 'Verified mechanic opportunities'}
           </span>
           <strong>
             {player.mechanicOpportunities === null

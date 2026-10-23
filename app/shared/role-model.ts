@@ -8,7 +8,7 @@ import type {
   RoleFactorKey,
 } from './types.js';
 import { roleFromSpec } from './players.js';
-export const ROLE_MODEL_VERSION = 'role-evidence/v1';
+export const ROLE_MODEL_VERSION = 'role-evidence/v2';
 export const ROLE_WEIGHTS: Record<Role, Record<RoleFactorKey, number>> = {
   dps: { survival: 30, activity: 20, output: 30, protection: 0, mechanics: 20 },
   healer: { survival: 35, activity: 15, output: 30, protection: 0, mechanics: 20 },
@@ -106,7 +106,11 @@ export function combineAssessments(
   );
 }
 
-export function applyRoleModel(analysis: Analysis, pulls: PullData[]): Analysis {
+export function applyRoleModel(
+  analysis: Analysis,
+  pulls: PullData[],
+  includePullReviews = true,
+): Analysis {
   for (const player of analysis.players) {
     const own = pulls.filter((p) => p.fight.friendlyPlayers.includes(player.id));
     const perBoss = new Map<number, RoleAssessment>();
@@ -167,7 +171,44 @@ export function applyRoleModel(analysis: Analysis, pulls: PullData[]): Analysis 
             );
             const opportunities = sum(mechanic.map((r) => r.metric.mechanicOpportunities ?? 0)),
               failures = sum(mechanic.map((r) => r.metric.mechanicFailures ?? 0));
-            const mechAllowed = role !== 'tank' && role !== 'unknown';
+            const mechAllowed = role !== 'unknown';
+            const checks = new Map<
+              string,
+              { weight: number; opportunities: number; failures: number; unknown: number }
+            >();
+            for (const m of metrics)
+              for (const r of m.mechanics ?? []) {
+                if (!r.weight || !(r.opportunities + r.unknown)) continue;
+                const c = checks.get(r.ruleId) ?? {
+                  weight: r.weight,
+                  opportunities: 0,
+                  failures: 0,
+                  unknown: 0,
+                };
+                c.opportunities += r.opportunities;
+                c.failures += r.failures;
+                c.unknown += r.unknown;
+                checks.set(r.ruleId, c);
+              }
+            const ruleWeight = sum([...checks.values()].map((c) => c.weight));
+            const knownRuleWeight = sum(
+              [...checks.values()].map(
+                (c) =>
+                  c.weight *
+                  (c.opportunities / (c.opportunities + c.unknown)) *
+                  Math.min(1, c.opportunities / 3),
+              ),
+            );
+            const rulePoints = sum(
+              [...checks.values()].map(
+                (c) =>
+                  c.weight *
+                  (c.opportunities / (c.opportunities + c.unknown)) *
+                  Math.min(1, c.opportunities / 3) *
+                  (c.opportunities ? 1 - c.failures / c.opportunities : 0),
+              ),
+            );
+            const legacyAllowed = role !== 'tank' && mechAllowed;
             const measuredMechanicTime = sum(mechanic.map((r) => r.duration));
             const factors = [
               factor(
@@ -209,13 +250,21 @@ export function applyRoleModel(analysis: Analysis, pulls: PullData[]): Analysis 
               factor(
                 'mechanics',
                 weights.mechanics,
-                mechAllowed && opportunities ? 100 * (1 - failures / opportunities) : null,
-                mechAllowed && duration
-                  ? (measuredMechanicTime / duration) * Math.min(1, opportunities / 10)
-                  : 0,
-                role === 'tank'
-                  ? 'Tank assignments, required contacts, swaps and soaks are not inferred from generic hits. This weight remains explicitly unknown until a verified applicable duty rule exists.'
-                  : `${failures} failed / ${opportunities} verified opportunities across ${mechanic.length} pulls. Unmodelled abilities are observations, not errors. Rule coverage is disclosed separately from sample size.`,
+                mechAllowed && knownRuleWeight
+                  ? (100 * rulePoints) / knownRuleWeight
+                  : legacyAllowed && opportunities
+                    ? 100 * (1 - failures / opportunities)
+                    : null,
+                mechAllowed && ruleWeight
+                  ? knownRuleWeight / ruleWeight
+                  : legacyAllowed && duration
+                    ? (measuredMechanicTime / duration) * Math.min(1, opportunities / 10)
+                    : 0,
+                ruleWeight
+                  ? `${failures} failed / ${opportunities} verified opportunities in ${checks.size} rule families. Each mechanic has its own severity budget, so repeated easy checks cannot dilute another mechanic. Unknown exposure stays neutral. Three opportunities per rule reach the sample cap; this is a disclosed policy, not statistical certainty. Required tank contact, soaks and shared raid incidents are separated. See each pull for exact checks and sources.`
+                  : role === 'tank'
+                    ? 'No verified tank duty opportunities in this selection. Required contacts, assignments and unknown swaps are not invented as errors.'
+                    : `${failures} failed / ${opportunities} verified opportunities across ${mechanic.length} pulls. Unmodelled abilities are observations, not errors. Rule coverage is disclosed separately from sample size.`,
               ),
             ];
             const notes = [
@@ -303,6 +352,83 @@ export function applyRoleModel(analysis: Analysis, pulls: PullData[]): Analysis 
       `All ${player.pulls} attended pulls are included. ${player.bosses} of ${analysis.summary.bosses} selected bosses attended. Unattended bosses remain unknown midpoint weight with explicit bounds, never zeroes. Low participation is limited evidence, not proof of poor play.`,
       ...player.assessment.notes,
     ];
+    if (includePullReviews)
+      player.pullReviews = own.flatMap((p) => {
+        const raw = p.metrics.find((m) => m.actorId === player.id);
+        if (!raw) return [];
+        const m =
+          analysis.selection.excludeWipeTail && p.evaluation ? { ...raw, ...raw.evaluated } : raw;
+        const duration =
+          (analysis.selection.excludeWipeTail && p.evaluation
+            ? p.evaluation.endTime
+            : p.fight.endTime) - p.fight.startTime;
+        const perBoss = player.perBoss.find((b) => b.encounterId === p.fight.encounterId)!;
+        const single = {
+          ...player,
+          pulls: 1,
+          bosses: 1,
+          bossCoverage: 100,
+          perBoss: [{ ...perBoss }],
+          evidence: [],
+          pullReviews: undefined,
+        };
+        const mini = {
+          ...analysis,
+          players: [single],
+          summary: { ...analysis.summary, bosses: 1, pulls: 1 },
+          warnings: [],
+          methodology: { ...analysis.methodology },
+        };
+        applyRoleModel(mini, [p], false);
+        const a = single.assessment!;
+        const loss = [...a.factors]
+          .filter((f) => f.measuredWeight > 0)
+          .sort((a, b) => b.measuredWeight - b.points - (a.measuredWeight - a.points))[0];
+        return [
+          {
+            fightId: p.fight.id,
+            role: roleFromSpec(p.fight.playerSpecs?.[player.id] ?? player.spec),
+            assessment: a,
+            aliveMs: m.aliveMs,
+            durationMs: duration,
+            deaths: m.deaths,
+            damage: raw.damage,
+            healing: raw.healing,
+            mechanics: m.mechanics ?? [],
+            summary: `${m.mechanicFailures ?? 0} failed / ${m.mechanicOpportunities ?? 0} verified checks; ${m.deaths} recorded deaths in the scoring window. ${loss ? `Largest measured reduction: ${loss.name.toLowerCase()} (${(loss.measuredWeight - loss.points).toFixed(1)} points).` : ''} Missing evidence remains neutral, not a success.`,
+          },
+        ];
+      });
+  }
+  if (includePullReviews) {
+    analysis.mechanicCatalogue = {};
+    for (const player of analysis.players)
+      for (const review of player.pullReviews ?? [])
+        review.mechanics = review.mechanics.map((raw) => {
+          const r = raw as import('./types.js').MechanicResult;
+          const { ruleId, name, kind, weight, detail, source, abilityIds } = r;
+          analysis.mechanicCatalogue![ruleId] = {
+            ruleId,
+            name,
+            kind,
+            weight,
+            detail,
+            source,
+            abilityIds,
+          };
+          return {
+            ruleId,
+            opportunities: r.opportunities,
+            failures: r.failures,
+            unknown: r.unknown,
+            observed: r.observed,
+            breakdown: r.breakdown,
+            events: r.events.map((e) => ({
+              ...e,
+              detail: e.outcome === 'observed' && e.detail === detail ? '' : e.detail,
+            })),
+          };
+        });
   }
   analysis.players.sort((a, b) => b.score! - a.score! || a.name.localeCompare(b.name));
   function ranks(players: Analysis['players'], role = false) {
@@ -324,6 +450,11 @@ export function applyRoleModel(analysis: Analysis, pulls: PullData[]): Analysis 
       analysis.players.filter((p) => p.role === role),
       true,
     );
+  const order = { dps: 0, healer: 1, tank: 2, unknown: 3 };
+  analysis.players.sort(
+    (a, b) => order[a.role] - order[b.role] || b.score! - a.score! || a.name.localeCompare(b.name),
+  );
+  for (const p of analysis.players) p.rank = p.roleRank ?? null;
   analysis.summary.coverage = mean(analysis.players.map((p) => p.coverage));
   analysis.warnings = analysis.warnings.filter(
     (w) =>
@@ -335,11 +466,11 @@ export function applyRoleModel(analysis: Analysis, pulls: PullData[]): Analysis 
   analysis.warnings.push(
     'With comparison cutoffs enabled, sustained terminal 50% mortality may shorten any raid wipe. Kills stay full length; only the verified Sszorak Mythic enrage supplies a spell-specific cutoff. Full raw totals remain visible.',
     'Universal role index runs on every boss and difficulty. Unknown evidence is displayed explicitly with a neutral midpoint and score range; high output alone cannot create a perfect grade. Boss-specific avoidable-mechanic coverage is separate.',
-    'Role weights are transparent design choices, not scientifically calibrated probabilities of player skill. Tanks, mixed-role players and short attendance are included. Difficulty contexts are calculated separately; attended bosses receive equal weight.',
+    'Role weights are transparent design choices, not scientifically calibrated probabilities of player skill. Role rankings are separate: DPS, healers, tanks, then mixed/unknown. All selected bosses receive equal weight; unattended bosses remain unknown.',
   );
   analysis.methodology.rules = [ROLE_MODEL_VERSION, ...analysis.methodology.rules];
   analysis.methodology.bossWeighting =
-    'Fixed role weights combine survival, role-context action continuity, available class/spec kill output, tank response and verified mechanics. Unknown weight remains neutral 50 with explicit bounds, never silently transferred to survival. Calculate each boss/difficulty/role context separately; each difficulty and attended boss receives equal weight. All participants are ranked with participation and evidence coverage visible.';
+    'Fixed role weights combine survival, role-context action continuity, available class/spec kill output, tank response and verified mechanics. Unknown weight remains neutral 50 with explicit bounds. Each difficulty and selected boss receives equal weight; unattended bosses remain unknown. Rankings are separate by role: DPS, healers, tanks, then mixed/unknown. Pull details show exact rule outcomes and score inputs.';
   analysis.methodology.limitations = [
     'Role scores are evidence indices, not a complete causal judgement of player skill. See the factor formulas, measured and neutral points, and missing-evidence range.',
     'Boss mechanics need verified encounter/difficulty adapters. The universal index remains available without them; unrecognised debuffs never become automatic mistakes.',

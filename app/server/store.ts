@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
-import type { Job, PullData, Report, Selection } from '../shared/types.js';
+import type { Job, PullData, Report, Selection, RecentAnalysis } from '../shared/types.js';
 import { ANALYSIS_RETENTION_MS } from '../shared/share.js';
 export const MAX_ACTIVE_JOBS = 12;
 const MAX_AGE_MS = 2 * 3600000;
@@ -19,6 +19,7 @@ export class QueueFullError extends Error {
   }
 }
 export interface Store {
+  recentAnalyses(): Promise<RecentAnalysis[]>;
   getReport(code: string): Promise<Report | null>;
   putReport(report: Report): Promise<void>;
   getPull(key: string): Promise<PullData | null>;
@@ -33,6 +34,23 @@ export class MemoryStore implements Store {
   reports = new Map<string, Report>();
   pulls = new Map<string, PullData>();
   jobs = new Map<string, Job>();
+  async recentAnalyses() {
+    const unique = new Map<string, RecentAnalysis>();
+    for (const job of [...this.jobs.values()].sort(
+      (a, b) =>
+        Date.parse(b.result?.generatedAt ?? b.createdAt) -
+        Date.parse(a.result?.generatedAt ?? a.createdAt),
+    )) {
+      const item = recentMetadata(job);
+      if (
+        item &&
+        Date.parse(job.createdAt) > Date.now() - ANALYSIS_RETENTION_MS &&
+        !unique.has(item.reportCode)
+      )
+        unique.set(item.reportCode, item);
+    }
+    return [...unique.values()].slice(0, 6);
+  }
   async getReport(code: string) {
     return this.reports.get(code) ?? null;
   }
@@ -98,6 +116,16 @@ export class PgStore implements Store {
       CREATE TABLE IF NOT EXISTS pulls(cache_key text PRIMARY KEY,data jsonb NOT NULL,expires timestamptz NOT NULL);
       CREATE TABLE IF NOT EXISTS analyses(id uuid PRIMARY KEY,data jsonb NOT NULL,created timestamptz NOT NULL DEFAULT now());
       CREATE INDEX IF NOT EXISTS analyses_created_idx ON analyses(created);`);
+    await this.pool
+      .query(`CREATE TABLE IF NOT EXISTS recent_analyses(id uuid PRIMARY KEY, report_code text NOT NULL, data jsonb NOT NULL, created timestamptz NOT NULL DEFAULT now(), expires timestamptz NOT NULL);
+      CREATE INDEX IF NOT EXISTS recent_analyses_report_created_idx ON recent_analyses(report_code,created DESC);
+      CREATE INDEX IF NOT EXISTS recent_analyses_created_idx ON recent_analyses(created DESC);`);
+  }
+  async recentAnalyses() {
+    const result = await this.pool.query(
+      `SELECT data FROM (SELECT DISTINCT ON (report_code) data,created FROM recent_analyses WHERE expires>now() ORDER BY report_code,created DESC) recent ORDER BY created DESC LIMIT 6`,
+    );
+    return result.rows.map((r) => r.data as RecentAnalysis);
   }
   async getReport(code: string) {
     const r = await this.pool.query('SELECT data FROM reports WHERE code=$1 AND expires>now()', [
@@ -181,9 +209,13 @@ export class PgStore implements Store {
   }
   async updateJob(id: string, patch: Partial<Job>) {
     await this.pool.query(
-      `UPDATE analyses SET data=data||CASE
+      `WITH updated AS (UPDATE analyses SET data=data||CASE
       WHEN $2::jsonb ? 'progress' AND ($2::jsonb->>'progress')::numeric < (data->>'progress')::numeric
-      THEN $2::jsonb - 'progress' - 'message' ELSE $2::jsonb END WHERE id=$1 AND data->>'status' IN ('queued','running')`,
+      THEN $2::jsonb - 'progress' - 'message' ELSE $2::jsonb END WHERE id=$1 AND data->>'status' IN ('queued','running') RETURNING id,data,created)
+      INSERT INTO recent_analyses(id,report_code,data,expires)
+      SELECT id,data->>'reportCode',jsonb_build_object('id',id,'reportCode',data->>'reportCode','title',left(data#>>'{result,report,title}',160),'generatedAt',data#>>'{result,generatedAt}','bosses',data#>'{result,summary,bosses}','pulls',data#>'{result,summary,pulls}','players',data#>'{result,summary,players}','version',data#>>'{result,version}'),created+interval '7 days' FROM updated
+      WHERE data->>'status'='complete' AND data->>'demo'='false' AND data#>>'{result,report,source}'='warcraftlogs' AND lower(data#>>'{result,report,visibility}')='public'
+      ON CONFLICT(id) DO NOTHING`,
       [id, JSON.stringify(patch)],
     );
   }
@@ -195,10 +227,31 @@ export class PgStore implements Store {
   }
   async cleanup() {
     await this.pool.query(
-      "DELETE FROM reports WHERE expires<now(); DELETE FROM pulls WHERE expires<now(); DELETE FROM analyses WHERE created<now()-interval '7 days';",
+      "DELETE FROM reports WHERE expires<now(); DELETE FROM pulls WHERE expires<now(); DELETE FROM analyses WHERE created<now()-interval '7 days'; DELETE FROM recent_analyses WHERE expires<now();",
     );
   }
   async close() {
     await this.pool.end();
   }
+}
+export function recentMetadata(job: Job): RecentAnalysis | null {
+  const a = job.result;
+  if (
+    job.status !== 'complete' ||
+    job.demo ||
+    !a ||
+    a.report.source !== 'warcraftlogs' ||
+    a.report.visibility.toLowerCase() !== 'public'
+  )
+    return null;
+  return {
+    id: job.id,
+    title: a.report.title.slice(0, 160),
+    reportCode: a.report.code,
+    generatedAt: a.generatedAt,
+    bosses: a.summary.bosses,
+    pulls: a.summary.pulls,
+    players: a.summary.players,
+    version: a.version,
+  };
 }

@@ -113,6 +113,7 @@ export async function createApi(
     return { status: 'ok', application: 'darkwhispers-app', version: VERSION };
   });
   app.get('/api/demo/report', async () => demoData().report);
+  app.get('/api/recent-analyses', async () => ({ analyses: await store.recentAnalyses() }));
   app.post(
     '/api/reports/inspect',
     { config: { rateLimit: { max: 6, timeWindow: '1 minute' } } },

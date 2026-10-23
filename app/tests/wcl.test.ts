@@ -288,7 +288,7 @@ test('malformed metric totals fail the import instead of appearing as zero outpu
   );
 });
 
-test('tank vulnerability and healer cooldown/overheal context are observations without invented penalties', async () => {
+test('required first Ravage is unknown, while a new hit with verified prior vulnerability creates a swap review', async () => {
   const { report } = demoData();
   const fight = { ...report.fights[0], encounterId: 3420 };
   class Client extends WclClient {
@@ -356,9 +356,12 @@ test('tank vulnerability and healer cooldown/overheal context are observations w
   assert.equal(p.metrics[1].deaths, 1, 'An unlabelled environmental death is still real');
   assert.equal(
     p.metrics[0].mechanicFailures,
-    null,
-    'Required Ravage intake is not an avoidance error',
+    1,
+    'The first required hit is not failed; only the second strike with observed prior vulnerability fails the swap check',
   );
+  const duty = p.metrics[0].mechanics!.find((r) => r.name === 'Ravage')!;
+  assert.equal(duty.unknown, 1);
+  assert.equal(duty.opportunities, 1);
 });
 test('unranked percentile placeholders are missing values, and pet ownership is bounded', () => {
   assert.equal(parsePercentile('-'), null);

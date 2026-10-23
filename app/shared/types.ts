@@ -51,6 +51,7 @@ export type Evidence = {
   url: string | null;
 };
 export type Metric = {
+  mechanics?: MechanicResult[];
   activity?: ActivityFacts;
   actorId: number;
   damage: number;
@@ -75,6 +76,7 @@ export type Metric = {
   ravageVulnerableHits?: number | null;
   tank?: TankFacts;
   evaluated?: {
+    mechanics?: MechanicResult[];
     aliveMs: number;
     mechanicFailures: number | null;
     mechanicOpportunities: number | null;
@@ -88,6 +90,59 @@ export type ActivityFacts = {
   eligibleMs: number;
   activeWindows: number;
   eligibleWindows: number;
+};
+export type MechanicResult = {
+  ruleId: string;
+  name: string;
+  kind: string;
+  weight: number;
+  opportunities: number;
+  failures: number;
+  unknown: number;
+  observed: number;
+  detail: string;
+  source: string;
+  abilityIds: number[];
+  breakdown?: {
+    abilityId: number;
+    name: string;
+    damage: number;
+    hits: number;
+    applications: number;
+    casts: number;
+    utility: number;
+  }[];
+  events: {
+    timestamp: number;
+    outcome: 'passed' | 'failed' | 'observed' | 'unknown';
+    detail: string;
+    url: string | null;
+  }[];
+};
+export type PlayerPullReview = {
+  fightId: number;
+  role: Role;
+  assessment: RoleAssessment;
+  aliveMs: number;
+  durationMs: number;
+  deaths: number;
+  damage: number;
+  healing: number;
+  mechanics: Pick<
+    MechanicResult,
+    'ruleId' | 'opportunities' | 'failures' | 'unknown' | 'observed' | 'events' | 'breakdown'
+  >[];
+  summary: string;
+};
+export type RecentAnalysis = {
+  id: string;
+  title: string;
+  reportCode: string;
+  generatedAt: string;
+  bosses: number;
+  pulls: number;
+  players: number;
+  version: string;
 };
 export type TankFacts = {
   profile: string;
@@ -181,6 +236,7 @@ export type PlayerBossScore = {
   tankReview?: TankReview;
 };
 export type RankedPlayer = Player & {
+  pullReviews?: PlayerPullReview[];
   assessment?: RoleAssessment;
   rank: number | null;
   score: number | null;
@@ -255,6 +311,10 @@ export type Finding = {
   evidence?: Evidence[];
 };
 export type Analysis = {
+  mechanicCatalogue?: Record<
+    string,
+    Pick<MechanicResult, 'ruleId' | 'name' | 'kind' | 'weight' | 'detail' | 'source' | 'abilityIds'>
+  >;
   version: string;
   generatedAt: string;
   report: Report;

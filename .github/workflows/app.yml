@@ -11,6 +11,20 @@ jobs:
     if: github.repository == 'akiondev/darkwhispers' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dwrt_test
+          POSTGRES_PASSWORD: dwrt_test
+          POSTGRES_DB: dwrt_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     permissions:
       contents: read
       id-token: write
@@ -36,6 +50,13 @@ jobs:
           mkdir -p reports
           npm run check 2>&1 | tee reports/typecheck.txt
           npm test 2>&1 | tee reports/tests.txt
+      - name: Isolated PostgreSQL integration and concurrent-read load test
+        env:
+          TEST_DATABASE_URL: postgresql://dwrt_test:dwrt_test@127.0.0.1:5432/dwrt_test
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:postgres 2>&1 | tee reports/postgres-tests.txt
       - name: Dependency security audit
         shell: bash
         run: |

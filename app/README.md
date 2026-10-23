@@ -1,4 +1,4 @@
-# DarkWhispers App · prototype 0.5.0
+# DarkWhispers App · prototype 0.6.0
 
 Evidence-first Warcraft Logs raid analysis. React 19 + TypeScript, Vite 8, Fastify 5, PostgreSQL 16 and pg-boss. API and analysis worker are separate processes. No paid services or AI-generated player grades.
 
@@ -20,7 +20,7 @@ To import public Warcraft Logs reports, set `WCL_CLIENT_ID` and `WCL_CLIENT_SECR
 
 ## Share an analysis
 
-Every analysis has its own opaque UUID link, `/?analysis=<id>`. The address is saved when analysis starts, so refreshes can resume the same queued job. **Share analysis** opens a copyable URL and its seven-day expiry date. A recipient loads the stored result, exact pull IDs, filters and scoring-window setting without creating another job or calling Warcraft Logs. Completed results are snapshots, not silently recomputed after scoring-engine updates. Anyone possessing a link can read its report/player data; there is no public analysis index. An expired or invalid link shows a recovery message. The clipboard button falls back to a selected URL for manual copying.
+Every analysis has its own opaque UUID link, `/?analysis=<id>`. Refreshes resume the same job; readers do not enqueue work or call WCL. Completed snapshots are immutable. Links expire after seven days. Anyone possessing a link can read its report/player data. The front page lists minimal metadata for recent completed **public live reports only**, deduplicated by report; private, unlisted and synthetic analyses are excluded. The clipboard button falls back to a selected URL for manual copying.
 
 ## Universal role scoring
 
@@ -32,7 +32,7 @@ Unknown and undersampled weight is explicitly held at neutral 50. Those points a
 
 Difficulty and role contexts are evaluated separately. Difficulties within a boss and selected bosses within a report receive equal weight. Unattended bosses remain explicitly unknown midpoint weight and bounds, never zeroes. All attended pulls contribute; short attendance is disclosed rather than excluded. Optional sustained terminal 50% raid-mortality cutoffs apply consistently to survival, activity, tank response and applicable mechanics on all raid wipes. Feign Death is excluded, battle resurrections count, kills retain full duration, and raw full-pull damage/healing/deaths stay visible. This comparison policy does not infer a voice wipe call.
 
-Boss-specific failure adapters are separate from universal role support. Unknown debuffs and damage are observations, not automatic mistakes. Tempest's verified encounter/spell identity supports direct-contact windows across raid difficulties where that timeline exists; generic avoidance is not used to judge tank assignments. This does not claim a hand-authored failure rule for every mechanic on every boss.
+The [Midnight S2 rule inventory and validation limits](docs/midnight-s2-rules.md) cover all ten bosses and difficulty gating. Player/pull reviews separate verified contacts and resolutions, tank swaps, required soaks, successful utility, shared raid incidents and context-only mechanics. Each row links to its timeline and reference. Gravebound fragment damage and required tank/channel hits are not automatic mistakes. Missing positional/assignment evidence stays explicit. Role standings are separate, ordered DPS, healers, tanks, then mixed/unknown; there is no cross-role ordinal comparison.
 
 Colour bands remain 100 gold-orange for complete evidence, 99 pink, 90-98 purple, 70-89 blue, 50-69 green, 30-49 yellow and 0-29 grey. Partial live indices retain ~ and never receive the complete-perfect badge. Each player opens with the reason for the result and expandable factor/pull evidence. Older shared snapshots stay immutable and offer an explicit Update analysis action creating a new result/link.
 

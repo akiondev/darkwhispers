@@ -1,5 +1,7 @@
 # Universal raid role index · 0.5.0
 
+Historical factor-method reference. Version 0.6.0 expands encounter rules, per-pull explanations and role-separated standings; see [the current S2 rule inventory](midnight-s2-rules.md). The old Tempest-only mechanic scope and tank-mechanic withholding described below no longer define current rule coverage. The fixed-factor formulas and missing-evidence policy remain applicable.
+
 ## Scope
 
 All completed raid encounters and difficulty IDs use the same engine. There is no encounter allowlist for the role index. The Midnight Season 2 acceptance matrix covers all ten The Venomous Abyss encounters: Kith'ix (3513), Nek'zali (3470), Entombed Sentinels (3445), Vashnik (3455), The Lost Explorers (3497), Sszorak (3420), The Twin Fangs (3421), The Coiled Altar (3429), Ula'tek (3492) and Nymrissa Wavecaller (3379). Warcraft Logs raid difficulty IDs 1/3/4/5 represent LFR/Normal/Heroic/Mythic; 17 is accepted as an LFR alias. All six tank class profiles are exercised on all ten IDs and all four raid difficulties with labelled synthetic fixtures. Real-log validation covers Heroic and Mythic, not a claim of live LFR/Normal validation.

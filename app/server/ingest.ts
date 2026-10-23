@@ -6,6 +6,7 @@ import { applyTempest, supportsTempest, type MechanicEvent } from './mechanics.j
 import { ApiError, finite, list, object, text, WclClient } from './wcl.js';
 import { tankRecorder } from './tanks.js';
 import { actionContinuity } from './activity.js';
+import { encounterFilter, evaluateEncounter, type EncounterEvent } from './encounter-engine.js';
 
 // Observed cast catalogue only. No availability assumptions, cooldown guesses or non-use penalties.
 const DEFENSIVES = new Set([
@@ -199,6 +200,8 @@ export async function ingestPull(
   const ravageEvents: Record<string, any>[] = [];
   let enrage: number | null = null;
   const mechanicEvents: MechanicEvent[] = [];
+  const encounterEvents: EncounterEvent[] = [];
+  const encounterClauses = encounterFilter(fight, abilities);
   const actionEvents: { sourceID: number; timestamp: number }[] = [];
   const contextCastIds = [...abilities]
     .filter(
@@ -209,6 +212,7 @@ export async function ingestPull(
   const filter = [
     '(type = "cast" and source.type = "player")',
     ...tanks.filter,
+    ...encounterClauses,
     ...(tempest
       ? [
           '(type = "begincast" and ability.id = 1287072)',
@@ -244,6 +248,29 @@ export async function ingestPull(
     (events) => {
       tanks.observe(events);
       for (const event of events) {
+        if (encounterClauses.length) {
+          if (encounterEvents.length >= 250000)
+            throw new ApiError(
+              'MECHANIC_TIMELINE_LIMIT',
+              'This pull exceeds the bounded mechanic timeline. No partial ranking was produced.',
+              422,
+            );
+          encounterEvents.push({
+            type: event.type,
+            timestamp: event.timestamp,
+            sourceID: event.sourceID,
+            targetID: event.targetID,
+            abilityGameID: event.abilityGameID,
+            killingAbilityGameID: event.killingAbilityGameID,
+            extraAbilityGameID: event.extraAbilityGameID,
+            tick: event.tick,
+            amount: event.amount,
+            absorbed: event.absorbed,
+            stack: event.stack,
+            hitType: event.hitType,
+            missType: event.missType,
+          });
+        }
         if (event.type === 'death' && event.feign === true) continue;
         if (event.type === 'cast' && metrics.has(event.sourceID))
           actionEvents.push({ sourceID: event.sourceID, timestamp: event.timestamp });
@@ -331,7 +358,15 @@ export async function ingestPull(
   for (const [id, metric] of metrics) metric.aliveMs = aliveTime(fight, life.get(id) ?? []);
   const activity = actionContinuity(report, fight, actionEvents, life, fight.endTime);
   for (const [id, m] of metrics) m.activity = activity.get(id);
-  for (const { count, event } of observedAuras.values())
+  const mechanic = encounterClauses.length
+    ? evaluateEncounter(report, fight, metrics, encounterEvents, life, abilities)
+    : tempest
+      ? applyTempest(report, fight, metrics, mechanicEvents, life)
+      : { rule: null, warnings: [] };
+  warnings.push(...mechanic.warnings);
+  for (const { count, event } of observedAuras.values()) {
+    const m = metrics.get(finite(event.targetID));
+    if (m?.mechanics?.some((r) => r.abilityIds.includes(finite(event.abilityGameID)))) continue;
     evidence(
       finite(event.targetID),
       event,
@@ -339,20 +374,32 @@ export async function ingestPull(
       `Debuff applied ${count} time(s); linked to its first application. This is an observation, not a confirmed mechanic failure or a scoring penalty.`,
       'debuffs',
     );
-  const mechanic = tempest
-    ? applyTempest(report, fight, metrics, mechanicEvents, life)
-    : { rule: null, warnings: [] };
-  warnings.push(...mechanic.warnings);
+  }
   const evaluation = evaluationWindow(fight, life, enrage);
   if (evaluation) {
     const end = evaluation.endTime;
     const evaluatedMetrics = new Map<number, Metric>(
       [...metrics].map(([id, m]) => [
         id,
-        { ...m, evidence: [], mechanicFailures: null, mechanicOpportunities: null },
+        {
+          ...m,
+          mechanics: undefined,
+          evidence: [],
+          mechanicFailures: null,
+          mechanicOpportunities: null,
+        },
       ]),
     );
-    if (tempest)
+    if (encounterClauses.length)
+      evaluateEncounter(
+        report,
+        { ...fight, endTime: end },
+        evaluatedMetrics,
+        encounterEvents,
+        life,
+        abilities,
+      );
+    else if (tempest)
       applyTempest(
         report,
         { ...fight, endTime: end },
@@ -366,6 +413,7 @@ export async function ingestPull(
         deaths: (life.get(id) ?? []).filter((e) => e.type === 'death' && e.timestamp < end).length,
         mechanicFailures: evaluatedMetrics.get(id)!.mechanicFailures,
         mechanicOpportunities: evaluatedMetrics.get(id)!.mechanicOpportunities,
+        mechanics: evaluatedMetrics.get(id)!.mechanics,
       };
     const cutActivity = actionContinuity(report, fight, actionEvents, life, end);
     for (const [id, m] of metrics) m.evaluated!.activity = cutActivity.get(id);

@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   ArrowRight,
@@ -36,6 +36,8 @@ import { analysisLink, sharedAnalysisId } from '../shared/share.js';
 import ShareLink from './ShareLink.js';
 import { RoleFactors } from './RoleAssessment.js';
 import { ROLE_WEIGHTS } from '../shared/role-model.js';
+import PullReviews, { RoleIcon } from './PullReviews.js';
+import RecentAnalyses from './RecentAnalyses.js';
 const roleLabel = (player: Pick<RankedPlayer, 'role' | 'spec'>) =>
   player.role === 'unknown'
     ? player.spec === 'Mixed'
@@ -227,6 +229,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
           evidenceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }}
       />
+      <PullReviews player={player} analysis={analysis} />
       {player.roleRank && player.role !== 'unknown' && (
         <p className="small muted">
           Within-role rank: #{player.roleRank} of {player.rolePeers} {player.role} players ·
@@ -585,10 +588,16 @@ export default function App() {
     [report],
   );
   const shown =
-    analysis?.players.filter(
-      (p) =>
-        (role === 'all' || p.role === role) && p.name.toLowerCase().includes(query.toLowerCase()),
-    ) ?? [];
+    analysis?.players
+      .filter(
+        (p) =>
+          (role === 'all' || p.role === role) && p.name.toLowerCase().includes(query.toLowerCase()),
+      )
+      .sort(
+        (a, b) =>
+          ({ dps: 0, healer: 1, tank: 2, unknown: 3 })[a.role] -
+            { dps: 0, healer: 1, tank: 2, unknown: 3 }[b.role] || (b.score ?? -1) - (a.score ?? -1),
+      ) ?? [];
   const change = (patch: Partial<Selection>) => {
     clearAnalysisLocation();
     setSelection((s) => ({ ...s, ...patch }));
@@ -745,6 +754,7 @@ export default function App() {
             </p>
           )}
         </section>
+        {!report && !busy && <RecentAnalyses />}
         {error && (
           <div className="notice error" role="alert">
             <CircleHelp size={19} />
@@ -983,21 +993,20 @@ export default function App() {
         )}
         {analysis && (
           <section ref={resultRef} className="results">
-            {analysis.report.source === 'warcraftlogs' &&
-              !analysis.players.some((p) => p.assessment) && (
-                <div className="notice subtle">
-                  <div>
-                    <strong>Saved with the earlier scoring model</strong>
-                    <p>
-                      Reanalyze to use the current universal role engine for all bosses,
-                      difficulties and tanks. This saved snapshot stays unchanged.
-                    </p>
-                    <button className="primary" disabled={busy} onClick={() => void start()}>
-                      Update analysis
-                    </button>
-                  </div>
+            {analysis.report.source === 'warcraftlogs' && analysis.version !== VERSION && (
+              <div className="notice subtle">
+                <div>
+                  <strong>Saved with the earlier scoring model</strong>
+                  <p>
+                    Reanalyze to use the current universal role engine for all bosses, difficulties
+                    and tanks. This saved snapshot stays unchanged.
+                  </p>
+                  <button className="primary" disabled={busy} onClick={() => void start()}>
+                    Update analysis
+                  </button>
                 </div>
-              )}
+              </div>
+            )}
             <div className="section-heading">
               <div>
                 <p className="eyebrow">THE SELECTED SESSION</p>
@@ -1086,7 +1095,7 @@ export default function App() {
                   <p className="small muted">
                     Weighted 0–100 evidence score · ~ means partial coverage ·{' '}
                     {role === 'all'
-                      ? `all ${analysis.players.length} players included · ${analysis.players.filter((p) => p.role === 'tank').length} tanks · ungraded is not last place`
+                      ? `Separate role rankings · DPS, healers, tanks · all ${analysis.players.length} players included`
                       : role === 'tank'
                         ? analysis.players.some((p) => p.assessment)
                           ? 'tank role index · measured response and evidence range'
@@ -1125,7 +1134,7 @@ export default function App() {
                       <th>#</th>
                       <th>Player</th>
                       <th>Score</th>
-                      <th>Mechanics / tank coverage</th>
+                      <th>Verified mechanics</th>
                       <th>Alive · scored</th>
                       <th>Deaths</th>
                       <th>Output / sec</th>
@@ -1133,98 +1142,128 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {shown.map((p) => (
-                      <tr key={p.id} onClick={() => setPlayer(p)}>
-                        <td className="rank">
-                          {(role === 'all' || role === 'unknown' ? p.rank : p.roleRank) ?? '—'}
-                        </td>
-                        <td>
-                          <button
-                            className="player-button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPlayer(p);
-                            }}
-                          >
-                            <span className={`class-dot class-${p.class.toLowerCase()}`} />
-                            <span>
-                              {p.name}
-                              <small>
-                                {p.spec} {p.class} · {roleLabel(p)}
-                                {p.roleRank ? ` · #${p.roleRank}/${p.rolePeers} in role` : ''}
-                              </small>
-                            </span>
-                          </button>
-                        </td>
-                        <td>
-                          {p.tankReview && p.score === null ? (
-                            <span className="tank-review-label">
-                              Tank review<small className="cell-sub">Composite not graded</small>
-                            </span>
-                          ) : (
-                            <Score player={p} />
-                          )}
-                        </td>
-                        <td>
-                          {p.tankReview ? (
-                            <span>
-                              {p.assessment
-                                ? (p.assessment.factors
-                                    .find((f) => f.key === 'protection')
-                                    ?.score?.toFixed(1) ?? 'Unknown')
-                                : p.tankReview.protectionPercent === null
-                                  ? 'Not measured'
-                                  : `${p.tankReview.protectionPercent.toFixed(1)}%`}
-                              <small className="cell-sub">
+                    {shown.map((p, index) => (
+                      <Fragment key={p.id}>
+                        {(index === 0 || shown[index - 1].role !== p.role) && (
+                          <tr className="role-group">
+                            <th colSpan={8} scope="colgroup">
+                              <RoleIcon role={p.role} />
+                              {p.role === 'dps'
+                                ? 'DPS'
+                                : p.role === 'healer'
+                                  ? 'Healers'
+                                  : p.role === 'tank'
+                                    ? 'Tanks'
+                                    : 'Mixed / unknown roles'}
+                              <small>Ranked within this role only</small>
+                            </th>
+                          </tr>
+                        )}
+                        <tr key={p.id} onClick={() => setPlayer(p)}>
+                          <td className="rank">{p.roleRank ?? '—'}</td>
+                          <td>
+                            <button
+                              className="player-button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPlayer(p);
+                              }}
+                            >
+                              <span className={`class-dot class-${p.class.toLowerCase()}`} />
+                              <span>
+                                {p.name}
+                                <small>
+                                  {p.spec} {p.class} · {roleLabel(p)}
+                                  {p.roleRank ? ` · #${p.roleRank}/${p.rolePeers} in role` : ''}
+                                </small>
+                              </span>
+                            </button>
+                          </td>
+                          <td>
+                            {p.tankReview && p.score === null ? (
+                              <span className="tank-review-label">
+                                Tank review<small className="cell-sub">Composite not graded</small>
+                              </span>
+                            ) : (
+                              <Score player={p} />
+                            )}
+                          </td>
+                          <td>
+                            {p.pullReviews ? (
+                              <span>
+                                {p.mechanicFailures ?? 0}
+                                <small className="cell-sub">
+                                  failed / {p.mechanicOpportunities ?? 0} verified checks
+                                </small>
+                                {p.tankReview && (
+                                  <small className="cell-sub">
+                                    Tank response:{' '}
+                                    {p.assessment?.factors
+                                      .find((f) => f.key === 'protection')
+                                      ?.score?.toFixed(1) ?? 'unknown'}
+                                  </small>
+                                )}
+                              </span>
+                            ) : p.tankReview ? (
+                              <span>
                                 {p.assessment
-                                  ? 'Tank defensive response · see calculation'
-                                  : `Primary protection · ${p.tankReview.facts.knownMeleeEvents} known melee attempts`}
-                              </small>
-                            </span>
-                          ) : p.mechanicFailures === null ? (
-                            <span className="muted">
-                              {p.assessment ? (
-                                <>
-                                  Role index active
-                                  <small className="cell-sub">Boss mechanics unverified</small>
-                                </>
-                              ) : (
-                                'Not scored'
-                              )}
-                            </span>
-                          ) : (
-                            <span>
-                              {p.mechanicFailures}
-                              <small className="cell-sub">
-                                failed / {p.mechanicOpportunities} opportunities
-                              </small>
-                            </span>
-                          )}
-                        </td>
-                        <td>
-                          {(
-                            (100 * (p.evaluatedAliveMs ?? p.aliveMs)) /
-                            Math.max(1, p.evaluatedDurationMs ?? p.durationMs)
-                          ).toFixed(1)}
-                          %
-                        </td>
-                        <td>{p.deaths}</td>
-                        <td>
-                          {compact.format(
-                            (p.role === 'healer' ? p.healing : p.damage) /
-                              Math.max(1, p.durationMs / 1000),
-                          )}
-                          <small className="cell-sub">
-                            {p.role === 'unknown'
-                              ? `DPS · ${compact.format(p.healing / Math.max(1, p.durationMs / 1000))} HPS`
-                              : p.role === 'healer'
-                                ? 'HPS'
-                                : 'DPS'}{' '}
-                            · raw output
-                          </small>
-                        </td>
-                        <td>{p.pulls}</td>
-                      </tr>
+                                  ? (p.assessment.factors
+                                      .find((f) => f.key === 'protection')
+                                      ?.score?.toFixed(1) ?? 'Unknown')
+                                  : p.tankReview.protectionPercent === null
+                                    ? 'Not measured'
+                                    : `${p.tankReview.protectionPercent.toFixed(1)}%`}
+                                <small className="cell-sub">
+                                  {p.assessment
+                                    ? 'Tank defensive response · see calculation'
+                                    : `Primary protection · ${p.tankReview.facts.knownMeleeEvents} known melee attempts`}
+                                </small>
+                              </span>
+                            ) : p.mechanicFailures === null ? (
+                              <span className="muted">
+                                {p.assessment ? (
+                                  <>
+                                    Role index active
+                                    <small className="cell-sub">Boss mechanics unverified</small>
+                                  </>
+                                ) : (
+                                  'Not scored'
+                                )}
+                              </span>
+                            ) : (
+                              <span>
+                                {p.mechanicFailures}
+                                <small className="cell-sub">
+                                  failed / {p.mechanicOpportunities} opportunities
+                                </small>
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            {(
+                              (100 * (p.evaluatedAliveMs ?? p.aliveMs)) /
+                              Math.max(1, p.evaluatedDurationMs ?? p.durationMs)
+                            ).toFixed(1)}
+                            %
+                          </td>
+                          <td>{p.deaths}</td>
+                          <td>
+                            {compact.format(
+                              (p.role === 'healer' ? p.healing : p.damage) /
+                                Math.max(1, p.durationMs / 1000),
+                            )}
+                            <small className="cell-sub">
+                              {p.role === 'unknown'
+                                ? `DPS · ${compact.format(p.healing / Math.max(1, p.durationMs / 1000))} HPS`
+                                : p.role === 'healer'
+                                  ? 'HPS'
+                                  : 'DPS'}{' '}
+                              · raw output
+                            </small>
+                          </td>
+                          <td>{p.pulls}</td>
+                        </tr>
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
