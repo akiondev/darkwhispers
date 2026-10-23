@@ -12,6 +12,7 @@ export type Fight = {
   kill: boolean;
   percentage: number | null;
   friendlyPlayers: number[];
+  playerSpecs?: Record<number, string>;
   inProgress?: boolean;
 };
 export type Report = {

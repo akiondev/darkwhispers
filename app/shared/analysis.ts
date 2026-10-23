@@ -13,6 +13,7 @@ import type {
 import { selectFights } from './report-url.js';
 
 import { VERSION } from './version.js';
+import { summarizeSpecs } from './players.js';
 export const ENGINE_VERSION = VERSION;
 export const WEIGHTS = { mechanics: 35, survival: 35, output: 20, utility: 10 } as const;
 export const CATEGORIES = Object.keys(WEIGHTS) as Category[];
@@ -47,9 +48,14 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
   )
     throw new Error('The selected pulls are not fully downloaded. No ranking was produced.');
   const bossIds = [...new Set(pulls.map((p) => p.fight.encounterId))];
-  const participants = report.players.filter((p) =>
-    pulls.some((pull) => pull.fight.friendlyPlayers.includes(p.id)),
-  );
+  const participants = report.players
+    .filter((p) => pulls.some((pull) => pull.fight.friendlyPlayers.includes(p.id)))
+    .map((player) => {
+      const specs = pulls
+        .filter((p) => p.fight.friendlyPlayers.includes(player.id))
+        .map((p) => p.fight.playerSpecs?.[player.id] ?? player.spec);
+      return { ...player, ...summarizeSpecs(specs) };
+    });
   const perPlayer = new Map<number, RankedPlayer>();
   for (const player of participants) {
     const participated = pulls.filter((p) => p.fight.friendlyPlayers.includes(player.id));
@@ -285,6 +291,10 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
     });
   }
   const warnings = [...new Set([...report.warnings, ...pulls.flatMap((p) => p.warnings)])];
+  if (new Set(pulls.map((p) => p.fight.difficulty)).size > 1)
+    warnings.push(
+      'Multiple difficulties are combined in this selection. Bosses retain equal weight; choose one difficulty for a more comparable cohort.',
+    );
   if (players.some((p) => p.bosses !== bossIds.length))
     warnings.push(
       'Participation differs. Missing bosses never count as zero; overall ranking requires attendance on at least half the selected bosses. Boss-relative comparisons reduce, but cannot eliminate, differences in assignments and attendance.',

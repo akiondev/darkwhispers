@@ -27,6 +27,18 @@ test('selection covers entire report, a boss, wipes, kills and individual pulls'
   report.fights[0].inProgress = true;
   assert.equal(selectFights(report, all).length, 11);
 });
+test('selected player roles use each pull spec rather than a mixed whole-report label', () => {
+  const { report, pulls } = demoData();
+  report.players[6].spec = 'Mixed';
+  report.players[6].role = 'unknown';
+  for (const f of report.fights)
+    f.playerSpecs = { 7: f.encounterId === 3420 ? 'Balance' : 'Restoration' };
+  const player = analyze(report, pulls, { ...all, encounterId: 3420 }).players.find(
+    (p) => p.id === 7,
+  )!;
+  assert.equal(player.spec, 'Balance');
+  assert.equal(player.role, 'dps');
+});
 test('scoring is deterministic, bounded and not decided by raw DPS', () => {
   const { report, pulls } = demoData();
   const a = analyze(report, pulls, all),

@@ -1,5 +1,6 @@
 import type { Fight, Player, Report, Role } from '../shared/types.js';
 import { parseReportCode } from '../shared/report-url.js';
+import { roleFromSpec, summarizeSpecs } from '../shared/players.js';
 
 export class ApiError extends Error {
   constructor(
@@ -193,7 +194,7 @@ export class WclClient {
   async report(code: string): Promise<Report> {
     parseReportCode(code);
     const data = await this.query(
-      `query Report($code:String!){reportData{report(code:$code){code title startTime endTime revision visibility zone{name} masterData{actors{id name type subType}} fights(killType:Encounters){id encounterID name difficulty startTime endTime kill fightPercentage friendlyPlayers friendlySpecs inProgress} playerDetails(includeCombatantInfo:false)}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
+      `query Report($code:String!){reportData{report(code:$code){code title startTime endTime revision visibility zone{name} masterData{actors{id name type subType}} fights(killType:Encounters){id encounterID name difficulty startTime endTime kill fightPercentage friendlyPlayers friendlySpecs inProgress}}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
       { code },
     );
     const raw = object(object(data.reportData).report);
@@ -215,25 +216,15 @@ export class WclClient {
         kill: f.kill === true,
         percentage: typeof f.fightPercentage === 'number' ? f.fightPercentage : null,
         friendlyPlayers: list(f.friendlyPlayers).filter(Number.isInteger),
+        playerSpecs: Object.fromEntries(
+          list(f.friendlyPlayers).map((id, index) => [
+            id,
+            text(list(f.friendlySpecs)[index], 'Unknown'),
+          ]),
+        ),
         inProgress: f.inProgress === true,
       }))
       .filter((f) => f.encounterId > 0 && f.endTime > f.startTime);
-    const details = object(object(raw.playerDetails).data ?? raw.playerDetails);
-    const detailPlayers = object(details.playerDetails ?? details);
-    const roles = new Map<number, Role>();
-    const specs = new Map<number, string>();
-    for (const [key, role] of [
-      ['tanks', 'tank'],
-      ['healers', 'healer'],
-      ['dps', 'dps'],
-    ] as const) {
-      for (const entry of list(detailPlayers[key])) {
-        if (typeof entry.id !== 'number') continue;
-        roles.set(entry.id, role);
-        const spec = text(entry.spec) || text(list(entry.specs)[0]);
-        if (spec) specs.set(entry.id, spec);
-      }
-    }
     const participants = new Set(fights.flatMap((f) => f.friendlyPlayers));
     const players: Player[] = list(object(raw.masterData).actors)
       .filter((a) => a.type === 'Player' && participants.has(a.id))
@@ -244,14 +235,13 @@ export class WclClient {
           const spec = list(f.friendlySpecs)[index];
           if (index >= 0 && typeof spec === 'string') actorSpecs.add(spec);
         });
-        const spec =
-          actorSpecs.size > 1 ? 'Mixed' : [...actorSpecs][0] || specs.get(a.id) || 'Unknown';
+        const { spec, role } = summarizeSpecs(actorSpecs);
         return {
           id: a.id,
           name: text(a.name, 'Unknown player'),
           class: text(a.subType, 'Unknown'),
           spec,
-          role: roles.get(a.id) ?? roleFromSpec(spec),
+          role,
         };
       });
     const missing = [...participants].filter((id) => !players.some((p) => p.id === id));
@@ -378,13 +368,14 @@ export class WclClient {
         for (const group of Object.values(roles))
           for (const entry of list(object(group).characters)) {
             // Match an exact unique name only: ranking character IDs need not equal report actor IDs.
-            const matches = players.filter(
-              (p) =>
+            const matches = players.filter((p) => {
+              const role = roleFromSpec(fight.playerSpecs?.[p.id] ?? p.spec);
+              return (
                 p.name === entry.name &&
-                p.role !== 'unknown' &&
-                p.spec !== 'Mixed' &&
-                (kind === 'healing' ? p.role === 'healer' : p.role !== 'healer'),
-            );
+                role !== 'unknown' &&
+                (kind === 'healing' ? role === 'healer' : role !== 'healer')
+              );
+            });
             if (
               matches.length === 1 &&
               typeof entry.rankPercent === 'number' &&
@@ -397,11 +388,5 @@ export class WclClient {
     return percentiles;
   }
 }
-export function roleFromSpec(spec: string): Role {
-  const value = spec.toLowerCase().replace(/[^a-z]/g, '');
-  if (['blood', 'protection', 'guardian', 'brewmaster', 'vengeance'].includes(value)) return 'tank';
-  if (['holy', 'discipline', 'restoration', 'mistweaver', 'preservation'].includes(value))
-    return 'healer';
-  return value && value !== 'unknown' && value !== 'mixed' ? 'dps' : 'unknown';
-}
+export { roleFromSpec };
 export { object, finite, list, text };

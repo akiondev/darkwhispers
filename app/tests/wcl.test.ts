@@ -10,6 +10,65 @@ const response = (data: unknown, status = 200, headers?: Record<string, string>)
     status,
     headers: { 'Content-Type': 'application/json', ...headers },
   });
+test('live-compatible report metadata uses fight specs without an unbounded playerDetails query', async () => {
+  const client = new WclClient('c', 's', async (input, init) => {
+    if (String(input).includes('/oauth/')) return response({ access_token: 'T', expires_in: 3600 });
+    const query = JSON.parse(String(init?.body)).query;
+    assert.ok(!query.includes('playerDetails'));
+    return response({
+      data: {
+        reportData: {
+          report: {
+            code: '6fjJxRFC21YHdTXB',
+            title: 'Anonymized fixture',
+            startTime: 1,
+            endTime: 10000,
+            revision: 1,
+            visibility: 'public',
+            zone: { name: 'The Venomous Abyss' },
+            masterData: {
+              actors: [
+                { id: 1, name: 'FixtureOne', type: 'Player', subType: 'Druid' },
+                { id: 2, name: 'FixtureTwo', type: 'Player', subType: 'DeathKnight' },
+              ],
+            },
+            fights: [
+              {
+                id: 17,
+                encounterID: 3420,
+                name: 'Sszorak',
+                difficulty: 5,
+                startTime: 100,
+                endTime: 1000,
+                kill: false,
+                friendlyPlayers: [1, 2],
+                friendlySpecs: ['Restoration', 'Blood'],
+                inProgress: false,
+              },
+              {
+                id: 19,
+                encounterID: 3420,
+                name: 'Sszorak',
+                difficulty: 5,
+                startTime: 1100,
+                endTime: 2000,
+                kill: false,
+                friendlyPlayers: [1, 2],
+                friendlySpecs: ['Balance', 'Blood'],
+                inProgress: false,
+              },
+            ],
+          },
+        },
+      },
+    });
+  });
+  const report = await client.report('6fjJxRFC21YHdTXB');
+  assert.equal(report.fights[0].playerSpecs?.[1], 'Restoration');
+  assert.equal(report.players[0].role, 'unknown');
+  assert.equal(report.players[0].spec, 'Mixed');
+  assert.equal(report.players[1].role, 'tank');
+});
 test('OAuth refresh is single-flight and upstream concurrency is bounded at three', async () => {
   let auth = 0,
     active = 0,
