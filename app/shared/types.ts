@@ -24,6 +24,7 @@ export type Report = {
   visibility: string;
   source: 'warcraftlogs' | 'demo';
   players: Player[];
+  petOwners?: Record<number, number>;
   fights: Fight[];
   zone: string;
   warnings: string[];
@@ -72,6 +73,7 @@ export type PullData = {
   complete: boolean;
   warnings: string[];
   mechanicRule: string | null;
+  mechanicScope?: 'partial' | 'complete';
   wipeTailMs: number | null;
 };
 export type Selection = {

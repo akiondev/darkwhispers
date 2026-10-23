@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WclClient, ApiError } from '../server/wcl.js';
+import { WclClient, ApiError, parsePercentile } from '../server/wcl.js';
 import { demoData } from '../shared/demo.js';
 import { MemoryStore } from '../server/store.js';
 import { runAnalysis } from '../server/jobs.js';
-import { ingestPull } from '../server/ingest.js';
+import { ingestPull, resolvePlayerSource } from '../server/ingest.js';
 const response = (data: unknown, status = 200, headers?: Record<string, string>) =>
   new Response(JSON.stringify(data), {
     status,
@@ -272,6 +272,16 @@ test('malformed metric totals fail the import instead of appearing as zero outpu
       ingestPull(new InvalidClient('c', 's'), report, report.fights[0], new Map(), async () => {}),
     (e: unknown) => e instanceof ApiError && e.code === 'WCL_INVALID_TABLE',
   );
+});
+test('unranked percentile placeholders are missing values, and pet ownership is bounded', () => {
+  assert.equal(parsePercentile('-'), null);
+  assert.equal(parsePercentile(''), null);
+  assert.equal(parsePercentile('99.25'), 99.25);
+  assert.equal(parsePercentile(0), 0);
+  assert.equal(parsePercentile(101), null);
+  assert.equal(resolvePlayerSource(5, { 5: 77, 77: 7 }), 7);
+  assert.equal(resolvePlayerSource(5, { 5: 77, 77: 5 }), 0);
+  assert.equal(resolvePlayerSource(7, {}), 7);
 });
 test('changing whole-report analysis to one boss reuses every completed pull and master data', async () => {
   let tables = 0,

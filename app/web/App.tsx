@@ -713,6 +713,24 @@ export default function App() {
                 </strong>
               </div>
             </div>
+            {analysis.report.source === 'warcraftlogs' &&
+              analysis.players.some((p) => p.provisional) && (
+                <div className="notice subtle">
+                  <ShieldCheck size={17} />
+                  <div>
+                    Scores are provisional: missing categories and incomplete boss rules remain
+                    visible.
+                    {analysis.methodology.rules.some((rule) =>
+                      rule.startsWith('sszorak-tempest'),
+                    ) && (
+                      <p>
+                        Sszorak mechanic scoring currently covers direct Tempest contact only. Other
+                        mechanics are not graded.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             {analysis.warnings.length > 0 && (
               <details className="data-notes">
                 <summary>

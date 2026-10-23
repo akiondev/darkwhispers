@@ -1,5 +1,7 @@
 import type { Evidence, Fight, Metric, PullData, Report } from '../shared/types.js';
 import { evidenceUrl } from '../shared/report-url.js';
+import { aliveTime } from '../shared/life.js';
+import { applyTempest, supportsTempest, type MechanicEvent } from './mechanics.js';
 import { ApiError, finite, list, object, text, WclClient } from './wcl.js';
 
 // Observed cast catalogue only. No availability assumptions, cooldown guesses or non-use penalties.
@@ -66,21 +68,7 @@ export function baseMetric(actorId: number, duration: number): Metric {
     evidence: [],
   };
 }
-export function aliveTime(fight: Fight, life: { timestamp: number; type: string }[]): number {
-  let alive = true,
-    last = fight.startTime,
-    total = 0;
-  for (const event of [...life].sort((a, b) => a.timestamp - b.timestamp)) {
-    const time = Math.max(fight.startTime, Math.min(fight.endTime, event.timestamp));
-    if (time < last) continue;
-    if (alive) total += time - last;
-    if (event.type === 'death') alive = false;
-    else if (event.type === 'resurrect') alive = true;
-    last = time;
-  }
-  if (alive) total += fight.endTime - last;
-  return Math.max(0, Math.min(fight.endTime - fight.startTime, total));
-}
+export { aliveTime } from '../shared/life.js';
 function tableEntries(table: unknown): Record<string, any>[] {
   const raw = object(table),
     data = object(raw.data ?? raw);
@@ -141,7 +129,10 @@ export async function ingestPull(
     const metric = metrics.get(id);
     if (!metric || typeof event.timestamp !== 'number') return;
     const abilityId =
-      finite(event.abilityGameID) || finite(object(event.ability).guid) || undefined;
+      (kind === 'death' ? finite(event.killingAbilityGameID) : 0) ||
+      finite(event.abilityGameID) ||
+      finite(object(event.ability).guid) ||
+      undefined;
     metric.evidence.push({
       fightId: fight.id,
       timestamp: event.timestamp,
@@ -161,8 +152,16 @@ export async function ingestPull(
   };
   // One filtered timeline replaces five separate event scans. The cast clause
   // includes only catalogue abilities already present in this report's master data.
+  const tempest = supportsTempest(fight, abilities);
+  const mechanicEvents: MechanicEvent[] = [];
   const defensiveIds = [...abilities].filter(([, name]) => DEFENSIVES.has(name)).map(([id]) => id);
   const filter = [
+    ...(tempest
+      ? [
+          '(type = "begincast" and ability.id = 1287072)',
+          '(type = "damage" and ability.id = 1287083)',
+        ]
+      : []),
     'type = "death"',
     'type = "resurrect"',
     'type = "interrupt"',
@@ -181,7 +180,11 @@ export async function ingestPull(
     'All',
     (events) => {
       for (const event of events) {
-        const source = metrics.get(finite(event.sourceID));
+        if (tempest && [1287072, 1287083].includes(event.abilityGameID))
+          mechanicEvents.push(event as MechanicEvent);
+        const source = metrics.get(
+          resolvePlayerSource(finite(event.sourceID), report.petOwners ?? {}),
+        );
         const target = metrics.get(finite(event.targetID));
         const id = finite(event.abilityGameID) || finite(object(event.ability).guid);
         if (event.type === 'death' || event.type === 'resurrect') {
@@ -246,6 +249,10 @@ export async function ingestPull(
       `Debuff applied ${count} time(s); linked to its first application. This is an observation, not a confirmed mechanic failure or a scoring penalty.`,
       'debuffs',
     );
+  const mechanic = tempest
+    ? applyTempest(report, fight, metrics, mechanicEvents, life)
+    : { rule: null, warnings: [] };
+  warnings.push(...mechanic.warnings);
   if (fight.kill) {
     await step('Reading class/spec kill percentiles');
     try {
@@ -274,7 +281,18 @@ export async function ingestPull(
     metrics: [...metrics.values()],
     complete: true,
     warnings,
-    mechanicRule: null,
+    mechanicRule: mechanic.rule,
+    mechanicScope: mechanic.rule ? 'partial' : undefined,
     wipeTailMs: null,
   };
+}
+export function resolvePlayerSource(id: number, owners: Record<number, number>): number {
+  const seen = new Set<number>();
+  for (let depth = 0; depth < 8; depth++) {
+    if (seen.has(id)) return 0;
+    seen.add(id);
+    if (!owners[id]) return id;
+    id = owners[id];
+  }
+  return 0;
 }

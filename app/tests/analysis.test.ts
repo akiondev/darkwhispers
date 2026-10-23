@@ -109,6 +109,13 @@ test('only complete multi-factor perfection earns gold; ties share rank', () => 
   assert.equal(scoreBand(89), 'blue');
   assert.equal(scoreBand(69), 'green');
 });
+test('partial live boss rules remain provisional even with all category inputs present', () => {
+  const { report, pulls } = demoData();
+  report.source = 'warcraftlogs';
+  for (const p of pulls) p.mechanicScope = 'partial';
+  const result = analyze(report, pulls, { ...all, mode: 'kills' });
+  assert.ok(result.players.every((p) => p.coverage === 100 && p.provisional));
+});
 test('unvalidated mechanics and raw damage taken do not create penalties', () => {
   const { report, pulls } = demoData();
   for (const p of pulls) {

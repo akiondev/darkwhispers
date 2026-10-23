@@ -207,7 +207,12 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       comparable.length >= minimumBosses ? mean(comparable.map((b) => b.score!)) : null;
     player.coverage = mean(comparable.map((b) => b.coverage)) ?? 0;
     player.provisional =
-      comparable.length !== bossIds.length || comparable.some((b) => b.coverage < 100);
+      comparable.length !== bossIds.length ||
+      comparable.some((b) => b.coverage < 100) ||
+      (report.source === 'warcraftlogs' &&
+        pulls.some(
+          (p) => p.fight.friendlyPlayers.includes(player.id) && p.mechanicScope !== 'complete',
+        ));
     for (const category of CATEGORIES) {
       const applied = comparable.filter((b) => b.categories[category].applied);
       player.categories[category] = {
@@ -283,7 +288,7 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
     const player = report.players.find((p) => p.id === first.actorId);
     findings.push({
       title: `First death · pull ${pull.fight.id}`,
-      detail: `${player?.name ?? 'A player'} died first, ${Math.round((first.timestamp - pull.fight.startTime) / 1000)} seconds into ${pull.fight.name}. This is a review starting point, not proof that this player caused the wipe.`,
+      detail: `${player?.name ?? 'A player'} died first, ${Math.round((first.timestamp - pull.fight.startTime) / 1000)} seconds into ${pull.fight.name}.${first.abilityId ? ` The logged killing ability was ${first.ability}.` : ''} This is a review starting point, not proof that this player caused the wipe.`,
       confidence: 'inferred',
       fightIds: [pull.fight.id],
       actorId: first.actorId,
@@ -332,7 +337,7 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
         'Assignments, voice calls and intended sacrifices may not be present in combat logs.',
         'Utility and defensive usage are shown as facts. They are scored only when validated assigned opportunities are available.',
         'Kill output percentiles are class/spec comparisons from Warcraft Logs. They are unavailable on wipes and may be unavailable for unsupported actors.',
-        'This prototype has no validated live mechanic-failure rules for Sszorak yet. Unverified spell mappings never produce penalties.',
+        'The live Sszorak prototype grades only verified direct Tempest contact per cast window. It does not grade every boss mechanic. Such partial rule coverage remains provisional, even if all scoring categories become available.',
         'Survival can overlap the consequence of a mechanic error; categories are descriptive, not independent causal evidence.',
       ],
     },

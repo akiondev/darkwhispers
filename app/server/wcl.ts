@@ -194,7 +194,7 @@ export class WclClient {
   async report(code: string): Promise<Report> {
     parseReportCode(code);
     const data = await this.query(
-      `query Report($code:String!){reportData{report(code:$code){code title startTime endTime revision visibility zone{name} masterData{actors{id name type subType}} fights(killType:Encounters){id encounterID name difficulty startTime endTime kill fightPercentage friendlyPlayers friendlySpecs inProgress}}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
+      `query Report($code:String!){reportData{report(code:$code){code title startTime endTime revision visibility zone{name} masterData{actors{id name type subType petOwner}} fights(killType:Encounters){id encounterID name difficulty startTime endTime kill fightPercentage friendlyPlayers friendlySpecs inProgress}}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
       { code },
     );
     const raw = object(object(data.reportData).report);
@@ -263,6 +263,11 @@ export class WclClient {
       visibility: text(raw.visibility, 'unknown'),
       source: 'warcraftlogs',
       players,
+      petOwners: Object.fromEntries(
+        list(object(raw.masterData).actors)
+          .filter((a) => typeof a.petOwner === 'number' && a.petOwner > 0)
+          .map((a) => [a.id, a.petOwner]),
+      ),
       fights,
       zone: text(object(raw.zone).name, 'Unknown raid'),
       warnings: missing.length
@@ -376,12 +381,9 @@ export class WclClient {
                 (kind === 'healing' ? role === 'healer' : role !== 'healer')
               );
             });
-            if (
-              matches.length === 1 &&
-              typeof entry.rankPercent === 'number' &&
-              Number.isFinite(entry.rankPercent)
-            )
-              percentiles.set(matches[0].id, Math.max(0, Math.min(100, entry.rankPercent)));
+            const percentile = parsePercentile(entry.rankPercent);
+            if (matches.length === 1 && percentile !== null)
+              percentiles.set(matches[0].id, percentile);
           }
       }
     }
@@ -389,4 +391,13 @@ export class WclClient {
   }
 }
 export { roleFromSpec };
+export function parsePercentile(value: unknown): number | null {
+  const number =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && /^\d+(\.\d+)?$/.test(value.trim())
+        ? Number(value)
+        : NaN;
+  return Number.isFinite(number) && number >= 0 && number <= 100 ? number : null;
+}
 export { object, finite, list, text };
