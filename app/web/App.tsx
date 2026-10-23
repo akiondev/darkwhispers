@@ -212,11 +212,8 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
         <div>
           {player.tankReview
             ? 'Tank composite not graded'
-            : player.provisional
-              ? 'Provisional comparison'
-              : 'Complete scoring coverage'}{' '}
-          · {player.coverage.toFixed(0)}% scoring coverage · {player.pulls} pulls across{' '}
-          {player.bosses} bosses
+            : `${player.provisional ? 'Provisional comparison' : 'Complete scoring coverage'} · ${player.coverage.toFixed(0)}% scoring coverage`}{' '}
+          · {player.pulls} pulls across {player.bosses} bosses
           {player.provisional && !player.tankReview && (
             <p>
               Missing categories are excluded for everyone on the same boss. ~100 is not a verified
@@ -452,7 +449,8 @@ export default function App() {
   const shown =
     analysis?.players.filter(
       (p) =>
-        (role === 'all' || p.role === role) && p.name.toLowerCase().includes(query.toLowerCase()),
+        (role === 'all' ? !p.tankReview : p.role === role) &&
+        p.name.toLowerCase().includes(query.toLowerCase()),
     ) ?? [];
   const change = (patch: Partial<Selection>) => {
     setSelection((s) => ({ ...s, ...patch }));
@@ -940,7 +938,7 @@ export default function App() {
                   <p className="small muted">
                     Weighted 0–100 evidence score · ~ means partial coverage ·{' '}
                     {role === 'all'
-                      ? 'combined order is not a complete ranking of role skill'
+                      ? 'tanks are reviewed separately above; this order is not a complete ranking of role skill'
                       : role === 'tank'
                         ? 'tank composite withheld · measurements only'
                         : 'rank within selected role'}{' '}
@@ -1025,7 +1023,7 @@ export default function App() {
                                 : `${p.tankReview.protectionPercent.toFixed(1)}%`}
                               <small className="cell-sub">
                                 Primary protection · {p.tankReview.facts.knownMeleeEvents} known
-                                melee hits
+                                melee attempts
                               </small>
                             </span>
                           ) : p.mechanicFailures === null ? (
