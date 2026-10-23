@@ -159,6 +159,18 @@ test('401 refresh and 429 backoff are bounded; partial GraphQL results are rejec
     (e: unknown) => e instanceof ApiError && e.code === 'WCL_QUERY_FAILED',
   );
 });
+
+test('ordinary GraphQL failures mentioning generated data are not misreported as rate limits', async () => {
+  const client = new WclClient('c', 's', async (input) =>
+    String(input).includes('/oauth/')
+      ? response({ access_token: 'T', expires_in: 3600 })
+      : response({ errors: [{ message: 'Could not generate the requested data' }] }),
+  );
+  await assert.rejects(
+    () => client.query('x'),
+    (e: unknown) => e instanceof ApiError && e.code === 'WCL_QUERY_FAILED',
+  );
+});
 test('API budget exhaustion stops subsequent requests and missing credentials never fetch', async () => {
   let calls = 0;
   const client = new WclClient('c', 's', async (input) => {
@@ -331,4 +343,26 @@ test('changing whole-report analysis to one boss reuses every completed pull and
   assert.equal(tables, 12);
   assert.equal(abilities, 1);
   assert.equal(metadata, 1);
+});
+
+test('a queued selection that loses a requested pull fails rather than analyzing a smaller set', async () => {
+  const { report } = demoData();
+  report.source = 'warcraftlogs';
+  report.code = '6fjJxRFC21YHdTXB';
+  const store = new MemoryStore();
+  const job = await store.createJob(
+    report.code,
+    { encounterId: null, difficulty: null, mode: 'all', fightIds: [1, 2], excludeWipeTail: false },
+    false,
+  );
+  report.fights = report.fights.filter((f) => f.id !== 2);
+  await store.putReport(report);
+  const client = new WclClient('c', 's', async () => {
+    throw new Error('No download should begin for a changed selection');
+  });
+  await runAnalysis(job.id, store, client);
+  assert.equal((await store.getJob(job.id))!.errorCode, 'SELECTION_CHANGED');
+  assert.equal((await store.getJob(job.id))!.result, undefined);
+  await runAnalysis(job.id, store, client);
+  assert.equal((await store.getJob(job.id))!.status, 'failed');
 });

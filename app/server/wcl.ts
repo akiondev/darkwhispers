@@ -159,7 +159,7 @@ export class WclClient {
       // Partial GraphQL data is not silently accepted as a complete report.
       if (list(body.errors).length) {
         const messages = list(body.errors).map((e) => text(object(e).message));
-        if (messages.some((m) => /rate|points|limit/i.test(m)))
+        if (messages.some((m) => /\brate(?:[\s_-]*limit)?\b|\bpoints?\b|\bquota\b/i.test(m)))
           throw new ApiError(
             'WCL_RATE_LIMIT',
             'The Warcraft Logs API budget cannot serve this request yet.',

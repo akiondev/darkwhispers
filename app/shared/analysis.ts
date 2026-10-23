@@ -13,7 +13,7 @@ import type {
 import { selectFights } from './report-url.js';
 
 import { VERSION } from './version.js';
-import { summarizeSpecs } from './players.js';
+import { roleFromSpec, summarizeSpecs } from './players.js';
 export const ENGINE_VERSION = VERSION;
 export const WEIGHTS = { mechanics: 35, survival: 35, output: 20, utility: 10 } as const;
 export const CATEGORIES = Object.keys(WEIGHTS) as Category[];
@@ -134,7 +134,10 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       const percentiles = metric
         .map((m) => m.outputPercentile)
         .filter((v): v is number => v !== null && Number.isFinite(v));
-      if (percentiles.length === own.length) {
+      const outputRolesKnown = own.every(
+        (p) => roleFromSpec(p.fight.playerSpecs?.[player.id] ?? player.spec) !== 'unknown',
+      );
+      if (percentiles.length === own.length && outputRolesKnown) {
         categories.output.score = mean(percentiles.map(clamp));
         categories.output.explanation =
           'Mean Warcraft Logs historical class/spec output percentile for these kills: HPS for healers, DPS for damage dealers and tanks. Wipes have no kill percentile.';
@@ -185,8 +188,8 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       if (p.mechanicRule) rules.add(p.mechanicRule);
     });
   }
-  // Midrank within each boss removes different boss score distributions from the
-  // whole-report order. Ties share a value; an all-equal boss gives everyone 50.
+  // Boss-relative midrank is context only; the overall score averages weighted
+  // boss scores. Ties share a relative value; an all-equal boss gives everyone 50.
   for (const bossId of bossIds) {
     const records = [...perPlayer.values()].flatMap((p) =>
       p.perBoss.filter((b) => b.encounterId === bossId && b.score !== null),
@@ -236,7 +239,7 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       );
     if (player.bosses !== bossIds.length)
       player.notes.push(
-        'Did not attend every selected boss. Missing bosses are not zeroes. The index averages boss-relative standings on attended bosses; compare participation before interpreting small differences.',
+        'Did not attend every selected boss. Missing bosses are not zeroes. The index equally averages weighted scores on attended bosses; compare participation before interpreting small differences.',
       );
     if (comparable.length < minimumBosses)
       player.notes.push(
@@ -311,7 +314,7 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
     );
   if (players.some((p) => p.bosses !== bossIds.length))
     warnings.push(
-      'Participation differs. Missing bosses never count as zero; overall ranking requires attendance on at least half the selected bosses. Boss-relative comparisons reduce, but cannot eliminate, differences in assignments and attendance.',
+      'Participation differs. Missing bosses never count as zero; overall ranking requires attendance on at least half the selected bosses. Different attended bosses and assignments still limit comparability.',
     );
   if (pulls.some((p) => !p.mechanicRule))
     warnings.push(

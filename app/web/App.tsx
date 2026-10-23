@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   ArrowRight,
@@ -35,6 +35,21 @@ const roleLabel = (player: Pick<RankedPlayer, 'role' | 'spec'>) =>
       : 'unknown role'
     : player.role;
 const PullChart = lazy(() => import('./PullChart.js'));
+class ChartBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? (
+      <p className="chart-loading" role="status">
+        The chart could not load. Pull details are available in the list below.
+      </p>
+    ) : (
+      this.props.children
+    );
+  }
+}
 const defaults: Selection = {
   encounterId: null,
   difficulty: null,
@@ -53,10 +68,17 @@ async function api<T>(path: string, body?: unknown, signal?: AbortSignal): Promi
     body: body ? JSON.stringify(body) : undefined,
     signal,
   });
-  const data = await response.json();
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('The service returned an unreadable response. Please retry.');
+  }
   if (!response.ok)
     throw new Error(
-      typeof data.message === 'string' ? data.message : 'This request could not be completed.',
+      data && typeof data.message === 'string'
+        ? data.message
+        : 'This request could not be completed.',
     );
   return data as T;
 }
@@ -291,6 +313,8 @@ export default function App() {
     [error, setError] = useState(''),
     [job, setJob] = useState<Job | null>(null),
     [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [pollPaused, setPollPaused] = useState(false),
+    [pollRetry, setPollRetry] = useState(0);
   const [player, setPlayer] = useState<RankedPlayer | null>(null),
     [method, setMethod] = useState(false),
     [pullPicker, setPullPicker] = useState(false),
@@ -309,10 +333,13 @@ export default function App() {
   useEffect(() => {
     if (!job || !['queued', 'running'].includes(job.status)) return;
     const controller = new AbortController();
+    let failures = 0;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       try {
         const next = await api<Job>(`/api/analyses/${job.id}`, undefined, controller.signal);
+        if (controller.signal.aborted) return;
+        failures = 0;
         setJob(next);
         if (next.status === 'complete' && next.result) {
           setAnalysis(next.result);
@@ -327,8 +354,8 @@ export default function App() {
         } else timer = setTimeout(poll, 1200);
       } catch (e) {
         if (!controller.signal.aborted) {
-          setBusy(false);
-          setError(e instanceof Error ? e.message : 'Could not check analysis progress.');
+          if (++failures <= 3) timer = setTimeout(poll, 1000 * 2 ** (failures - 1));
+          else setPollPaused(true);
         }
       }
     };
@@ -337,7 +364,7 @@ export default function App() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [job?.id, job?.status]);
+  }, [job?.id, job?.status, pollRetry]);
   const chosen = useMemo(
     () => (report ? selectFights(report, selection) : []),
     [report, selection],
@@ -355,8 +382,10 @@ export default function App() {
     setSelection((s) => ({ ...s, ...patch }));
     setAnalysis(null);
     setJob(null);
+    setPollPaused(false);
   };
   async function load(demo = false) {
+    if (busy) return;
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
@@ -365,6 +394,9 @@ export default function App() {
     setAnalysis(null);
     setJob(null);
     setReport(null);
+    setQuery('');
+    setRole('all');
+    setPullPicker(false);
     try {
       const next = demo
         ? await api<Report>('/api/demo/report', undefined, controller.signal)
@@ -379,15 +411,18 @@ export default function App() {
     }
   }
   async function start() {
-    if (!report) return;
+    if (!report || busy) return;
     setBusy(true);
     setError('');
     setAnalysis(null);
+    setJob(null);
+    setPollPaused(false);
+    const frozen = { ...selection, fightIds: chosen.map((f) => f.id) };
     try {
       const created = await api<{ id: string; status: Job['status'] }>('/api/analyses', {
         reportCode: report.code,
         demo: report.source === 'demo',
-        selection,
+        selection: frozen,
       });
       setJob({
         id: created.id,
@@ -396,7 +431,7 @@ export default function App() {
         message: 'Queued for analysis',
         createdAt: new Date().toISOString(),
         reportCode: report.code,
-        selection,
+        selection: frozen,
         demo: report.source === 'demo',
       });
     } catch (e) {
@@ -676,6 +711,26 @@ export default function App() {
                   <span>{job.progress}%</span>
                 </div>
                 <progress value={job.progress} max={100} />
+                {pollPaused && (
+                  <div className="notice error" role="alert">
+                    <div>
+                      <strong>Status check interrupted</strong>
+                      <p>
+                        The analysis may still be running. Resume checking the same analysis without
+                        submitting a duplicate.
+                      </p>
+                      <button
+                        className="secondary"
+                        onClick={() => {
+                          setPollPaused(false);
+                          setPollRetry((n) => n + 1);
+                        }}
+                      >
+                        Resume status check
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <p className="small muted">
                   The worker saves completed pulls. A retry reuses cached data instead of starting
                   over.
@@ -883,9 +938,11 @@ export default function App() {
                     <i className="legend-kill" /> Kill <i className="legend-wipe" /> Wipe
                   </span>
                 </div>
-                <Suspense fallback={<div className="chart-loading">Loading pull chart…</div>}>
-                  <PullChart pulls={analysis.pulls} />
-                </Suspense>
+                <ChartBoundary key={analysis.generatedAt}>
+                  <Suspense fallback={<div className="chart-loading">Loading pull chart…</div>}>
+                    <PullChart pulls={analysis.pulls} />
+                  </Suspense>
+                </ChartBoundary>
                 <div className="pull-table">
                   {analysis.pulls.map((p) => (
                     <div key={p.fight.id}>

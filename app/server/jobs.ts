@@ -9,7 +9,7 @@ import type { Store } from './store.js';
 
 export async function runAnalysis(id: string, store: Store, client: WclClient): Promise<void> {
   const job = await store.getJob(id);
-  if (!job || job.status === 'complete') return;
+  if (!job || !['queued', 'running'].includes(job.status)) return;
   await store.updateJob(id, { status: 'running', progress: 2, message: 'Loading report metadata' });
   try {
     let report: Report;
@@ -22,6 +22,12 @@ export async function runAnalysis(id: string, store: Store, client: WclClient): 
       report = (await store.getReport(job.reportCode)) ?? (await client.report(job.reportCode));
       await store.putReport(report);
       const selected = selectFights(report, job.selection);
+      if (job.selection.fightIds && new Set(job.selection.fightIds).size !== selected.length)
+        throw new ApiError(
+          'SELECTION_CHANGED',
+          'Some selected pulls changed while queued. Load the report again.',
+          422,
+        );
       if (!selected.length)
         throw new ApiError('EMPTY_SELECTION', 'No completed boss pulls match this selection.', 422);
       if (selected.length > 150)

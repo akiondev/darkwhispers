@@ -5,6 +5,7 @@ import type { Selection } from '../shared/types.js';
 import { demoData } from '../shared/demo.js';
 import { parseReportCode, selectFights } from '../shared/report-url.js';
 import type { Store } from './store.js';
+import { QueueFullError } from './store.js';
 import { ApiError, WclClient } from './wcl.js';
 import { VERSION } from '../shared/version.js';
 const selectionSchema = z
@@ -70,6 +71,8 @@ export async function createApi(
     }
   });
   app.setErrorHandler((error, req, reply) => {
+    if (error instanceof QueueFullError)
+      return reply.code(429).send({ code: 'QUEUE_FULL', message: error.message });
     if (error instanceof ApiError)
       return reply.code(error.status).send({ code: error.code, message: error.message });
     if (error instanceof z.ZodError)
@@ -80,6 +83,17 @@ export async function createApi(
       return reply.code(429).send({
         code: 'TOO_MANY_REQUESTS',
         message: 'Too many requests. Please wait before trying again.',
+      });
+    const clientStatus = (error as { statusCode?: number }).statusCode;
+    if (clientStatus && clientStatus >= 400 && clientStatus < 500)
+      return reply.code(clientStatus).send({
+        code: 'INVALID_REQUEST',
+        message:
+          clientStatus === 413
+            ? 'The request is too large.'
+            : clientStatus === 415
+              ? 'Send this request as application/json.'
+              : 'The request could not be read. Check its JSON and fields.',
       });
     req.log.error({ errorName: error instanceof Error ? error.name : 'Unknown' }, 'Request failed');
     return reply.code(500).send({
@@ -158,20 +172,23 @@ export async function createApi(
         }
         report = await store.getReport(input.reportCode);
       }
-      if (!report)
-        throw new ApiError(
-          'REPORT_EXPIRED',
-          'Load this report again before starting an analysis.',
-          409,
-        );
+      if (!report) {
+        report = await client.report(input.reportCode);
+        await store.putReport(report);
+      }
       const selected = selectFights(report, selection);
+      if (selection.fightIds && new Set(selection.fightIds).size !== selected.length)
+        throw new ApiError(
+          'SELECTION_CHANGED',
+          'Some selected pulls are no longer available or do not match these filters. Load the report again.',
+          422,
+        );
       if (!selected.length)
         throw new ApiError('EMPTY_SELECTION', 'Choose at least one completed boss pull.', 422);
       if (selected.length > 150)
         throw new ApiError('REPORT_TOO_LARGE', 'Select at most 150 pulls in the prototype.', 422);
-      if ((await store.activeJobs()) >= 12)
-        throw new ApiError('QUEUE_FULL', 'The analysis queue is full. Try again shortly.', 429);
-      const job = await store.createJob(report.code, selection, input.demo);
+      const frozen = { ...selection, fightIds: selected.map((f) => f.id) };
+      const job = await store.createJob(report.code, frozen, input.demo);
       try {
         await enqueue(job.id);
       } catch {

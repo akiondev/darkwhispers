@@ -5,6 +5,7 @@ import { MemoryStore } from '../server/store.js';
 import { WclClient } from '../server/wcl.js';
 import { runAnalysis } from '../server/jobs.js';
 import type { Selection } from '../shared/types.js';
+import { demoData } from '../shared/demo.js';
 const selection: Selection = {
   encounterId: null,
   difficulty: null,
@@ -12,6 +13,88 @@ const selection: Selection = {
   fightIds: null,
   excludeWipeTail: false,
 };
+
+test('malformed JSON and oversized requests retain their client error status', async () => {
+  const app = await createApi(new MemoryStore(), new WclClient('', ''), async () => {});
+  try {
+    const malformed = await app.inject({
+      method: 'POST',
+      url: '/api/analyses',
+      headers: { 'content-type': 'application/json' },
+      payload: '{',
+    });
+    assert.equal(malformed.statusCode, 400);
+    const large = await app.inject({
+      method: 'POST',
+      url: '/api/analyses',
+      payload: { padding: 'x'.repeat(17000) },
+    });
+    assert.equal(large.statusCode, 413);
+    const unsupported = await app.inject({
+      method: 'POST',
+      url: '/api/analyses',
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: 'x',
+    });
+    assert.equal(unsupported.statusCode, 415);
+  } finally {
+    await app.close();
+  }
+});
+
+test('expired metadata is refreshed, and an accepted selection cannot grow while queued', async () => {
+  const store = new MemoryStore(),
+    { report } = demoData();
+  report.source = 'warcraftlogs';
+  report.code = '6fjJxRFC21YHdTXB';
+  let imports = 0;
+  class Client extends WclClient {
+    override async report() {
+      imports++;
+      return report;
+    }
+  }
+  const app = await createApi(store, new Client('c', 's'), async () => {});
+  try {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/analyses',
+      payload: { reportCode: report.code, selection: { ...selection, encounterId: 3420 } },
+    });
+    assert.equal(created.statusCode, 202);
+    assert.equal(imports, 1);
+    const job = (await store.getJob(created.json().id))!;
+    assert.deepEqual(
+      job.selection.fightIds,
+      report.fights.filter((f) => f.encounterId === 3420).map((f) => f.id),
+    );
+    report.fights.push({ ...report.fights[4], id: 99 });
+    assert.ok(!job.selection.fightIds!.includes(99));
+    const changed = await app.inject({
+      method: 'POST',
+      url: '/api/analyses',
+      payload: { reportCode: report.code, selection: { ...selection, fightIds: [999] } },
+    });
+    assert.equal(changed.statusCode, 422);
+  } finally {
+    await app.close();
+  }
+});
+
+test('concurrent submissions cannot exceed queue admission, and expired jobs terminate', async () => {
+  const store = new MemoryStore();
+  const attempts = await Promise.allSettled(
+    Array.from({ length: 20 }, () => store.createJob('demo', selection, true)),
+  );
+  assert.equal(attempts.filter((a) => a.status === 'fulfilled').length, 12);
+  const job = [...store.jobs.values()][0];
+  job.createdAt = new Date(Date.now() - 3 * 3600000).toISOString();
+  assert.equal((await store.getJob(job.id))!.status, 'failed');
+  assert.equal((await store.getJob(job.id))!.errorCode, 'ANALYSIS_EXPIRED');
+  await store.updateJob(job.id, { status: 'complete', progress: 100 });
+  assert.equal((await store.getJob(job.id))!.status, 'failed');
+  assert.equal(await store.activeJobs(), 11);
+});
 test('late parallel progress updates cannot move the displayed progress backwards', async () => {
   const store = new MemoryStore();
   const job = await store.createJob('demo', selection, true);

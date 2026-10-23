@@ -7,6 +7,7 @@ import { parseReportCode, selectFights } from '../shared/report-url.js';
 import { scoreBand, scoreLabel } from '../shared/score.js';
 import { aliveTime } from '../server/ingest.js';
 import type { Selection } from '../shared/types.js';
+import { roleFromSpec, summarizeSpecs } from '../shared/players.js';
 const all: Selection = {
   encounterId: null,
   difficulty: null,
@@ -14,6 +15,22 @@ const all: Selection = {
   fightIds: null,
   excludeWipeTail: false,
 };
+
+test('unknown and partially missing specifications never invent a damage role', () => {
+  assert.equal(roleFromSpec('New unknown specialization'), 'unknown');
+  assert.equal(roleFromSpec('Augmentation'), 'dps');
+  assert.equal(summarizeSpecs(['Balance', 'Unknown']).role, 'unknown');
+  assert.equal(summarizeSpecs(['Balance', 'Feral']).role, 'dps');
+  assert.equal(summarizeSpecs(['Restoration', 'Balance']).role, 'unknown');
+});
+
+test('old cached percentiles cannot grade an unknown specification', () => {
+  const { report, pulls } = demoData();
+  report.players[0].spec = 'Unknown';
+  for (const p of pulls) p.fight.playerSpecs = { 1: 'Unknown' };
+  const result = analyze(report, pulls, { ...all, mode: 'kills' });
+  assert.ok(result.players.every((p) => !p.categories.output.applied));
+});
 test('selection covers entire report, a boss, wipes, kills and individual pulls', () => {
   const { report } = demoData();
   assert.equal(selectFights(report, all).length, 12);
