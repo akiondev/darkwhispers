@@ -1,5 +1,6 @@
+import { VERSION } from '../shared/version.js';
 export const config = {
-  version: '0.1.0',
+  version: VERSION,
   port: Number(process.env.PORT ?? 8879),
   host: '127.0.0.1',
   production: process.env.NODE_ENV === 'production',

@@ -12,7 +12,8 @@ import type {
 } from './types.js';
 import { selectFights } from './report-url.js';
 
-export const ENGINE_VERSION = '0.1.0';
+import { VERSION } from './version.js';
+export const ENGINE_VERSION = VERSION;
 export const WEIGHTS = { mechanics: 35, survival: 35, output: 20, utility: 10 } as const;
 export const CATEGORIES = Object.keys(WEIGHTS) as Category[];
 const mean = (values: number[]) =>
@@ -239,7 +240,7 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
     rank = 0;
   players.forEach((p, index) => {
     if (p.score === null) return;
-    const rounded = Math.round(p.score * 10);
+    const rounded = Math.floor(p.score * 10);
     if (previous !== rounded) rank = index + 1;
     p.rank = rank;
     previous = rounded;

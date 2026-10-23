@@ -327,7 +327,22 @@ export class WclClient {
           'WCL_MISSING_EVENTS',
           'An event page was missing. No complete ranking can be produced.',
         );
-      onPage(result.data.map(object));
+      const events = result.data.map(object);
+      if (
+        events.some(
+          (event) =>
+            typeof event.type !== 'string' ||
+            !event.type ||
+            typeof event.timestamp !== 'number' ||
+            !Number.isFinite(event.timestamp),
+        )
+      ) {
+        throw new ApiError(
+          'WCL_INVALID_EVENTS',
+          'An event page contained invalid events. Import stopped; missing evidence cannot be counted as a perfect result.',
+        );
+      }
+      onPage(events);
       const next = result.nextPageTimestamp;
       if (next === null || next === undefined) break;
       if (typeof next !== 'number' || !Number.isFinite(next) || next <= start)

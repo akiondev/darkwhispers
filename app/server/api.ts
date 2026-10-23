@@ -6,6 +6,7 @@ import { demoData } from '../shared/demo.js';
 import { parseReportCode, selectFights } from '../shared/report-url.js';
 import type { Store } from './store.js';
 import { ApiError, WclClient } from './wcl.js';
+import { VERSION } from '../shared/version.js';
 const selectionSchema = z
   .object({
     encounterId: z.number().int().positive().nullable().default(null),
@@ -57,12 +58,10 @@ export async function createApi(
             'http://localhost:8878',
           ].includes(parsed.origin)
         )
-          return reply
-            .code(403)
-            .send({
-              code: 'ORIGIN_REJECTED',
-              message: 'This action must originate from DarkWhispers.',
-            });
+          return reply.code(403).send({
+            code: 'ORIGIN_REJECTED',
+            message: 'This action must originate from DarkWhispers.',
+          });
       } catch {
         return reply
           .code(403)
@@ -78,29 +77,25 @@ export async function createApi(
         .code(400)
         .send({ code: 'INVALID_INPUT', message: 'Check the report link and pull selection.' });
     if ((error as any).statusCode === 429)
-      return reply
-        .code(429)
-        .send({
-          code: 'TOO_MANY_REQUESTS',
-          message: 'Too many requests. Please wait before trying again.',
-        });
-    req.log.error({ errorName: error instanceof Error ? error.name : 'Unknown' }, 'Request failed');
-    return reply
-      .code(500)
-      .send({
-        code: 'INTERNAL_ERROR',
-        message: 'The request could not be completed. Please retry.',
+      return reply.code(429).send({
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Too many requests. Please wait before trying again.',
       });
+    req.log.error({ errorName: error instanceof Error ? error.name : 'Unknown' }, 'Request failed');
+    return reply.code(500).send({
+      code: 'INTERNAL_ERROR',
+      message: 'The request could not be completed. Please retry.',
+    });
   });
   app.get('/api/status', async () => ({
-    version: '0.1.0',
+    version: VERSION,
     liveConfigured: client.configured,
     demoAvailable: true,
     mode: client.configured ? 'live' : 'credentials-required',
   }));
   app.get('/healthz', async () => {
     await store.activeJobs();
-    return { status: 'ok', application: 'darkwhispers-app', version: '0.1.0' };
+    return { status: 'ok', application: 'darkwhispers-app', version: VERSION };
   });
   app.get('/api/demo/report', async () => demoData().report);
   app.post(

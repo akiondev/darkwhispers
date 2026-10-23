@@ -47,7 +47,14 @@ export class MemoryStore implements Store {
   }
   async updateJob(id: string, patch: Partial<Job>) {
     const job = this.jobs.get(id);
-    if (job) this.jobs.set(id, { ...job, ...patch });
+    if (job) {
+      const next = { ...patch };
+      if (typeof next.progress === 'number' && next.progress < job.progress) {
+        delete next.progress;
+        delete next.message;
+      }
+      this.jobs.set(id, { ...job, ...next });
+    }
   }
   async activeJobs() {
     return [...this.jobs.values()].filter((j) => ['queued', 'running'].includes(j.status)).length;
@@ -112,10 +119,12 @@ export class PgStore implements Store {
     return (r.rows[0]?.data as Job) ?? null;
   }
   async updateJob(id: string, patch: Partial<Job>) {
-    await this.pool.query('UPDATE analyses SET data=data||$2::jsonb WHERE id=$1', [
-      id,
-      JSON.stringify(patch),
-    ]);
+    await this.pool.query(
+      `UPDATE analyses SET data=data||CASE
+      WHEN $2::jsonb ? 'progress' AND ($2::jsonb->>'progress')::numeric < (data->>'progress')::numeric
+      THEN $2::jsonb - 'progress' - 'message' ELSE $2::jsonb END WHERE id=$1`,
+      [id, JSON.stringify(patch)],
+    );
   }
   async activeJobs() {
     const r = await this.pool.query(

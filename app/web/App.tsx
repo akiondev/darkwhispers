@@ -27,6 +27,7 @@ import type {
 } from '../shared/types.js';
 import { difficultyName, selectFights } from '../shared/report-url.js';
 import { scoreBand, scoreLabel } from '../shared/score.js';
+import { VERSION } from '../shared/version.js';
 const PullChart = lazy(() => import('./PullChart.js'));
 const defaults: Selection = {
   encounterId: null,
@@ -925,7 +926,7 @@ export default function App() {
         )}
         <footer>
           <span>
-            DARKWHISPERS <small>Prototype · engine 0.1.0</small>
+            DARKWHISPERS <small>Prototype · engine {VERSION}</small>
           </span>
           <p>
             Independent community project. Not affiliated with Blizzard or Warcraft Logs.

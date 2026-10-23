@@ -4,13 +4,24 @@ import { createApi } from '../server/api.js';
 import { MemoryStore } from '../server/store.js';
 import { WclClient } from '../server/wcl.js';
 import { runAnalysis } from '../server/jobs.js';
-const selection = {
+import type { Selection } from '../shared/types.js';
+const selection: Selection = {
   encounterId: null,
   difficulty: null,
   mode: 'all',
   fightIds: null,
   excludeWipeTail: false,
 };
+test('late parallel progress updates cannot move the displayed progress backwards', async () => {
+  const store = new MemoryStore();
+  const job = await store.createJob('demo', selection, true);
+  await store.updateJob(job.id, { progress: 50, message: 'Ready: 5 of 10 pulls' });
+  await store.updateJob(job.id, { progress: 40, message: 'Ready: 4 of 10 pulls' });
+  assert.equal((await store.getJob(job.id))!.progress, 50);
+  assert.equal((await store.getJob(job.id))!.message, 'Ready: 5 of 10 pulls');
+  await store.updateJob(job.id, { status: 'failed', error: 'Fixture failure' });
+  assert.equal((await store.getJob(job.id))!.status, 'failed');
+});
 test('HTTP API creates a demo job and returns a complete auditable ranking', async () => {
   const store = new MemoryStore(),
     client = new WclClient('', '');

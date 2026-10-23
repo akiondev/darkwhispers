@@ -89,7 +89,23 @@ function tableEntries(table: unknown): Record<string, any>[] {
       'WCL_MISSING_TABLE',
       'A requested metric table was missing. The import is incomplete.',
     );
-  return data.entries.map(object);
+  const entries = data.entries.map(object);
+  if (
+    entries.some(
+      (entry) =>
+        typeof entry.id !== 'number' ||
+        !Number.isFinite(entry.id) ||
+        typeof entry.total !== 'number' ||
+        !Number.isFinite(entry.total) ||
+        entry.total < 0,
+    )
+  ) {
+    throw new ApiError(
+      'WCL_INVALID_TABLE',
+      'A metric table contained invalid totals. Missing measurements are not treated as zero.',
+    );
+  }
+  return entries;
 }
 export async function ingestPull(
   client: WclClient,
@@ -143,95 +159,85 @@ export async function ingestPull(
       url: evidenceUrl(report, fight.id, id, event.timestamp, view),
     });
   };
-  await step('Reading deaths and battle resurrections');
+  // One filtered timeline replaces five separate event scans. The cast clause
+  // includes only catalogue abilities already present in this report's master data.
+  const defensiveIds = [...abilities].filter(([, name]) => DEFENSIVES.has(name)).map(([id]) => id);
+  const filter = [
+    'type = "death"',
+    'type = "resurrect"',
+    'type = "interrupt"',
+    'type = "dispel"',
+    'type = "steal"',
+    '(type = "applydebuff" and target.type = "player")',
+    ...(defensiveIds.length
+      ? [`(type = "cast" and (${defensiveIds.map((id) => `ability.id = ${id}`).join(' or ')}))`]
+      : []),
+  ].join(' or ');
+  const observedAuras = new Map<string, { count: number; event: Record<string, any> }>();
+  await step('Reading survival, defensive and mechanic evidence');
   await client.events(
     report.code,
     fight,
     'All',
     (events) => {
       for (const event of events) {
-        const id = finite(event.targetID);
-        const metric = metrics.get(id);
-        if (!metric) continue;
+        const source = metrics.get(finite(event.sourceID));
+        const target = metrics.get(finite(event.targetID));
+        const id = finite(event.abilityGameID) || finite(object(event.ability).guid);
         if (event.type === 'death' || event.type === 'resurrect') {
-          const stream = life.get(id) ?? [];
-          stream.push({ timestamp: finite(event.timestamp), type: event.type });
-          life.set(id, stream);
+          if (!target) continue;
+          const stream = life.get(target.actorId) ?? [];
+          stream.push({ timestamp: event.timestamp, type: event.type });
+          life.set(target.actorId, stream);
           if (event.type === 'death') {
-            metric.deaths++;
+            target.deaths++;
             evidence(
-              id,
+              target.actorId,
               event,
               'death',
               'Recorded death. Cause and responsibility require reviewing the preceding events.',
               'deaths',
             );
           }
+        } else if (event.type === 'cast' && source) {
+          const name = abilities.get(id) || text(object(event.ability).name);
+          if (!DEFENSIVES.has(name)) continue;
+          source.defensives++;
+          let entry = source.defensiveSpells.find((spell) => spell.id === id);
+          if (!entry) {
+            entry = { id, name, count: 0 };
+            source.defensiveSpells.push(entry);
+          }
+          entry.count++;
+          evidence(
+            source.actorId,
+            event,
+            'defensive',
+            'Observed defensive or external cooldown cast. Cast count alone is not a performance grade.',
+            'casts',
+          );
+        } else if (source && ['interrupt', 'dispel', 'steal'].includes(event.type)) {
+          const kind = event.type === 'interrupt' ? 'interrupt' : 'dispel';
+          if (kind === 'interrupt') source.interrupts++;
+          else source.dispels++;
+          evidence(
+            source.actorId,
+            event,
+            kind,
+            'Successful logged utility event. Assignments and missed opportunities are not inferred from this count.',
+            kind === 'interrupt' ? 'interrupts' : 'dispels',
+          );
+        } else if (event.type === 'applydebuff' && target) {
+          const key = `${target.actorId}:${id}`;
+          const observed = observedAuras.get(key);
+          if (observed) observed.count++;
+          else observedAuras.set(key, { count: 1, event });
         }
       }
     },
-    'type = "death" or type = "resurrect"',
+    filter,
   );
   for (const [id, metric] of metrics) metric.aliveMs = aliveTime(fight, life.get(id) ?? []);
-  await step('Reading defensive casts');
-  await client.events(report.code, fight, 'Casts', (events) => {
-    for (const event of events) {
-      if (event.type !== 'cast') continue;
-      const metric = metrics.get(finite(event.sourceID));
-      if (!metric) continue;
-      const id = finite(event.abilityGameID) || finite(object(event.ability).guid),
-        name = abilities.get(id) || text(object(event.ability).name);
-      if (DEFENSIVES.has(name)) {
-        metric.defensives++;
-        let entry = metric.defensiveSpells.find((s) => s.id === id);
-        if (!entry) {
-          entry = { id, name, count: 0 };
-          metric.defensiveSpells.push(entry);
-        }
-        entry.count++;
-        evidence(
-          metric.actorId,
-          event,
-          'defensive',
-          'Observed defensive or external cooldown cast. Cast count alone is not a performance grade.',
-          'casts',
-        );
-      }
-    }
-  });
-  for (const kind of ['Interrupts', 'Dispels']) {
-    await step(`Reading ${kind.toLowerCase()}`);
-    await client.events(report.code, fight, kind, (events) => {
-      for (const event of events) {
-        if (event.type !== (kind === 'Interrupts' ? 'interrupt' : 'dispel')) continue;
-        const metric = metrics.get(finite(event.sourceID));
-        if (!metric) continue;
-        if (kind === 'Interrupts') metric.interrupts++;
-        else metric.dispels++;
-        evidence(
-          metric.actorId,
-          event,
-          kind === 'Interrupts' ? 'interrupt' : 'dispel',
-          'Successful logged utility event. Assignments and missed opportunities are not inferred from this count.',
-          kind.toLowerCase(),
-        );
-      }
-    });
-  }
-  await step('Reading mechanic observations');
-  const observedAuras = new Map<string, { count: number; event: Record<string, any> }>();
-  await client.events(report.code, fight, 'Debuffs', (events) => {
-    for (const event of events) {
-      if (event.type !== 'applydebuff') continue;
-      const id = finite(event.targetID);
-      if (!metrics.has(id)) continue;
-      const ability = finite(event.abilityGameID) || finite(object(event.ability).guid),
-        key = `${id}:${ability}`;
-      const observed = observedAuras.get(key);
-      if (observed) observed.count++;
-      else observedAuras.set(key, { count: 1, event });
-    }
-  });
   for (const { count, event } of observedAuras.values())
     evidence(
       finite(event.targetID),
