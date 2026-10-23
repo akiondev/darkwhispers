@@ -280,6 +280,11 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       player.tankReview.grade = combineTankGrades(
         player.perBoss.map((b) => b.tankReview?.grade ?? gradeTankTasks([])),
       );
+      player.tankReview.status = player.tankReview.grade.complete
+        ? 'complete'
+        : player.tankReview.facts.knownMeleeEvents > 0
+          ? 'partial'
+          : 'insufficient';
     }
   // Boss-relative midrank is context only; the overall score averages weighted
   // boss scores. Ties share a relative value; an all-equal boss gives everyone 50.

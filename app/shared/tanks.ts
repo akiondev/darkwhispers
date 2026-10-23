@@ -162,9 +162,7 @@ export function summarizeTankFacts(
     pullsMissing: values.length - measured.length,
     reasons: [
       ...profiles.flatMap((id) => TANK_PROFILES.find((p) => p.id === id)?.note ?? []),
-      grade.complete
-        ? 'The task grade uses only verified server-side rule verdicts. It does not establish fault for unmodelled mechanics.'
-        : 'A tank composite score is withheld until the core encounter-duty and defensive-decision rules are validated. Missing categories never transfer their weight to Tempest or raw survival.',
+      'Tank task grades require verified criteria on each boss. Missing categories never transfer their weight to Tempest or raw survival, and unmodelled mechanics do not establish individual fault.',
       'Protection coverage, large-hit observations, self-healing and pressure deaths are measurements, not evidence of fault or cooldown availability.',
       'Swaps involving both tanks remain shared review observations without verified individual responsibility.',
       ...(values.length !== measured.length

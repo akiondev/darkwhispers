@@ -382,3 +382,32 @@ test('the generic scoring kernel can grade verified synthetic duties for every t
     assert.throws(() => analyze(report, [pull], selection), /evaluation window/);
   }
 });
+
+test('complementary missing categories on different bosses cannot manufacture a complete tank grade', () => {
+  const { report, fight, ability, abilities, metrics, hit } = fixture();
+  const r = tankRecorder(report, fight, abilities);
+  r.observe([
+    { type: 'combatantinfo', timestamp: 0, sourceID: 1, auras: [{ ability, stacks: 1 }] },
+    hit(1000),
+  ]);
+  r.finish(metrics, new Map(), 60000);
+  const first = structuredClone(metrics.get(1)!);
+  first.tank!.tasks = verifiedTasks().slice(0, 3);
+  const second = structuredClone(metrics.get(1)!);
+  second.tank!.tasks = verifiedTasks(2)
+    .slice(3)
+    .map((t) => ({ ...t, timestamp: t.timestamp + 60000 }));
+  const next = { ...fight, id: 2, encounterId: 111111, startTime: 60000, endTime: 120000 };
+  report.fights = [fight, next];
+  const result = analyze(
+    report,
+    [
+      { fight, metrics: [first] },
+      { fight: next, metrics: [second] },
+    ].map((p) => ({ ...p, complete: true, warnings: [], mechanicRule: null, wipeTailMs: null })),
+    { encounterId: null, difficulty: null, mode: 'all', fightIds: null, excludeWipeTail: false },
+  ).players[0];
+  assert.equal(result.score, null);
+  assert.equal(result.tankReview!.grade.complete, false);
+  assert.equal(result.tankReview!.status, 'partial');
+});
