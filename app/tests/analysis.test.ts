@@ -116,6 +116,26 @@ test('partial live boss rules remain provisional even with all category inputs p
   const result = analyze(report, pulls, { ...all, mode: 'kills' });
   assert.ok(result.players.every((p) => p.coverage === 100 && p.provisional));
 });
+test('review priorities start with the most frequent mechanic failures, not the highest ranked player', () => {
+  const { report, pulls } = demoData();
+  for (const p of pulls) {
+    const metric = p.metrics.find((m) => m.actorId === 20)!;
+    metric.mechanicFailures = metric.mechanicOpportunities;
+    metric.evidence.push({
+      fightId: p.fight.id,
+      timestamp: p.fight.startTime + 1000,
+      ability: 'Fixture hazard',
+      kind: 'mechanic',
+      description: 'Synthetic priority fixture',
+      confidence: 'observed',
+      ruleId: 'fixture-priority',
+      url: null,
+    });
+  }
+  const result = analyze(report, pulls, all);
+  assert.equal(result.findings[0].actorId, 20);
+  assert.ok(result.findings.some((f) => f.confidence === 'inferred'));
+});
 test('unvalidated mechanics and raw damage taken do not create penalties', () => {
   const { report, pulls } = demoData();
   for (const p of pulls) {

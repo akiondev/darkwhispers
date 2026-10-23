@@ -295,6 +295,15 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       evidence: [first],
     });
   }
+  findings.sort((a, b) => {
+    if (a.confidence !== b.confidence) return a.confidence === 'observed' ? -1 : 1;
+    if (a.confidence === 'inferred') return a.fightIds[0] - b.fightIds[0];
+    const first = perPlayer.get(a.actorId ?? 0),
+      second = perPlayer.get(b.actorId ?? 0);
+    const rate = (p: RankedPlayer | undefined) =>
+      (p?.mechanicFailures ?? 0) / Math.max(1, p?.mechanicOpportunities ?? 0);
+    return rate(second) - rate(first) || (b.evidence?.length ?? 0) - (a.evidence?.length ?? 0);
+  });
   const warnings = [...new Set([...report.warnings, ...pulls.flatMap((p) => p.warnings)])];
   if (new Set(pulls.map((p) => p.fight.difficulty)).size > 1)
     warnings.push(

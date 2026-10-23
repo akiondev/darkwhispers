@@ -32,7 +32,7 @@ Survival measures time alive and handles battle resurrections; it does not assig
 
 ## Performance and integrity
 
-Report actors are fetched once; ability master data once when uncached pulls exist. Two pulls run concurrently, with a hard limit of three upstream requests per process. OAuth refresh is single-flight. Completed pulls are committed independently and reused across different boss/mode selections. Cache keys include report revision, fight boundaries and engine version. Metadata is refreshed after five minutes; rankings are snapshots, not live combat monitoring.
+Report actors are fetched once; ability master data once when uncached pulls exist. Two pulls run concurrently, with a hard limit of three upstream requests per process. OAuth refresh is single-flight. Completed pulls are committed independently and reused across different boss/mode selections. Cache keys include report revision, fight boundaries and a separate ingestion/rule version. UI-only and score-aggregation releases reuse compatible downloaded facts. Metadata is refreshed after five minutes; rankings are snapshots, not live combat monitoring.
 
 Events are processed through one server-filtered timeline per pull (deaths, resurrections, interrupts, dispels/steals, debuff applications and known defensive spell IDs), rather than five independent event streams or all ordinary spell casts. Together with the batched metric tables, an uncached wipe normally needs two GraphQL requests before pagination, excluding report-level master data. This is a structural request-count reduction, not a measured live latency claim. Optional kill percentiles add one request on kills.
 

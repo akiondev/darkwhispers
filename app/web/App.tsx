@@ -11,7 +11,6 @@ import {
   LoaderCircle,
   Search,
   ShieldCheck,
-  Skull,
   Swords,
   X,
 } from 'lucide-react';
@@ -28,6 +27,13 @@ import type {
 import { difficultyName, selectFights } from '../shared/report-url.js';
 import { scoreBand, scoreLabel } from '../shared/score.js';
 import { VERSION } from '../shared/version.js';
+import ReviewPriorities from './ReviewPriorities.js';
+const roleLabel = (player: Pick<RankedPlayer, 'role' | 'spec'>) =>
+  player.role === 'unknown'
+    ? player.spec === 'Mixed'
+      ? 'mixed roles'
+      : 'unknown role'
+    : player.role;
 const PullChart = lazy(() => import('./PullChart.js'));
 const defaults: Selection = {
   encounterId: null,
@@ -160,7 +166,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
         <span className={`class-dot class-${player.class.toLowerCase()}`} />
         <div>
           <p className="eyebrow">
-            {player.class} · {player.spec} · {player.role}
+            {player.class} · {player.spec} · {roleLabel(player)}
           </p>
           <h3>{player.name}</h3>
         </div>
@@ -210,12 +216,16 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
           <strong>{player.deaths}</strong>
         </div>
         <div>
-          <span>{player.role === 'healer' ? 'HPS' : 'DPS'}</span>
+          <span>
+            {player.role === 'unknown' ? 'DPS / HPS' : player.role === 'healer' ? 'HPS' : 'DPS'}
+          </span>
           <strong>
             {compact.format(
               (player.role === 'healer' ? player.healing : player.damage) /
                 Math.max(1, player.durationMs / 1000),
             )}
+            {player.role === 'unknown' &&
+              ` / ${compact.format(player.healing / Math.max(1, player.durationMs / 1000))}`}
           </strong>
         </div>
         <div>
@@ -604,7 +614,8 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      Analyze {chosen.length} pulls <Swords size={16} />
+                      Analyze {chosen.length} {chosen.length === 1 ? 'pull' : 'pulls'}{' '}
+                      <Swords size={16} />
                     </>
                   )}
                 </button>
@@ -776,7 +787,7 @@ export default function App() {
                     <option value="tank">Tanks</option>
                     <option value="healer">Healers</option>
                     <option value="dps">Damage</option>
-                    <option value="unknown">Unknown role</option>
+                    <option value="unknown">Mixed / unknown</option>
                   </select>
                 </div>
               </div>
@@ -810,7 +821,7 @@ export default function App() {
                             <span>
                               {p.name}
                               <small>
-                                {p.spec} {p.class} · {p.role}
+                                {p.spec} {p.class} · {roleLabel(p)}
                               </small>
                             </span>
                           </button>
@@ -838,7 +849,12 @@ export default function App() {
                               Math.max(1, p.durationMs / 1000),
                           )}
                           <small className="cell-sub">
-                            {p.role === 'healer' ? 'HPS' : 'DPS'} · raw output
+                            {p.role === 'unknown'
+                              ? `DPS · ${compact.format(p.healing / Math.max(1, p.durationMs / 1000))} HPS`
+                              : p.role === 'healer'
+                                ? 'HPS'
+                                : 'DPS'}{' '}
+                            · raw output
                           </small>
                         </td>
                         <td>{p.pulls}</td>
@@ -887,46 +903,11 @@ export default function App() {
                   ))}
                 </div>
               </section>
-              <section className="panel findings">
-                <div className="section-heading">
-                  <h3>Review priorities</h3>
-                  <Skull size={17} />
-                </div>
-                <p className="small muted">
-                  Evidence to review together. A first death is not proof of who caused a wipe.
-                </p>
-                {analysis.findings.slice(0, 8).map((f, index) => (
-                  <article key={index}>
-                    <span className={`tag ${f.confidence === 'observed' ? 'observed' : ''}`}>
-                      {f.confidence === 'observed' ? 'Observed pattern' : 'Review starting point'}
-                    </span>
-                    <h4>{f.title}</h4>
-                    <p>{f.detail}</p>
-                    {f.actorId && (
-                      <button
-                        className="text-button"
-                        onClick={() =>
-                          setPlayer(analysis.players.find((p) => p.id === f.actorId) ?? null)
-                        }
-                      >
-                        Inspect evidence <ArrowRight size={12} />
-                      </button>
-                    )}
-                  </article>
-                ))}
-                {!analysis.findings.length && (
-                  <p className="muted">
-                    No recurring confirmed failures or logged first deaths were found in these
-                    pulls.
-                  </p>
-                )}
-                {analysis.findings.length > 8 && (
-                  <p className="small muted">
-                    {analysis.findings.length - 8} more observations are available in individual
-                    player evidence.
-                  </p>
-                )}
-              </section>
+              <ReviewPriorities
+                key={analysis.generatedAt}
+                analysis={analysis}
+                onInspect={(id) => setPlayer(analysis.players.find((p) => p.id === id) ?? null)}
+              />
             </div>
           </section>
         )}

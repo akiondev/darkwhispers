@@ -1,4 +1,5 @@
-import { analyze, ENGINE_VERSION } from '../shared/analysis.js';
+import { analyze } from '../shared/analysis.js';
+import { PULL_CACHE_VERSION } from '../shared/version.js';
 import { demoData } from '../shared/demo.js';
 import { selectFights } from '../shared/report-url.js';
 import type { PullData, Report } from '../shared/types.js';
@@ -31,7 +32,7 @@ export async function runAnalysis(id: string, store: Store, client: WclClient): 
         );
       const keys = selected.map(
         (f) =>
-          `${report.code}:${report.revision}:${f.id}:${f.startTime}:${f.endTime}:${ENGINE_VERSION}`,
+          `${report.code}:${report.revision}:${f.id}:${f.startTime}:${f.endTime}:${PULL_CACHE_VERSION}`,
       );
       const cached = await Promise.all(keys.map((key) => store.getPull(key)));
       const abilities = cached.every(Boolean)
