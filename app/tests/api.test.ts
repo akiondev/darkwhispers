@@ -6,6 +6,7 @@ import { WclClient } from '../server/wcl.js';
 import { runAnalysis } from '../server/jobs.js';
 import type { Selection } from '../shared/types.js';
 import { demoData } from '../shared/demo.js';
+import { clientAddress } from '../server/client-ip.js';
 const selection: Selection = {
   encounterId: null,
   difficulty: null,
@@ -13,6 +14,51 @@ const selection: Selection = {
   fightIds: null,
   excludeWipeTail: false,
 };
+
+test('Cloudflare visitors have separate rate limits and untrusted headers cannot spoof them', async () => {
+  assert.equal(
+    clientAddress({ ip: '2606:4700::1', headers: { 'cf-connecting-ip': '2001:db8::1' } }),
+    '2001:db8::1',
+  );
+  assert.equal(
+    clientAddress({
+      ip: '162.158.1.1',
+      headers: { 'cf-connecting-ip': '198.51.100.2,198.51.100.3' },
+    }),
+    '162.158.1.1',
+  );
+  assert.equal(
+    clientAddress({ ip: '198.51.100.1', headers: { 'cf-connecting-ip': '198.51.100.2' } }),
+    '198.51.100.1',
+  );
+  const app = await createApi(new MemoryStore(), new WclClient('', ''), async () => {});
+  try {
+    for (const visitor of ['198.51.100.1', '198.51.100.2']) {
+      for (let i = 0; i < 7; i++) {
+        const reply = await app.inject({
+          method: 'POST',
+          url: '/api/reports/inspect',
+          remoteAddress: '127.0.0.1',
+          headers: { 'x-forwarded-for': '162.158.1.1', 'cf-connecting-ip': visitor },
+          payload: { url: 'invalid' },
+        });
+        assert.equal(reply.statusCode, i < 6 ? 400 : 429);
+      }
+    }
+    for (let i = 0; i < 7; i++) {
+      const reply = await app.inject({
+        method: 'POST',
+        url: '/api/reports/inspect',
+        remoteAddress: '198.51.100.3',
+        headers: { 'x-forwarded-for': '162.158.1.1', 'cf-connecting-ip': `198.51.100.${i + 10}` },
+        payload: { url: 'invalid' },
+      });
+      assert.equal(reply.statusCode, i < 6 ? 400 : 429);
+    }
+  } finally {
+    await app.close();
+  }
+});
 
 test('malformed JSON and oversized requests retain their client error status', async () => {
   const app = await createApi(new MemoryStore(), new WclClient('', ''), async () => {});

@@ -8,6 +8,7 @@ import type { Store } from './store.js';
 import { QueueFullError } from './store.js';
 import { ApiError, WclClient } from './wcl.js';
 import { VERSION } from '../shared/version.js';
+import { clientAddress } from './client-ip.js';
 const selectionSchema = z
   .object({
     encounterId: z.number().int().positive().nullable().default(null),
@@ -43,7 +44,7 @@ export async function createApi(
     trustProxy: ['127.0.0.1', '::1'],
     requestTimeout: 60000,
   });
-  await app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
+  await app.register(rateLimit, { max: 120, timeWindow: '1 minute', keyGenerator: clientAddress });
   app.addHook('onRequest', async (req, reply) => {
     reply.header('Cache-Control', 'no-store');
     reply.header('X-Content-Type-Options', 'nosniff');
