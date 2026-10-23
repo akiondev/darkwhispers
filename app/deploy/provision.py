@@ -139,8 +139,19 @@ WantedBy=multi-user.target
     pending.replace(BASE / 'current')
     run('systemctl', 'daemon-reload')
     try:
-        run('systemctl', 'enable', '--now', *UNITS)
-        run('systemctl', 'restart', *UNITS)
+        run('systemctl', 'enable', *UNITS)
+        # The API initializes the isolated schema before the worker starts.
+        # Concurrent first-time CREATE TABLE calls can otherwise race in PostgreSQL.
+        run('systemctl', 'restart', UNITS[0])
+        for attempt in range(25):
+            try:
+                assert http('/healthz')['status'] == 'ok'
+                break
+            except Exception:
+                if attempt == 24:
+                    raise
+                time.sleep(1)
+        run('systemctl', 'restart', UNITS[1])
         results = smoke()
     except Exception:
         if previous:
