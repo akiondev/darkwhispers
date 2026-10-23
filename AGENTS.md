@@ -1,6 +1,7 @@
 # Project instructions
 
-- Source folders: launcher/, website/, addons/DarkWhisperRaidTools/.
+- Source folders: app/, launcher/, website/, addons/DarkWhisperRaidTools/.
+- The new raid-log web app is isolated in app/ and uses its own PostgreSQL database and API/worker units. Preserve other VPS services. Never publish OAuth secrets or fabricate live data; synthetic fixtures must be labelled. Public app builds and reports use the pinned app.yml GitHub workflow.
 - Keep the raid addon independent and all product UI in English.
 - Never commit private keys, credentials, WoW settings, build caches or machine logs.
 - Preserve the signed-catalog verification, safe paths and temporary crash recovery; do not retain completed-version backups.

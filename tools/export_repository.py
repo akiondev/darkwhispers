@@ -27,12 +27,14 @@ for name in ("DarkWhisperRaidTools",):
     for source in (root/name).rglob("*"):
         if source.is_file() and source.suffix in {".lua",".toc",".tga",".ttf"}:
             include(source, "addons/"+source.relative_to(root).as_posix())
-for folder in ("launcher","website","tests","tools","docs","ci",".github"):
+for folder in ("launcher","website","app","tests","tools","docs","ci",".github"):
     for source in (root/folder).rglob("*"):
         relative = source.relative_to(root)
         if not source.is_file() or any(part in excluded for part in relative.parts):
             continue
         name = relative.as_posix()
+        if folder == "app" and (name.startswith("app/reports/") or source.name.endswith(".tar.gz")):
+            continue
         if name in {"launcher/tests/ui.html", "tests/smoke.lua", "docs/soothe-research.md", "docs/addons-guide.md"} or name.startswith("docs/README.public") or ".public." in source.name:
             continue
         if name.startswith(("website/public/addons/","website/public/launcher/downloads/")):
@@ -63,6 +65,9 @@ for name,source in sorted(mapping.items()):
 /launcher/target/
 /launcher/dist/
 /launcher/node_modules/
+/app/node_modules/
+/app/dist/
+/app/.env*
 /website/build/
 /website/public/addons/
 /website/public/downloads/*.zip

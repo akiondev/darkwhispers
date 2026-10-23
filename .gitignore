@@ -8,6 +8,9 @@
 /launcher/target/
 /launcher/dist/
 /launcher/node_modules/
+/app/node_modules/
+/app/dist/
+/app/.env*
 /website/build/
 /website/public/addons/
 /website/public/downloads/*.zip

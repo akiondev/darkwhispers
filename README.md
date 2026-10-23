@@ -2,8 +2,14 @@
 
 # DARKWHISPERS
 
-Open source raid tools for World of Warcraft Retail, with a small desktop addon
-manager and a gothic download site.
+Open source tools for World of Warcraft Retail. The current website is the
+DarkWhispers App raid-log analysis prototype; the earlier addon and launcher
+sources remain archived here.
+
+**New: [DarkWhispers App](app/README.md)** — paste a Warcraft Logs report link,
+select bosses and pulls, inspect weighted 0–100 player scores and their evidence.
+Live imports require backend API credentials. The built-in demo is explicitly
+synthetic; live Sszorak mechanic scoring is not yet validated.
 
 [Website](https://darkwhispers.akion.se/) ·
 [Downloads and complete reports](https://github.com/akiondev/darkwhispers/releases) ·
@@ -14,6 +20,7 @@ manager and a gothic download site.
 
 | Folder | Contents |
 | --- | --- |
+| app/ | React/TypeScript raid analysis app, Fastify API, PostgreSQL worker, scoring engine |
 | launcher/ | Rust installation core, Tauri desktop app, plain HTML/CSS/JS interface |
 | website/ | Static download site, browser addon installer and scoped VPS deployment tools |
 | addons/DarkWhisperRaidTools/ | Standalone marker compass, command /dwrt |
@@ -24,6 +31,11 @@ manager and a gothic download site.
 Only DarkWhispers Raid Tool is distributed here, through the signed launcher/browser catalog and a standalone ZIP. AkionUI is private and is not part of current source exports or new releases. Older published Git history and immutable releases may still contain previously public files.
 
 ## Trust and verification
+
+The web app has its own focused [build, tests, dependency audit and attestation workflow](.github/workflows/app.yml).
+The legacy desktop scans below do **not** certify the new web app. Verify app artifacts with:
+
+    gh attestation verify darkwhispers-app.tar.gz --repo akiondev/darkwhispers --signer-workflow akiondev/darkwhispers/.github/workflows/app.yml
 
 Published releases are built on GitHub-hosted runners from a named commit.
 The workflow runs targeted browser/core checks, RustSec, Semgrep Community Edition,
