@@ -8,6 +8,7 @@ import { scoreBand, scoreLabel } from '../shared/score.js';
 import { aliveTime } from '../server/ingest.js';
 import type { Selection } from '../shared/types.js';
 import { roleFromSpec, summarizeSpecs } from '../shared/players.js';
+import { bossContributions, playerExplanation } from '../shared/player-explanation.js';
 const all: Selection = {
   encounterId: null,
   difficulty: null,
@@ -15,6 +16,56 @@ const all: Selection = {
   fightIds: null,
   excludeWipeTail: false,
 };
+
+test('player explanation reconciles failed windows, effective weights and score deductions', () => {
+  const { report, pulls } = demoData();
+  for (const pull of pulls)
+    for (const m of pull.metrics) {
+      m.mechanicFailures = 4;
+      m.mechanicOpportunities = 50;
+      m.aliveMs = pull.fight.endTime - pull.fight.startTime;
+      m.outputPercentile = null;
+      m.utilitySuccesses = null;
+      m.utilityOpportunities = null;
+    }
+  const player = analyze(report, pulls, {
+    ...all,
+    fightIds: [pulls[0].fight.id],
+    excludeWipeTail: false,
+  }).players[0];
+  const summary = playerExplanation(player);
+  assert.equal(summary.mechanics!.clean, 46);
+  assert.equal(summary.mechanics!.score, 92);
+  assert.equal(player.score, 96);
+  assert.equal(summary.alive, 100);
+  assert.deepEqual(
+    bossContributions(player.perBoss[0]).map((c) => [c.name, c.weight, c.points]),
+    [
+      ['Mechanics', 50, 46],
+      ['Survival', 50, 50],
+    ],
+  );
+  assert.deepEqual(summary.losses[0], { key: 'mechanics', name: 'Mechanics', points: 4 });
+});
+
+test('explanation uses equal-boss point contributions, not one global mechanic ratio', () => {
+  const { report, pulls } = demoData();
+  const player = analyze(report, pulls, all).players[0];
+  const summary = playerExplanation(player);
+  const totalLost = summary.losses.reduce((n, c) => n + c.points, 0);
+  assert.ok(Math.abs(totalLost - (100 - player.score!)) < 1e-8);
+  for (const b of player.perBoss) {
+    const contributions = bossContributions(b);
+    assert.ok(Math.abs(contributions.reduce((n, c) => n + c.weight, 0) - 100) < 1e-8);
+    assert.ok(Math.abs(contributions.reduce((n, c) => n + c.points, 0) - b.score!) < 1e-8);
+  }
+  player.mechanicOpportunities = 0;
+  assert.equal(
+    playerExplanation(player).mechanics,
+    null,
+    'Zero opportunities never means perfect mechanics',
+  );
+});
 
 test('unknown and partially missing specifications never invent a damage role', () => {
   assert.equal(roleFromSpec('New unknown specialization'), 'unknown');
@@ -131,8 +182,14 @@ test('partial live boss rules remain provisional even with all category inputs p
   report.source = 'warcraftlogs';
   for (const p of pulls) p.mechanicScope = 'partial';
   const result = analyze(report, pulls, { ...all, mode: 'kills' });
-  assert.ok(result.players.filter(p=>p.role!=='tank').every((p) => p.coverage === 100 && p.provisional));
-  assert.ok(result.players.filter(p=>p.role==='tank').every(p=>p.score===null && p.provisional));
+  assert.ok(
+    result.players
+      .filter((p) => p.role !== 'tank')
+      .every((p) => p.coverage === 100 && p.provisional),
+  );
+  assert.ok(
+    result.players.filter((p) => p.role === 'tank').every((p) => p.score === null && p.provisional),
+  );
 });
 test('review priorities start with the most frequent mechanic failures, not the highest ranked player', () => {
   const { report, pulls } = demoData();
@@ -230,7 +287,7 @@ test('scoring-window measurements change grades but preserve full-pull facts and
     assert.equal(p.evaluatedAliveMs, 50000);
     assert.equal(p.evaluatedDurationMs, 50000);
     assert.equal(p.lateDeaths, 1);
-    if (p.role === 'tank') assert.equal(p.score,null);
+    if (p.role === 'tank') assert.equal(p.score, null);
     else assert.ok(p.score! > before.score!);
     assert.equal(p.confidence, 'limited');
     assert.equal(p.perBoss[0].provisional, true);

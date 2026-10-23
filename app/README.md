@@ -1,4 +1,4 @@
-# DarkWhispers App · prototype 0.4
+# DarkWhispers App · prototype 0.4.1
 
 Evidence-first Warcraft Logs raid analysis. React 19 + TypeScript, Vite 8, Fastify 5, PostgreSQL 16 and pg-boss. API and analysis worker are separate processes. No paid services or AI-generated player grades.
 
@@ -19,6 +19,8 @@ Visit http://127.0.0.1:8878. Without PostgreSQL configuration, local development
 To import public Warcraft Logs reports, set `WCL_CLIENT_ID` and `WCL_CLIENT_SECRET` **only on the backend**. Obtain them through the Warcraft Logs API client settings. Client Credentials uses `/oauth/token` and `/api/v2/client`; it does not require a callback or user login. Never prefix secrets with VITE_, include them in a public bundle, commit them, or paste them into a report URL.
 
 ## Data and scoring
+
+All participants, including tanks, appear in the default player list. Opening a player starts with a factual explanation of the score, failed mechanic windows, survival, the largest measured score deduction and effective weights. Per-boss calculations expose exact applied inputs and point contributions; a shortcut opens the mechanic evidence and Warcraft Logs pull links. For example, 4 failed windows out of 50 means 46 without a recorded failure and a 92/100 mechanic result, not 4 deaths or 50 pulls. Whole-report scores average boss results equally; the global window ratio is descriptive, not a replacement formula.
 
 Select the whole report, one boss, difficulty, wipes, kills, all pulls or explicit pull IDs. The prototype accepts up to 150 completed boss pulls. Each analysis runs in the background; results are reachable through an opaque job UUID. There is no public analysis directory. Report metadata expires after five minutes; cached pulls and results expire after seven days. Do not submit sensitive report links to a shared public instance.
 

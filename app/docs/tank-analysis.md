@@ -1,10 +1,10 @@
-# Tank evidence review and task scoring · engine 0.4.0
+# Tank evidence review and task scoring · engine 0.4.1
 
 ## Scope and grading boundary
 
 All six current tank specializations have class-specific evidence profiles. The collector runs on **any completed encounter and difficulty**, including bosses without a hand-written mechanic module. It does not require Sszorak or Blood DK.
 
-This is not a claim that every boss's tank duties can now be graded. The previous live tank index was mostly Tempest avoidance and alive time. It must not be presented as a complete tank performance score. Live tank composite scores, per-boss composite scores and ordinal raid/role positions are therefore withheld. Tanks have a separate overview and inspectable evidence; they are not called the worst raiders because core duties are missing. The synthetic demo's broader scoring example remains explicitly synthetic.
+This is not a claim that every boss's tank duties can now be graded. The previous live tank index was mostly Tempest avoidance and alive time. It must not be presented as a complete tank performance score. Live tank composite scores, per-boss composite scores and ordinal raid/role positions are therefore withheld. Tanks remain in the default **All roles** player list and the Tanks filter, with inspectable evidence and an immediate summary. An ungraded row is not a last-place rank. The synthetic demo's broader scoring example remains explicitly synthetic.
 
 The proposed role categories remain fixed: encounter duties 35%, defensive decisions/resources 30%, personal mechanics 20%, assigned utility 10%, relevant output 5%. These are design hypotheses, **not calibrated scientific weights**. No missing weight is transferred to another category. A complete tank composite requires validated core duty/decision rules and sufficient comparable evidence. Coverage percentages below are measurements, not replacement performance scores.
 

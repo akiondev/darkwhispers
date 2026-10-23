@@ -29,6 +29,8 @@ import { scoreBand, scoreLabel } from '../shared/score.js';
 import { VERSION } from '../shared/version.js';
 import ReviewPriorities from './ReviewPriorities.js';
 import TankReview from './TankReview.js';
+import PlayerSummary from './PlayerSummary.js';
+import { bossContributions, CATEGORY_NAMES } from '../shared/player-explanation.js';
 const roleLabel = (player: Pick<RankedPlayer, 'role' | 'spec'>) =>
   player.role === 'unknown'
     ? player.spec === 'Mixed'
@@ -188,7 +190,18 @@ function EventList({ events, analysis }: { events: Evidence[]; analysis: Analysi
 }
 function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: Analysis }) {
   const [eventType, setEventType] = useState('all');
-  const filtered = player.evidence.filter((e) => eventType === 'all' || e.kind === eventType);
+  const evidenceRef = useRef<HTMLDivElement>(null);
+  const filtered = player.evidence.filter((e) => {
+    if (eventType === 'all') return true;
+    if (eventType !== 'scored-mechanics') return e.kind === eventType;
+    const pull = analysis.pulls.find((p) => p.fight.id === e.fightId);
+    return (
+      e.kind === 'mechanic' &&
+      (!analysis.selection.excludeWipeTail ||
+        !pull?.evaluation ||
+        e.timestamp < pull.evaluation.endTime)
+    );
+  });
   return (
     <>
       <div className="player-hero">
@@ -201,6 +214,14 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
         </div>
         <Score player={player} />
       </div>
+      <PlayerSummary
+        player={player}
+        analysis={analysis}
+        onEvidence={() => {
+          setEventType('scored-mechanics');
+          evidenceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+      />
       {player.roleRank && (
         <p className="small muted">
           Within-role rank: #{player.roleRank} of {player.rolePeers} {player.role} players ·
@@ -338,27 +359,58 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
       <h3 className="section-label">Boss breakdown</h3>
       <div className="boss-breakdown">
         {player.perBoss.map((b) => (
-          <div key={b.encounterId}>
-            <span>
-              {b.name}
-              <small>
-                {b.pulls} pulls · {b.coverage}% scoring coverage
-              </small>
-            </span>
-            {b.tankReview && b.score === null ? (
-              <span className="small muted">
-                {b.tankReview.protectionPercent === null
-                  ? 'No melee coverage'
-                  : `${b.tankReview.protectionPercent.toFixed(1)}% primary protection`}{' '}
-                · ungraded
+          <div className="boss-detail" key={b.encounterId}>
+            <div className="boss-result">
+              <span>
+                {b.name}
+                <small>
+                  {b.pulls} pulls · {b.coverage}% scoring coverage
+                </small>
               </span>
-            ) : (
-              <Score player={{ score: b.score, provisional: b.provisional ?? b.coverage < 100 }} />
-            )}
+              {b.tankReview && b.score === null ? (
+                <span className="small muted">
+                  {b.tankReview.protectionPercent === null
+                    ? 'No melee coverage'
+                    : `${b.tankReview.protectionPercent.toFixed(1)}% primary protection`}{' '}
+                  · ungraded
+                </span>
+              ) : (
+                <Score
+                  player={{ score: b.score, provisional: b.provisional ?? b.coverage < 100 }}
+                />
+              )}
+            </div>
+            <details className="boss-calculation">
+              <summary>Score calculation & measured inputs</summary>
+              {categories.map((key) => {
+                const c = b.categories[key];
+                const contribution = bossContributions(b).find((item) => item.key === key);
+                return (
+                  <div key={key}>
+                    <strong>
+                      {CATEGORY_NAMES[key]} ·{' '}
+                      {c.score === null ? 'Not measured' : `${c.score.toFixed(1)} / 100`}
+                    </strong>
+                    <p>{c.explanation}</p>
+                    <small>
+                      {contribution
+                        ? `${contribution.weight.toFixed(1)}% effective weight · ${contribution.points.toFixed(2)} score points`
+                        : 'Not part of this composite score.'}
+                    </small>
+                  </div>
+                );
+              })}
+              {b.tankReview && (
+                <p className="small muted">
+                  Tank composite uses verified task criteria separately. Common factors above are
+                  context only.
+                </p>
+              )}
+            </details>
           </div>
         ))}
       </div>
-      <div className="section-heading">
+      <div className="section-heading" ref={evidenceRef}>
         <h3>Evidence trail</h3>
         <select
           aria-label="Filter evidence"
@@ -366,6 +418,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
           onChange={(e) => setEventType(e.target.value)}
         >
           <option value="all">All observations</option>
+          <option value="scored-mechanics">Mechanics · scoring window only</option>
           <option value="mechanic">Confirmed mechanics</option>
           <option value="mechanic-observed">Unscored observations</option>
           <option value="death">Deaths</option>
@@ -451,8 +504,7 @@ export default function App() {
   const shown =
     analysis?.players.filter(
       (p) =>
-        (role === 'all' ? !p.tankReview : p.role === role) &&
-        p.name.toLowerCase().includes(query.toLowerCase()),
+        (role === 'all' || p.role === role) && p.name.toLowerCase().includes(query.toLowerCase()),
     ) ?? [];
   const change = (patch: Partial<Selection>) => {
     setSelection((s) => ({ ...s, ...patch }));
@@ -528,7 +580,7 @@ export default function App() {
         <div className="top-links">
           <span className="prototype">
             <i />
-            Prototype 0.4
+            Prototype {VERSION}
           </span>
           <a
             href="https://github.com/akiondev/darkwhispers/tree/main/app"
@@ -901,38 +953,6 @@ export default function App() {
                 ))}
               </details>
             )}
-            {analysis.players.some((p) => p.tankReview) && (
-              <section className="panel tank-overview" aria-label="Tank assessments">
-                <h3>Tank assessments</h3>
-                <p className="small muted">
-                  Class-aware observations on every boss. These players are reviewed separately and
-                  are not placed last by an incomplete raid score.
-                </p>
-                <div className="tank-cards">
-                  {analysis.players
-                    .filter((p) => p.tankReview)
-                    .map((p) => (
-                      <button className="tank-card" key={p.id} onClick={() => setPlayer(p)}>
-                        <strong>
-                          {p.name}
-                          <small>
-                            {p.spec} {p.class}
-                          </small>
-                        </strong>
-                        <span>
-                          {p.tankReview!.protectionPercent === null
-                            ? 'No known melee coverage'
-                            : `${p.tankReview!.protectionPercent.toFixed(1)}% primary protection`}
-                          <small>
-                            {p.tankReview!.facts.knownMeleeEvents} known melee attempts · open
-                            evidence
-                          </small>
-                        </span>
-                      </button>
-                    ))}
-                </div>
-              </section>
-            )}
             <section className="panel ranking">
               <div className="section-heading">
                 <div>
@@ -940,7 +960,7 @@ export default function App() {
                   <p className="small muted">
                     Weighted 0–100 evidence score · ~ means partial coverage ·{' '}
                     {role === 'all'
-                      ? 'tanks are reviewed separately above; this order is not a complete ranking of role skill'
+                      ? `all ${analysis.players.length} players included · ${analysis.players.filter((p) => p.role === 'tank').length} tanks · ungraded is not last place`
                       : role === 'tank'
                         ? 'tank composite withheld · measurements only'
                         : 'rank within selected role'}{' '}
