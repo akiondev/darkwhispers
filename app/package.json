@@ -1,6 +1,6 @@
 {
   "name": "darkwhispers-app",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -13,7 +13,7 @@
     "build": "npm run check && vite build && tsc -p tsconfig.server.json",
     "start": "node dist/server/server/main.js",
     "worker": "node dist/server/server/worker.js",
-    "test": "node --import tsx --test tests/analysis.test.ts tests/api.test.ts tests/wcl.test.ts tests/mechanics.test.ts"
+    "test": "node --import tsx --test tests/analysis.test.ts tests/api.test.ts tests/wcl.test.ts tests/mechanics.test.ts tests/tanks.test.ts"
   },
   "dependencies": {
     "@fastify/rate-limit": "10.3.0",

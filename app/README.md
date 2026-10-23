@@ -1,4 +1,4 @@
-# DarkWhispers App · prototype 0.2
+# DarkWhispers App · prototype 0.3
 
 Evidence-first Warcraft Logs raid analysis. React 19 + TypeScript, Vite 8, Fastify 5, PostgreSQL 16 and pg-boss. API and analysis worker are separate processes. No paid services or AI-generated player grades.
 
@@ -29,6 +29,8 @@ A category is scored only when comparable inputs exist for every participant on 
 Survival measures time alive and handles battle resurrections; it does not assign blame. Raw DPS/HPS, damage taken, defensive casts, interrupts and dispels are visible observations. Damage taken is not automatically an error, and defensive non-use is not inferred from absence. Output uses optional Warcraft Logs historical class/spec kill percentiles (HPS for healers, DPS for others); wipes have no kill parse. Utility requires validated assigned opportunities before it can affect a score. First deaths are review starting points, never asserted wipe causes.
 
 See the [real-log reliability audit](docs/ranking-reliability.md) for the Feign Death correction, within-role rankings, tank/healer context, disclosed Sszorak collapse window and sample sensitivity. Full-pull totals are preserved when the optional comparison cutoff is enabled. Neither high tank damage intake nor high healer HPS creates a performance grade by itself.
+
+**Live tanks use a separate [class-aware evidence review](docs/tank-analysis.md) on every encounter.** Blood, Protection Warrior/Paladin, Guardian, Brewmaster and Vengeance each have their own aura/recovery interpretation. Melee attempts include parries and misses; unknown initial aura states stay unknown. Tanks do not inherit a misleading Tempest/alive-time composite or ordinal raid rank while core encounter duties and defensive decisions remain unvalidated. The displayed protection percentage is an observation, not a substitute tank skill score. Proposed fixed tank weights are disclosed and never silently redistributed. Other five classes have synthetic path tests; this report live-validates Blood DK only.
 
 **Current live scope:** Mythic Sszorak has a narrowly defined [Tempest contact rule](docs/sszorak-tempest.md), checked against the real acceptance report. It grades one failed opportunity at most per cast window, excluding periodic DoT ticks and accounting for deaths/resurrections. Other boss mechanics and assigned-utility opportunities are not graded. All remaining debuffs are unscored observations. Partial boss-rule coverage remains provisional even if every category becomes available; category-weight coverage does not mean all boss mechanics were evaluated. The synthetic fixture demonstrates the broader mechanic/utility scoring path, not live boss validity. The live acceptance report is `6fjJxRFC21YHdTXB`, encounter `3420`, difficulty `5` (18 wipes, 20 players; no Sszorak kill).
 

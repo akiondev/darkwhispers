@@ -28,6 +28,7 @@ import { difficultyName, selectFights } from '../shared/report-url.js';
 import { scoreBand, scoreLabel } from '../shared/score.js';
 import { VERSION } from '../shared/version.js';
 import ReviewPriorities from './ReviewPriorities.js';
+import TankReview from './TankReview.js';
 const roleLabel = (player: Pick<RankedPlayer, 'role' | 'spec'>) =>
   player.role === 'unknown'
     ? player.spec === 'Mixed'
@@ -209,10 +210,14 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
       <div className="notice subtle">
         <ShieldCheck size={17} />
         <div>
-          {player.provisional ? 'Provisional comparison' : 'Complete scoring coverage'} ·{' '}
-          {player.coverage.toFixed(0)}% scoring coverage · {player.pulls} pulls across{' '}
+          {player.tankReview
+            ? 'Tank composite not graded'
+            : player.provisional
+              ? 'Provisional comparison'
+              : 'Complete scoring coverage'}{' '}
+          · {player.coverage.toFixed(0)}% scoring coverage · {player.pulls} pulls across{' '}
           {player.bosses} bosses
-          {player.provisional && (
+          {player.provisional && !player.tankReview && (
             <p>
               Missing categories are excluded for everyone on the same boss. ~100 is not a verified
               perfect score.
@@ -220,26 +225,30 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
           )}
         </div>
       </div>
-      <div className="category-grid">
-        {categories.map((category) => {
-          const value = player.categories[category];
-          return (
-            <div className="category" key={category}>
-              <span>
-                {category}
-                <small>{value.weight}% base weight</small>
-              </span>
-              <strong>
-                {value.applied && value.score !== null ? value.score.toFixed(1) : 'Not scored'}
-              </strong>
-              <div className="meter">
-                <i style={{ width: `${value.applied ? (value.score ?? 0) : 0}%` }} />
+      {player.tankReview ? (
+        <TankReview review={player.tankReview} />
+      ) : (
+        <div className="category-grid">
+          {categories.map((category) => {
+            const value = player.categories[category];
+            return (
+              <div className="category" key={category}>
+                <span>
+                  {category}
+                  <small>{value.weight}% base weight</small>
+                </span>
+                <strong>
+                  {value.applied && value.score !== null ? value.score.toFixed(1) : 'Not scored'}
+                </strong>
+                <div className="meter">
+                  <i style={{ width: `${value.applied ? (value.score ?? 0) : 0}%` }} />
+                </div>
+                <p>{value.explanation}</p>
               </div>
-              <p>{value.explanation}</p>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
       <div className="stats mini">
         <div>
           <span>Alive · scored window</span>
@@ -291,17 +300,22 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
         <div className="notice subtle">
           <div>
             <strong>
-              {player.role === 'tank' ? 'Tank context' : 'Healer context'} · observations, not extra
+              {player.role === 'tank' ? 'Boss context' : 'Healer context'} · observations, not extra
               score
             </strong>
             {player.role === 'tank' ? (
               <p>
-                Required tank damage is not a penalty. Ravage contacts before the recorded cutoff:{' '}
-                {player.ravageHits ?? 'not measured'}; while prior vulnerability was active:{' '}
-                {player.ravageVulnerableHits ?? 'not measured'} (review swaps and immunities).
-                Observed taunt casts: {player.taunts ?? 0}. Logged healing:{' '}
-                {compact.format(player.healing)}. Ravage uses the full encounter when no cutoff was
-                recorded; the scoring toggle only changes survival and Tempest grades.
+                Required tank damage is not a penalty. Observed taunt casts: {player.taunts ?? 0}.
+                Logged healing: {compact.format(player.healing)}.
+                {player.ravageHits != null && (
+                  <>
+                    {' '}
+                    Ravage contacts before the recorded cutoff: {player.ravageHits}; while prior
+                    vulnerability was active: {player.ravageVulnerableHits ?? 'not measured'}.
+                    Review swaps and immunities; no individual fault is inferred. Ravage uses the
+                    full encounter when no cutoff was recorded.
+                  </>
+                )}
               </p>
             ) : (
               <p>
@@ -332,7 +346,16 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
                 {b.pulls} pulls · {b.coverage}% scoring coverage
               </small>
             </span>
-            <Score player={{ score: b.score, provisional: b.provisional ?? b.coverage < 100 }} />
+            {b.tankReview ? (
+              <span className="small muted">
+                {b.tankReview.protectionPercent === null
+                  ? 'No melee coverage'
+                  : `${b.tankReview.protectionPercent.toFixed(1)}% primary protection`}{' '}
+                · ungraded
+              </span>
+            ) : (
+              <Score player={{ score: b.score, provisional: b.provisional ?? b.coverage < 100 }} />
+            )}
           </div>
         ))}
       </div>
@@ -348,6 +371,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
           <option value="mechanic-observed">Unscored observations</option>
           <option value="death">Deaths</option>
           <option value="defensive">Defensive casts</option>
+          <option value="tank">Tank review episodes</option>
           <option value="interrupt">Interrupts</option>
           <option value="dispel">Dispels</option>
         </select>
@@ -504,7 +528,7 @@ export default function App() {
         <div className="top-links">
           <span className="prototype">
             <i />
-            Prototype 0.2
+            Prototype 0.3
           </span>
           <a
             href="https://github.com/akiondev/darkwhispers/tree/main/app"
@@ -877,6 +901,38 @@ export default function App() {
                 ))}
               </details>
             )}
+            {analysis.players.some((p) => p.tankReview) && (
+              <section className="panel tank-overview" aria-label="Tank assessments">
+                <h3>Tank assessments</h3>
+                <p className="small muted">
+                  Class-aware observations on every boss. These players are reviewed separately and
+                  are not placed last by an incomplete raid score.
+                </p>
+                <div className="tank-cards">
+                  {analysis.players
+                    .filter((p) => p.tankReview)
+                    .map((p) => (
+                      <button className="tank-card" key={p.id} onClick={() => setPlayer(p)}>
+                        <strong>
+                          {p.name}
+                          <small>
+                            {p.spec} {p.class}
+                          </small>
+                        </strong>
+                        <span>
+                          {p.tankReview!.protectionPercent === null
+                            ? 'No known melee coverage'
+                            : `${p.tankReview!.protectionPercent.toFixed(1)}% primary protection`}
+                          <small>
+                            {p.tankReview!.facts.knownMeleeEvents} known melee attempts · open
+                            evidence
+                          </small>
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              </section>
+            )}
             <section className="panel ranking">
               <div className="section-heading">
                 <div>
@@ -885,7 +941,9 @@ export default function App() {
                     Weighted 0–100 evidence score · ~ means partial coverage ·{' '}
                     {role === 'all'
                       ? 'combined order is not a complete ranking of role skill'
-                      : 'rank within selected role'}{' '}
+                      : role === 'tank'
+                        ? 'tank composite withheld · measurements only'
+                        : 'rank within selected role'}{' '}
                     · click a player for details
                   </p>
                 </div>
@@ -919,7 +977,7 @@ export default function App() {
                       <th>#</th>
                       <th>Player</th>
                       <th>Score</th>
-                      <th>Mechanics</th>
+                      <th>Mechanics / tank coverage</th>
                       <th>Alive · scored</th>
                       <th>Deaths</th>
                       <th>Output / sec</th>
@@ -951,10 +1009,26 @@ export default function App() {
                           </button>
                         </td>
                         <td>
-                          <Score player={p} />
+                          {p.tankReview ? (
+                            <span className="tank-review-label">
+                              Tank review<small className="cell-sub">Composite not graded</small>
+                            </span>
+                          ) : (
+                            <Score player={p} />
+                          )}
                         </td>
                         <td>
-                          {p.mechanicFailures === null ? (
+                          {p.tankReview ? (
+                            <span>
+                              {p.tankReview.protectionPercent === null
+                                ? 'Not measured'
+                                : `${p.tankReview.protectionPercent.toFixed(1)}%`}
+                              <small className="cell-sub">
+                                Primary protection · {p.tankReview.facts.knownMeleeEvents} known
+                                melee hits
+                              </small>
+                            </span>
+                          ) : p.mechanicFailures === null ? (
                             <span className="muted">Not scored</span>
                           ) : (
                             <span>
@@ -1104,12 +1178,17 @@ export default function App() {
           </p>
           <h3>Limits & interpretation</h3>
           <p>
+            Tanks have a separate class-aware review on every encounter. Physical protection
+            coverage is an observation, not a 0–100 performance score. A tank composite and raid
+            rank are withheld while core duty and defensive decision rules remain unvalidated.
+          </p>
+          <p>
             <a
-              href="https://github.com/akiondev/darkwhispers/blob/main/app/docs/ranking-reliability.md"
+              href="https://github.com/akiondev/darkwhispers/blob/main/app/docs/tank-analysis.md"
               target="_blank"
               rel="noreferrer"
             >
-              Real-log reliability audit <ExternalLink size={12} />
+              Tank methodology & validation <ExternalLink size={12} />
             </a>
           </p>
           {analysis.methodology.limitations.map((l) => (

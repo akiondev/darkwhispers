@@ -1432,6 +1432,70 @@ footer a {
     grid-template-columns: 25px 1fr 32px 34px;
   }
 }
+.tank-overview {
+  margin: 20px 0;
+  padding: 24px;
+}
+.tank-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.tank-card {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  text-align: left;
+  background: #1a1220;
+  border: 1px solid #493046;
+  border-radius: 12px;
+  color: #ece1ea;
+}
+.tank-card:hover {
+  border-color: #b77f9b;
+  background: #241728;
+}
+.tank-card small {
+  display: block;
+  margin-top: 5px;
+  color: #b5a0b6;
+  font-size: 11px;
+}
+.tank-card > span {
+  font-size: 13px;
+}
+.tank-review-label {
+  color: #d7b7cf;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.tank-review > .stats {
+  margin: 18px 0;
+}
+.tank-method {
+  margin: 20px 0;
+  border: 1px solid #493046;
+  border-radius: 10px;
+  padding: 16px;
+}
+.tank-method summary {
+  cursor: pointer;
+  color: #e4c4da;
+}
+.tank-requirement {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #322236;
+}
+.tank-requirement span {
+  color: #b5a0b6;
+  line-height: 1.6;
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *:before,

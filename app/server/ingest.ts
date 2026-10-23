@@ -4,6 +4,7 @@ import { aliveTime } from '../shared/life.js';
 import { evaluationWindow } from './evaluation.js';
 import { applyTempest, supportsTempest, type MechanicEvent } from './mechanics.js';
 import { ApiError, finite, list, object, text, WclClient } from './wcl.js';
+import { tankRecorder } from './tanks.js';
 
 // Observed cast catalogue only. No availability assumptions, cooldown guesses or non-use penalties.
 const DEFENSIVES = new Set([
@@ -130,6 +131,7 @@ export async function ingestPull(
   step: (message: string) => Promise<void>,
 ): Promise<PullData> {
   const duration = fight.endTime - fight.startTime;
+  const tanks = tankRecorder(report, fight, abilities);
   const metrics = new Map(fight.friendlyPlayers.map((id) => [id, baseMetric(id, duration)]));
   const life = new Map<number, { timestamp: number; type: string }[]>();
   const warnings = [
@@ -203,6 +205,7 @@ export async function ingestPull(
     )
     .map(([id]) => id);
   const filter = [
+    ...tanks.filter,
     ...(tempest
       ? [
           '(type = "begincast" and ability.id = 1287072)',
@@ -236,6 +239,7 @@ export async function ingestPull(
     fight,
     'All',
     (events) => {
+      tanks.observe(events);
       for (const event of events) {
         if (event.type === 'death' && event.feign === true) continue;
         if (tankContext && [1277101, 1277105].includes(event.abilityGameID))
@@ -317,6 +321,7 @@ export async function ingestPull(
       }
     },
     filter,
+    { includeResources: tanks.active },
   );
   for (const [id, metric] of metrics) metric.aliveMs = aliveTime(fight, life.get(id) ?? []);
   for (const { count, event } of observedAuras.values())
@@ -390,6 +395,7 @@ export async function ingestPull(
       }
     }
   }
+  tanks.finish(metrics, life, evaluation?.endTime ?? fight.endTime);
   if (fight.kill) {
     await step('Reading class/spec kill percentiles');
     try {

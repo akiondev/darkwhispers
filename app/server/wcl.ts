@@ -301,12 +301,13 @@ export class WclClient {
     dataType: string,
     onPage: (events: Dict[]) => void,
     filterExpression: string | null = null,
+    options: { includeResources?: boolean } = {},
   ): Promise<void> {
     let start = fight.startTime;
     let pages = 0;
     while (start < fight.endTime) {
       const data = await this.query(
-        `query Events($code:String!,$ids:[Int],$start:Float,$end:Float,$kind:EventDataType,$filter:String){reportData{report(code:$code){events(fightIDs:$ids,startTime:$start,endTime:$end,dataType:$kind,filterExpression:$filter,limit:10000,useActorIDs:true,useAbilityIDs:true){data nextPageTimestamp}}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
+        `query Events($code:String!,$ids:[Int],$start:Float,$end:Float,$kind:EventDataType,$filter:String,$resources:Boolean){reportData{report(code:$code){events(fightIDs:$ids,startTime:$start,endTime:$end,dataType:$kind,filterExpression:$filter,includeResources:$resources,limit:10000,useActorIDs:true,useAbilityIDs:true){data nextPageTimestamp}}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
         {
           code,
           ids: [fight.id],
@@ -314,6 +315,7 @@ export class WclClient {
           end: fight.endTime,
           kind: dataType,
           filter: filterExpression,
+          resources: options.includeResources ?? false,
         },
       );
       const result = object(object(object(data.reportData).report).events);

@@ -42,6 +42,7 @@ export type Evidence = {
     | 'interrupt'
     | 'dispel'
     | 'healing'
+    | 'tank'
     | 'damage';
   description: string;
   amount?: number;
@@ -71,12 +72,40 @@ export type Metric = {
   taunts?: number;
   ravageHits?: number | null;
   ravageVulnerableHits?: number | null;
+  tank?: TankFacts;
   evaluated?: {
     aliveMs: number;
     mechanicFailures: number | null;
     mechanicOpportunities: number | null;
     deaths: number;
+    tank?: TankFacts;
   };
+};
+export type TankFacts = {
+  profile: string;
+  primaryProtection: string;
+  snapshot: boolean;
+  meleeEvents: number;
+  knownMeleeEvents: number;
+  protectedMeleeEvents: number;
+  unknownMeleeEvents: number;
+  protectionGapEpisodes: number;
+  resourceHits: number;
+  largeHits: number;
+  largeHitsWithDefense: number;
+  deathsUnderPressure: number;
+  selfHealing: number;
+  pressureMs: number;
+};
+export type TankReview = {
+  version: string;
+  status: 'partial' | 'insufficient';
+  profiles: string[];
+  facts: Omit<TankFacts, 'profile' | 'primaryProtection' | 'snapshot'>;
+  protectionPercent: number | null;
+  pullsMeasured: number;
+  pullsMissing: number;
+  reasons: string[];
 };
 export type PullData = {
   fight: Fight;
@@ -110,6 +139,7 @@ export type PlayerBossScore = {
   pulls: number;
   categories: Record<Category, CategoryScore>;
   provisional?: boolean;
+  tankReview?: TankReview;
 };
 export type RankedPlayer = Player & {
   rank: number | null;
@@ -146,6 +176,7 @@ export type RankedPlayer = Player & {
   taunts?: number;
   ravageHits?: number | null;
   ravageVulnerableHits?: number | null;
+  tankReview?: TankReview;
 };
 export type Finding = {
   title: string;

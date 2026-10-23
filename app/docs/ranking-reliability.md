@@ -1,5 +1,7 @@
 # Ranking reliability audit · engine 0.2.1
 
+Historical audit of engine 0.2.1. Engine 0.3.0 replaces the incomplete live tank composite/rank with a separate [six-class tank evidence review](tank-analysis.md) on every encounter. The audited raw measurements below remain useful; the old tank ordinal positions must not be interpreted as the current app's tank assessment.
+
 Acceptance report: `6fjJxRFC21YHdTXB`, 22 completed pulls, four bosses, 26 participating report actors. The Sszorak Mythic selection contains 18 wipes and 20 players. Verification used authenticated API v2 queries, not screenshots or the synthetic demo. Credentials and raw player event files remain private.
 
 ## Measurements and corrections

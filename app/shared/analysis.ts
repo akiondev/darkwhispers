@@ -14,6 +14,7 @@ import { selectFights } from './report-url.js';
 
 import { VERSION } from './version.js';
 import { roleFromSpec, summarizeSpecs } from './players.js';
+import { summarizeTankFacts } from './tanks.js';
 export const ENGINE_VERSION = VERSION;
 export const WEIGHTS = { mechanics: 35, survival: 35, output: 20, utility: 10 } as const;
 export const CATEGORIES = Object.keys(WEIGHTS) as Category[];
@@ -126,6 +127,12 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       )
         ? sum(metrics, 'ravageVulnerableHits')
         : null,
+      ...(report.source === 'warcraftlogs' &&
+      participated.some(
+        (p) => roleFromSpec(p.fight.playerSpecs?.[player.id] ?? player.spec) === 'tank',
+      )
+        ? { tankReview: summarizeTankFacts(evaluated.map((m) => m.tank)) }
+        : {}),
     });
   }
   const rules = new Set<string>();
@@ -219,12 +226,30 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
           coverage < 100 ||
           (report.source === 'warcraftlogs' &&
             bossPulls.some((p) => p.mechanicScope !== 'complete')),
+        ...(candidate.player.tankReview
+          ? { tankReview: summarizeTankFacts(candidate.metric.map((m) => m.tank)) }
+          : {}),
       });
     }
     bossPulls.forEach((p) => {
       if (p.mechanicRule) rules.add(p.mechanicRule);
     });
   }
+  // The common-factor index is not a tank grade. A missing core duty model must
+  // never silently hand its weights to Tempest and alive time.
+  for (const player of perPlayer.values())
+    if (player.tankReview) {
+      for (const boss of player.perBoss) {
+        boss.score = null;
+        boss.coverage = 0;
+        boss.provisional = true;
+        for (const category of CATEGORIES) {
+          boss.categories[category].applied = false;
+          boss.categories[category].explanation +=
+            ' Context only for tanks: not part of a validated tank composite.';
+        }
+      }
+    }
   // Boss-relative midrank is context only; the overall score averages weighted
   // boss scores. Ties share a relative value; an all-equal boss gives everyone 50.
   for (const bossId of bossIds) {
@@ -284,14 +309,14 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       player.notes.push(
         'Did not attend every selected boss. Missing bosses are not zeroes. The index equally averages weighted scores on attended bosses; compare participation before interpreting small differences.',
       );
-    if (comparable.length < minimumBosses)
+    if (comparable.length < minimumBosses && !player.tankReview)
       player.notes.push(
         `Not ranked overall: scored participation on at least ${minimumBosses} of ${bossIds.length} selected bosses is required. Individual boss results remain visible.`,
       );
     if (player.pulls < 3) player.notes.push('Small sample: fewer than three pulls.');
     if (player.role === 'tank')
       player.notes.push(
-        'Tank damage intake and required Ravage contacts are not scoring penalties. Taunt counts, healing and vulnerability overlaps are context; swaps, active mitigation and cooldown timing are not fully graded.',
+        'Tank damage intake and required hits are not scoring penalties. All six tank specializations have class evidence profiles on every encounter. A tank composite and ordinal rank are withheld until the core duty/defensive decision model is validated; observed buff coverage is not a skill score.',
       );
     if (player.role === 'healer')
       player.notes.push(
@@ -344,8 +369,10 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
     for (const [, events] of grouped) {
       if (new Set(events.map((e) => e.fightId)).size >= 2)
         findings.push({
-          title: `Recurring mechanic: ${player.name}`,
-          detail: `${events[0].ability} appears as a confirmed failed opportunity in ${new Set(events.map((e) => e.fightId)).size} pulls. Review these incidents and the raid assignment before deciding how to improve.`,
+          title: `${player.tankReview ? 'Tank contact review' : 'Recurring mechanic'}: ${player.name}`,
+          detail: player.tankReview
+            ? `${events[0].ability} contact was observed in ${new Set(events.map((e) => e.fightId)).size} pulls. Review the tank duty, protection and consequences. These contacts do not create a tank composite grade or establish responsibility.`
+            : `${events[0].ability} appears as a confirmed failed opportunity in ${new Set(events.map((e) => e.fightId)).size} pulls. Review these incidents and the raid assignment before deciding how to improve.`,
           confidence: 'observed',
           actorId: player.id,
           fightIds: [...new Set(events.map((e) => e.fightId))],
@@ -388,6 +415,10 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
   if (report.source === 'warcraftlogs')
     warnings.push(
       'The combined order compares measured factors, not complete tank/healer/DPS skill. Within-role ranks provide a narrower comparison; assignments, exposure and partial rules still limit comparability.',
+    );
+  if (players.some((p) => p.tankReview))
+    warnings.push(
+      'Tanks have a separate class-aware evidence review on every boss. They are not assigned a misleading common-factor raid rank. Tank composite scoring requires validated core duties and defensive decisions; missing tank weights never move to Tempest.',
     );
   if (new Set(pulls.map((p) => p.fight.difficulty)).size > 1)
     warnings.push(
