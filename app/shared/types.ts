@@ -66,6 +66,17 @@ export type Metric = {
   utilityOpportunities: number | null;
   outputPercentile: number | null;
   evidence: Evidence[];
+  overhealing?: number | null;
+  healingCooldowns?: number;
+  taunts?: number;
+  ravageHits?: number | null;
+  ravageVulnerableHits?: number | null;
+  evaluated?: {
+    aliveMs: number;
+    mechanicFailures: number | null;
+    mechanicOpportunities: number | null;
+    deaths: number;
+  };
 };
 export type PullData = {
   fight: Fight;
@@ -75,6 +86,7 @@ export type PullData = {
   mechanicRule: string | null;
   mechanicScope?: 'partial' | 'complete';
   wipeTailMs: number | null;
+  evaluation?: { endTime: number; reason: 'raid-collapse' | 'boss-enrage'; excludedMs: number };
 };
 export type Selection = {
   encounterId: number | null;
@@ -97,6 +109,7 @@ export type PlayerBossScore = {
   coverage: number;
   pulls: number;
   categories: Record<Category, CategoryScore>;
+  provisional?: boolean;
 };
 export type RankedPlayer = Player & {
   rank: number | null;
@@ -123,6 +136,16 @@ export type RankedPlayer = Player & {
   perBoss: PlayerBossScore[];
   evidence: Evidence[];
   notes: string[];
+  roleRank?: number | null;
+  rolePeers?: number;
+  evaluatedAliveMs?: number;
+  evaluatedDurationMs?: number;
+  lateDeaths?: number;
+  overhealing?: number | null;
+  healingCooldowns?: number;
+  taunts?: number;
+  ravageHits?: number | null;
+  ravageVulnerableHits?: number | null;
 };
 export type Finding = {
   title: string;

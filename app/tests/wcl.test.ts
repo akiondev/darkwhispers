@@ -235,6 +235,7 @@ test('one filtered event stream produces survival, defenses, utility and unscore
       assert.ok(args[4]!.includes('ability.id = 22812'));
       assert.ok(args[4]!.includes('type = "applydebuff"'));
       args[3]([
+        { type: 'death', targetID: 7, timestamp: 10000, feign: true },
         { type: 'death', targetID: 7, timestamp: 20000 },
         { type: 'applydebuff', targetID: 7, timestamp: 21000, abilityGameID: 999 },
         { type: 'applydebuff', targetID: 7, timestamp: 23000, abilityGameID: 999 },
@@ -261,6 +262,7 @@ test('one filtered event stream produces survival, defenses, utility and unscore
   assert.equal(tableScans, 1);
   assert.equal(metric.aliveMs, 75000);
   assert.equal(metric.deaths, 1);
+  assert.equal(metric.evidence.filter((e) => e.kind === 'death').length, 1);
   assert.equal(metric.damage, 1000);
   assert.equal(metric.damageTaken, 500);
   assert.equal(metric.defensives, 2);
@@ -283,6 +285,66 @@ test('malformed metric totals fail the import instead of appearing as zero outpu
     () =>
       ingestPull(new InvalidClient('c', 's'), report, report.fights[0], new Map(), async () => {}),
     (e: unknown) => e instanceof ApiError && e.code === 'WCL_INVALID_TABLE',
+  );
+});
+
+test('tank vulnerability and healer cooldown/overheal context are observations without invented penalties', async () => {
+  const { report } = demoData();
+  const fight = { ...report.fights[0], encounterId: 3420 };
+  class Client extends WclClient {
+    async tables() {
+      return {
+        damage: { entries: [] },
+        healing: { entries: [{ id: 3, total: 100, overheal: 20 }] },
+        taken: { entries: [] },
+      };
+    }
+    async events(...args: Parameters<WclClient['events']>) {
+      args[3]([
+        { type: 'taunt', sourceID: 1, targetID: 202, timestamp: 5000 },
+        { type: 'cast', sourceID: 3, abilityGameID: 740, timestamp: 6000 },
+        {
+          type: 'applydebuff',
+          sourceID: 202,
+          targetID: 1,
+          abilityGameID: 1277105,
+          timestamp: 10000,
+        },
+        { type: 'damage', sourceID: 202, targetID: 1, abilityGameID: 1277101, timestamp: 10000 },
+        { type: 'damage', sourceID: 202, targetID: 1, abilityGameID: 1277101, timestamp: 20000 },
+        {
+          type: 'applydebuffstack',
+          sourceID: 202,
+          targetID: 1,
+          abilityGameID: 1277105,
+          timestamp: 20000,
+        },
+        { type: 'death', targetID: 2, sourceID: -1, abilityGameID: 0, timestamp: 80000 },
+      ]);
+    }
+  }
+  const p = await ingestPull(
+    new Client('c', 's'),
+    report,
+    fight,
+    new Map([
+      [1277101, 'Ravage'],
+      [1277105, 'Ravage'],
+      [740, 'Tranquility'],
+    ]),
+    async () => {},
+  );
+  assert.equal(p.metrics[0].ravageHits, 2);
+  assert.equal(p.metrics[0].ravageVulnerableHits, 1);
+  assert.equal(p.metrics[0].taunts, 1);
+  assert.equal(p.metrics[2].healing, 100);
+  assert.equal(p.metrics[2].overhealing, 20);
+  assert.equal(p.metrics[2].healingCooldowns, 1);
+  assert.equal(p.metrics[1].deaths, 1, 'An unlabelled environmental death is still real');
+  assert.equal(
+    p.metrics[0].mechanicFailures,
+    null,
+    'Required Ravage intake is not an avoidance error',
   );
 });
 test('unranked percentile placeholders are missing values, and pet ownership is bounded', () => {

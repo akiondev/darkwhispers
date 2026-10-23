@@ -234,7 +234,7 @@ test('HTTP API creates a demo job and returns a complete auditable ranking', asy
           payload: {
             reportCode: 'demo',
             demo: true,
-            selection: { ...selection, excludeWipeTail: true },
+            selection: { ...selection, excludeWipeTail: 'yes' },
           },
         })
       ).statusCode,

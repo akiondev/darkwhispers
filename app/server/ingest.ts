@@ -1,6 +1,7 @@
 import type { Evidence, Fight, Metric, PullData, Report } from '../shared/types.js';
 import { evidenceUrl } from '../shared/report-url.js';
 import { aliveTime } from '../shared/life.js';
+import { evaluationWindow } from './evaluation.js';
 import { applyTempest, supportsTempest, type MechanicEvent } from './mechanics.js';
 import { ApiError, finite, list, object, text, WclClient } from './wcl.js';
 
@@ -47,6 +48,19 @@ const DEFENSIVES = new Set([
   'Life Cocoon',
   'Guardian Spirit',
 ]);
+const HEALING_COOLDOWNS = new Set([
+  'Tranquility',
+  'Divine Hymn',
+  'Holy Word: Salvation',
+  'Revival',
+  'Restoral',
+  'Rewind',
+  'Emerald Communion',
+  'Healing Tide Totem',
+  'Spirit Link Totem',
+  'Power Word: Barrier',
+  'Aura Mastery',
+]);
 
 export function baseMetric(actorId: number, duration: number): Metric {
   return {
@@ -66,6 +80,11 @@ export function baseMetric(actorId: number, duration: number): Metric {
     utilityOpportunities: null,
     outputPercentile: null,
     evidence: [],
+    overhealing: null,
+    healingCooldowns: 0,
+    taunts: 0,
+    ravageHits: null,
+    ravageVulnerableHits: null,
   };
 }
 export { aliveTime } from '../shared/life.js';
@@ -117,6 +136,14 @@ export async function ingestPull(
     for (const entry of tableEntries(tables[key])) {
       const metric = metrics.get(finite(entry.id));
       if (metric) metric[field] = Math.max(0, finite(entry.total));
+      if (
+        metric &&
+        key === 'healing' &&
+        typeof entry.overheal === 'number' &&
+        Number.isFinite(entry.overheal) &&
+        entry.overheal >= 0
+      )
+        metric.overhealing = entry.overheal;
     }
   }
   const evidence = (
@@ -153,8 +180,17 @@ export async function ingestPull(
   // One filtered timeline replaces five separate event scans. The cast clause
   // includes only catalogue abilities already present in this report's master data.
   const tempest = supportsTempest(fight, abilities);
+  const tankContext =
+    fight.encounterId === 3420 &&
+    fight.difficulty === 5 &&
+    abilities.get(1277101) === 'Ravage' &&
+    abilities.get(1277105) === 'Ravage';
+  const ravageEvents: Record<string, any>[] = [];
+  let enrage: number | null = null;
   const mechanicEvents: MechanicEvent[] = [];
-  const defensiveIds = [...abilities].filter(([, name]) => DEFENSIVES.has(name)).map(([id]) => id);
+  const defensiveIds = [...abilities]
+    .filter(([, name]) => DEFENSIVES.has(name) || HEALING_COOLDOWNS.has(name))
+    .map(([id]) => id);
   const filter = [
     ...(tempest
       ? [
@@ -164,6 +200,13 @@ export async function ingestPull(
       : []),
     'type = "death"',
     'type = "resurrect"',
+    'type = "taunt"',
+    ...(tankContext ? ['(ability.id = 1277101 or ability.id = 1277105)'] : []),
+    ...(fight.encounterId === 3420 &&
+    fight.difficulty === 5 &&
+    abilities.get(1296898) === 'Unbound Ferocity'
+      ? ['(type = "applybuff" and ability.id = 1296898)']
+      : []),
     'type = "interrupt"',
     'type = "dispel"',
     'type = "steal"',
@@ -180,6 +223,16 @@ export async function ingestPull(
     'All',
     (events) => {
       for (const event of events) {
+        if (event.type === 'death' && event.feign === true) continue;
+        if (tankContext && [1277101, 1277105].includes(event.abilityGameID))
+          ravageEvents.push(event);
+        if (
+          event.type === 'applybuff' &&
+          event.abilityGameID === 1296898 &&
+          !metrics.has(event.targetID) &&
+          abilities.get(1296898) === 'Unbound Ferocity'
+        )
+          enrage = Math.min(enrage ?? Infinity, event.timestamp);
         if (tempest && [1287072, 1287083].includes(event.abilityGameID))
           mechanicEvents.push(event as MechanicEvent);
         const source = metrics.get(
@@ -204,6 +257,16 @@ export async function ingestPull(
           }
         } else if (event.type === 'cast' && source) {
           const name = abilities.get(id) || text(object(event.ability).name);
+          if (HEALING_COOLDOWNS.has(name)) {
+            source.healingCooldowns = (source.healingCooldowns ?? 0) + 1;
+            evidence(
+              source.actorId,
+              event,
+              'healing',
+              'Observed healing or raid mitigation cooldown. Cast count alone does not establish effective timing or availability.',
+              'casts',
+            );
+          }
           if (!DEFENSIVES.has(name)) continue;
           source.defensives++;
           let entry = source.defensiveSpells.find((spell) => spell.id === id);
@@ -219,6 +282,8 @@ export async function ingestPull(
             'Observed defensive or external cooldown cast. Cast count alone is not a performance grade.',
             'casts',
           );
+        } else if (event.type === 'taunt' && source) {
+          source.taunts = (source.taunts ?? 0) + 1;
         } else if (source && ['interrupt', 'dispel', 'steal'].includes(event.type)) {
           const kind = event.type === 'interrupt' ? 'interrupt' : 'dispel';
           if (kind === 'interrupt') source.interrupts++;
@@ -253,6 +318,65 @@ export async function ingestPull(
     ? applyTempest(report, fight, metrics, mechanicEvents, life)
     : { rule: null, warnings: [] };
   warnings.push(...mechanic.warnings);
+  const evaluation = evaluationWindow(fight, life, enrage);
+  if (evaluation) {
+    const end = evaluation.endTime;
+    const evaluatedMetrics = new Map<number, Metric>(
+      [...metrics].map(([id, m]) => [
+        id,
+        { ...m, evidence: [], mechanicFailures: null, mechanicOpportunities: null },
+      ]),
+    );
+    if (tempest)
+      applyTempest(
+        report,
+        { ...fight, endTime: end },
+        evaluatedMetrics,
+        mechanicEvents.filter((e) => e.timestamp < end),
+        life,
+      );
+    for (const [id, m] of metrics)
+      m.evaluated = {
+        aliveMs: aliveTime({ ...fight, endTime: end }, life.get(id) ?? []),
+        deaths: (life.get(id) ?? []).filter((e) => e.type === 'death' && e.timestamp < end).length,
+        mechanicFailures: evaluatedMetrics.get(id)!.mechanicFailures,
+        mechanicOpportunities: evaluatedMetrics.get(id)!.mechanicOpportunities,
+      };
+  }
+  if (tankContext) {
+    const vulnerable = new Map<number, number>();
+    // Damage and aura application can share a timestamp. Read the prior aura first.
+    const ordered = ravageEvents.sort(
+      (a, b) =>
+        a.timestamp - b.timestamp || Number(b.type === 'damage') - Number(a.type === 'damage'),
+    );
+    for (const m of metrics.values()) {
+      m.ravageHits = 0;
+      m.ravageVulnerableHits = 0;
+    }
+    for (const e of ordered) {
+      if (evaluation && e.timestamp >= evaluation.endTime) continue;
+      const m = metrics.get(e.targetID);
+      if (!m) continue;
+      if (e.type === 'damage' && e.abilityGameID === 1277101) {
+        m.ravageHits = (m.ravageHits ?? 0) + 1;
+        if ((vulnerable.get(e.targetID) ?? 0) > e.timestamp) {
+          m.ravageVulnerableHits = (m.ravageVulnerableHits ?? 0) + 1;
+          evidence(
+            m.actorId,
+            e,
+            'mechanic-observed',
+            'Ravage hit while the prior Ravage vulnerability was active. Review swaps, immunities and assignments; this observation is not a scoring penalty.',
+            'damage-taken',
+          );
+        }
+      } else if (e.abilityGameID === 1277105) {
+        if (e.type === 'removedebuff') vulnerable.delete(e.targetID);
+        else if (['applydebuff', 'applydebuffstack', 'refreshdebuff'].includes(e.type))
+          vulnerable.set(e.targetID, e.timestamp + 25000);
+      }
+    }
+  }
   if (fight.kill) {
     await step('Reading class/spec kill percentiles');
     try {
@@ -284,6 +408,7 @@ export async function ingestPull(
     mechanicRule: mechanic.rule,
     mechanicScope: mechanic.rule ? 'partial' : undefined,
     wipeTailMs: null,
+    evaluation,
   };
 }
 export function resolvePlayerSource(id: number, owners: Record<number, number>): number {

@@ -2,7 +2,9 @@ import type { Evidence, Fight, Metric, Report } from '../shared/types.js';
 import { aliveIntervals, type LifeEvent } from '../shared/life.js';
 import { evidenceUrl } from '../shared/report-url.js';
 
-export const TEMPEST_RULE = 'sszorak-tempest-mythic/v1';
+export const TEMPEST_RULE = 'sszorak-tempest-mythic/v2';
+// Journal effect 1287073 lasts 55 s; allow its 3.5 s parent cast from begincast.
+const MAX_WINDOW_MS = 58500;
 export type MechanicEvent = {
   type: string;
   timestamp: number;
@@ -42,9 +44,21 @@ export function applyTempest(
   const warnings = [
     'Sszorak mechanic scoring currently covers only direct Tempest contact per cast window. DoT ticks, required soaks, cyst placement, Virulence, tank swaps and other mechanics are not graded. Category coverage is not the share of all boss mechanics checked.',
   ];
+  const windowEnd = (index: number) =>
+    Math.min(
+      waves[index + 1]?.timestamp ?? fight.endTime,
+      waves[index].timestamp + MAX_WINDOW_MS,
+      fight.endTime,
+    );
   if (
     contacts.some(
-      (hit) => !waves.some((w) => w.timestamp <= hit.timestamp && w.sourceID === hit.sourceID),
+      (hit) =>
+        !waves.some(
+          (w, index) =>
+            w.timestamp <= hit.timestamp &&
+            hit.timestamp < windowEnd(index) &&
+            w.sourceID === hit.sourceID,
+        ),
     )
   ) {
     return {
@@ -61,7 +75,7 @@ export function applyTempest(
     const intervals = aliveIntervals(fight, life.get(metric.actorId) ?? []);
     for (let index = 0; index < waves.length; index++) {
       const wave = waves[index],
-        end = waves[index + 1]?.timestamp ?? fight.endTime;
+        end = windowEnd(index);
       const hit = contacts.find(
         (e) =>
           e.targetID === metric.actorId &&

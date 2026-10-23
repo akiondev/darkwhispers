@@ -41,6 +41,7 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
   if (!selected.length) throw new Error('No completed boss pulls match this selection.');
   const ids = new Set(selected.map((f) => f.id));
   const pulls = allPulls.filter((p) => ids.has(p.fight.id));
+  const pullById = new Map(pulls.map((p) => [p.fight.id, p]));
   if (
     pulls.length !== selected.length ||
     new Set(pulls.map((p) => p.fight.id)).size !== selected.length ||
@@ -56,13 +57,25 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
         .map((p) => p.fight.playerSpecs?.[player.id] ?? player.spec);
       return { ...player, ...summarizeSpecs(specs) };
     });
+  const scoreMetric = (p: PullData, m: Metric): Metric => {
+    if (!selection.excludeWipeTail || !p.evaluation) return m;
+    if (!m.evaluated)
+      throw new Error('The scoring-window measurements are incomplete. No ranking was produced.');
+    return { ...m, ...m.evaluated };
+  };
+  const scoreDuration = (p: PullData) =>
+    (selection.excludeWipeTail && p.evaluation ? p.evaluation.endTime : p.fight.endTime) -
+    p.fight.startTime;
   const perPlayer = new Map<number, RankedPlayer>();
   for (const player of participants) {
     const participated = pulls.filter((p) => p.fight.friendlyPlayers.includes(player.id));
     const metrics = participated
       .map((p) => p.metrics.find((m) => m.actorId === player.id))
       .filter((m): m is Metric => Boolean(m));
-    const knownMechanics = metrics.filter(
+    const evaluated = participated.flatMap((p) =>
+      p.metrics.filter((m) => m.actorId === player.id).map((m) => scoreMetric(p, m)),
+    );
+    const knownMechanics = evaluated.filter(
       (m) => m.mechanicOpportunities !== null && m.mechanicFailures !== null,
     );
     perPlayer.set(player.id, {
@@ -95,6 +108,24 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
         .flatMap((m) => m.evidence)
         .sort((a, b) => a.fightId - b.fightId || a.timestamp - b.timestamp),
       notes: [],
+      roleRank: null,
+      rolePeers: 0,
+      evaluatedAliveMs: sum(evaluated, 'aliveMs'),
+      evaluatedDurationMs: participated.reduce((n, p) => n + scoreDuration(p), 0),
+      lateDeaths: sum(metrics, 'deaths') - sum(evaluated, 'deaths'),
+      overhealing: metrics.every((m) => m.overhealing !== null && m.overhealing !== undefined)
+        ? sum(metrics, 'overhealing')
+        : null,
+      healingCooldowns: sum(metrics, 'healingCooldowns'),
+      taunts: sum(metrics, 'taunts'),
+      ravageHits: metrics.some((m) => m.ravageHits !== null && m.ravageHits !== undefined)
+        ? sum(metrics, 'ravageHits')
+        : null,
+      ravageVulnerableHits: metrics.some(
+        (m) => m.ravageVulnerableHits !== null && m.ravageVulnerableHits !== undefined,
+      )
+        ? sum(metrics, 'ravageVulnerableHits')
+        : null,
     });
   }
   const rules = new Set<string>();
@@ -111,15 +142,17 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
       const own = bossPulls.filter((p) => p.fight.friendlyPlayers.includes(player.id));
       if (!own.length) continue;
       const metric = own
-        .map((p) => p.metrics.find((m) => m.actorId === player.id))
+        .map((p) => {
+          const m = p.metrics.find((m) => m.actorId === player.id);
+          return m ? scoreMetric(p, m) : undefined;
+        })
         .filter((m): m is Metric => Boolean(m));
-      const duration = own.reduce((n, p) => n + p.fight.endTime - p.fight.startTime, 0);
+      const duration = own.reduce((n, p) => n + scoreDuration(p), 0);
       const categories = blankCategories();
       // Missing actor metrics are not a death, a zero parse, or a perfect mechanic score.
       if (metric.length === own.length && duration > 0) {
         categories.survival.score = clamp((100 * sum(metric, 'aliveMs')) / duration);
-        categories.survival.explanation =
-          'Share of selected encounter time alive, including battle resurrections. This measures survival, not fault for a death.';
+        categories.survival.explanation = `Share of ${selection.excludeWipeTail ? 'the evaluated comparison window' : 'the full selected encounter time'} alive, including battle resurrections. Feign Death is excluded. This measures survival, not fault for a death.`;
       }
       const mechanic = metric.filter(
         (m) => m.mechanicOpportunities !== null && m.mechanicFailures !== null,
@@ -182,6 +215,10 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
         coverage,
         pulls: candidate.n,
         categories: candidate.categories,
+        provisional:
+          coverage < 100 ||
+          (report.source === 'warcraftlogs' &&
+            bossPulls.some((p) => p.mechanicScope !== 'complete')),
       });
     }
     bossPulls.forEach((p) => {
@@ -227,8 +264,14 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
           : 'Not applied: missing comparable or verified evidence. This is not a zero.',
       };
     }
-    player.confidence =
-      player.pulls >= 8 && player.coverage >= 70
+    const partialRules =
+      report.source === 'warcraftlogs' &&
+      pulls.some(
+        (p) => p.fight.friendlyPlayers.includes(player.id) && p.mechanicScope !== 'complete',
+      );
+    player.confidence = partialRules
+      ? 'limited'
+      : player.pulls >= 8 && player.coverage >= 70
         ? 'strong'
         : player.pulls >= 3 && player.coverage >= 50
           ? 'developing'
@@ -246,6 +289,18 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
         `Not ranked overall: scored participation on at least ${minimumBosses} of ${bossIds.length} selected bosses is required. Individual boss results remain visible.`,
       );
     if (player.pulls < 3) player.notes.push('Small sample: fewer than three pulls.');
+    if (player.role === 'tank')
+      player.notes.push(
+        'Tank damage intake and required Ravage contacts are not scoring penalties. Taunt counts, healing and vulnerability overlaps are context; swaps, active mitigation and cooldown timing are not fully graded.',
+      );
+    if (player.role === 'healer')
+      player.notes.push(
+        'Healing demand, assignments, co-healers and class/spec affect HPS. Raw HPS, overhealing and cooldown counts do not establish healer quality. Missing kill benchmarks or assigned utility stay unscored.',
+      );
+    if (partialRules)
+      player.notes.push(
+        'Limited model coverage: repeated pulls do not turn a narrow mechanic rule into a complete assessment of this role.',
+      );
   }
   const players = [...perPlayer.values()].sort(
     (a, b) => (b.score ?? -1) - (a.score ?? -1) || a.name.localeCompare(b.name),
@@ -259,9 +314,27 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
     p.rank = rank;
     previous = rounded;
   });
+  for (const role of ['tank', 'healer', 'dps'] as const) {
+    const peers = players.filter((p) => p.role === role && p.score !== null);
+    let previous: number | null = null,
+      rank = 0;
+    peers.forEach((p, i) => {
+      const displayed = Math.floor(p.score! * 10);
+      if (previous !== displayed) rank = i + 1;
+      p.roleRank = rank;
+      p.rolePeers = peers.length;
+      previous = displayed;
+    });
+  }
   const findings: Finding[] = [];
   for (const player of players) {
-    const mechanicEvents = player.evidence.filter((e) => e.kind === 'mechanic');
+    const mechanicEvents = player.evidence.filter(
+      (e) =>
+        e.kind === 'mechanic' &&
+        (!selection.excludeWipeTail ||
+          !pullById.get(e.fightId)?.evaluation ||
+          e.timestamp < pullById.get(e.fightId)!.evaluation!.endTime),
+    );
     const grouped = new Map<string, typeof mechanicEvents>();
     for (const event of mechanicEvents) {
       const group = grouped.get(event.ruleId ?? event.ability) ?? [];
@@ -308,6 +381,14 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
     return rate(second) - rate(first) || (b.evidence?.length ?? 0) - (a.evidence?.length ?? 0);
   });
   const warnings = [...new Set([...report.warnings, ...pulls.flatMap((p) => p.warnings)])];
+  if (selection.excludeWipeTail && pulls.some((p) => p.evaluation))
+    warnings.push(
+      'On audited Sszorak Mythic wipes, survival and Tempest scoring stop at the earlier verified boss enrage or sustained 50% raid-dead threshold. This is a disclosed comparison convention, not a detected wipe call. Full damage, healing and real deaths remain visible. Other bosses and kills retain their full windows.',
+    );
+  if (report.source === 'warcraftlogs')
+    warnings.push(
+      'The combined order compares measured factors, not complete tank/healer/DPS skill. Within-role ranks provide a narrower comparison; assignments, exposure and partial rules still limit comparability.',
+    );
   if (new Set(pulls.map((p) => p.fight.difficulty)).size > 1)
     warnings.push(
       'Multiple difficulties are combined in this selection. Bosses retain equal weight; choose one difficulty for a more comparable cohort.',
@@ -345,6 +426,8 @@ export function analyze(report: Report, allPulls: PullData[], selection: Selecti
         'Calculate a weighted 0–100 evidence score per boss, then average equally across attended bosses. A boss with many wipes does not dominate the whole-report score. Missing categories are excluded for the whole boss cohort, never treated as perfect or zero. Incomplete coverage is explicitly provisional (~), and never earns the gold 100 badge. At least half the selected bosses must be attended. Boss-relative standing is context only, not the overall score.',
       rules: [...rules],
       limitations: [
+        'Within-role ranks compare measured factors only. Tank intake, required frontal hits, healer HPS, overhealing and cast counts do not by themselves establish quality or fault.',
+        'The optional audited Sszorak wipe cutoff is a disclosed comparison policy, not a detected wipe call. Full-pull totals remain visible. Category-weight coverage is not confidence or the percentage of all mechanics checked.',
         'Observed deaths, damage taken and unused cooldowns do not establish fault.',
         'Assignments, voice calls and intended sacrifices may not be present in combat logs.',
         'Utility and defensive usage are shown as facts. They are scored only when validated assigned opportunities are available.',

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { demoData } from '../shared/demo.js';
 import { baseMetric, aliveTime } from '../server/ingest.js';
 import { applyTempest, supportsTempest, type MechanicEvent } from '../server/mechanics.js';
+import { evaluationWindow } from '../server/evaluation.js';
 test('Tempest counts direct contacts once per eligible cast window, not DoT ticks or another source', () => {
   const { report } = demoData();
   report.source = 'warcraftlogs';
@@ -91,4 +92,42 @@ test('unmatched contacts are ungraded; no observed waves means zero opportunitie
     ),
     false,
   );
+});
+
+test('expired Tempest windows do not grant free opportunities after a late resurrection', () => {
+  const { report } = demoData(),
+    fight = { ...report.fights[0], startTime: 0, endTime: 100000, encounterId: 3420 };
+  const metrics = new Map([[1, baseMetric(1, 100000)]]);
+  applyTempest(
+    report,
+    fight,
+    metrics,
+    [{ type: 'begincast', timestamp: 10000, sourceID: 202, abilityGameID: 1287072 }],
+    new Map([[1, [{ type: 'resurrect', timestamp: 80000 }]]]),
+  );
+  assert.equal(metrics.get(1)!.mechanicOpportunities, 0);
+});
+
+test('collapse policy ignores Feign Death and temporary recovery, retains kills and unaudited bosses', () => {
+  const fight = {
+    ...demoData().report.fights[0],
+    startTime: 0,
+    endTime: 100000,
+    encounterId: 3420,
+    friendlyPlayers: Array.from({ length: 10 }, (_, i) => i + 1),
+  };
+  const life = new Map(
+    Array.from({ length: 5 }, (_, i) => [
+      i + 1,
+      [{ type: 'death', timestamp: 60000, feign: i === 4 }],
+    ]),
+  );
+  assert.equal(evaluationWindow(fight, life, null), undefined);
+  life.get(5)![0].feign = false;
+  assert.equal(evaluationWindow(fight, life, null)!.endTime, 60000);
+  assert.equal(evaluationWindow(fight, life, 50000)!.reason, 'boss-enrage');
+  life.get(5)!.push({ type: 'resurrect', timestamp: 70000, feign: false });
+  assert.equal(evaluationWindow(fight, life, null), undefined);
+  assert.equal(evaluationWindow({ ...fight, kill: true }, life, 50000), undefined);
+  assert.equal(evaluationWindow({ ...fight, encounterId: 999 }, life, 50000), undefined);
 });

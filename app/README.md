@@ -1,4 +1,4 @@
-# DarkWhispers App · prototype 0.1
+# DarkWhispers App · prototype 0.2
 
 Evidence-first Warcraft Logs raid analysis. React 19 + TypeScript, Vite 8, Fastify 5, PostgreSQL 16 and pg-boss. API and analysis worker are separate processes. No paid services or AI-generated player grades.
 
@@ -27,6 +27,8 @@ Scores are weighted **0–100**, not a forced percentile that awards 100 to the 
 A category is scored only when comparable inputs exist for every participant on the same boss. Missing categories are excluded for the entire boss cohort. Incomplete category or attendance coverage carries **~** (provisional), never the gold perfect-score badge. Exact 100 with complete evidence is gold-orange; 99 pink; 90–98 purple; 70–89 blue; 50–69 green; 30–49 yellow; 0–29 grey. Decimal values use their integer band; 99.999 is not rounded into a perfect 100.
 
 Survival measures time alive and handles battle resurrections; it does not assign blame. Raw DPS/HPS, damage taken, defensive casts, interrupts and dispels are visible observations. Damage taken is not automatically an error, and defensive non-use is not inferred from absence. Output uses optional Warcraft Logs historical class/spec kill percentiles (HPS for healers, DPS for others); wipes have no kill parse. Utility requires validated assigned opportunities before it can affect a score. First deaths are review starting points, never asserted wipe causes.
+
+See the [real-log reliability audit](docs/ranking-reliability.md) for the Feign Death correction, within-role rankings, tank/healer context, disclosed Sszorak collapse window and sample sensitivity. Full-pull totals are preserved when the optional comparison cutoff is enabled. Neither high tank damage intake nor high healer HPS creates a performance grade by itself.
 
 **Current live scope:** Mythic Sszorak has a narrowly defined [Tempest contact rule](docs/sszorak-tempest.md), checked against the real acceptance report. It grades one failed opportunity at most per cast window, excluding periodic DoT ticks and accounting for deaths/resurrections. Other boss mechanics and assigned-utility opportunities are not graded. All remaining debuffs are unscored observations. Partial boss-rule coverage remains provisional even if every category becomes available; category-weight coverage does not mean all boss mechanics were evaluated. The synthetic fixture demonstrates the broader mechanic/utility scoring path, not live boss validity. The live acceptance report is `6fjJxRFC21YHdTXB`, encounter `3420`, difficulty `5` (18 wipes, 20 players; no Sszorak kill).
 

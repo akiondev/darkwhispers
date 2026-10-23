@@ -1,7 +1,9 @@
 import type { Fight } from './types.js';
-export type LifeEvent = { timestamp: number; type: string };
+export type LifeEvent = { timestamp: number; type: string; feign?: boolean };
 export function aliveIntervals(fight: Fight, events: LifeEvent[]): [number, number][] {
-  const ordered = [...events].sort((a, b) => a.timestamp - b.timestamp);
+  const ordered = events
+    .filter((e) => !(e.type === 'death' && e.feign === true))
+    .sort((a, b) => a.timestamp - b.timestamp);
   let alive = ordered[0]?.type !== 'resurrect',
     began = fight.startTime;
   const intervals: [number, number][] = [];

@@ -55,7 +55,7 @@ const defaults: Selection = {
   difficulty: null,
   mode: 'all',
   fightIds: null,
-  excludeWipeTail: false,
+  excludeWipeTail: true,
 };
 const categories: Category[] = ['mechanics', 'survival', 'output', 'utility'];
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
@@ -148,7 +148,12 @@ function EventList({ events, analysis }: { events: Evidence[]; analysis: Analysi
     <>
       <div className="event-list">
         {events.slice(0, limit).map((event, index) => {
-          const fight = analysis.pulls.find((p) => p.fight.id === event.fightId)?.fight;
+          const pull = analysis.pulls.find((p) => p.fight.id === event.fightId);
+          const fight = pull?.fight;
+          const afterCutoff =
+            analysis.selection.excludeWipeTail &&
+            pull?.evaluation &&
+            event.timestamp >= pull.evaluation.endTime;
           return (
             <div className="event" key={`${event.fightId}-${event.timestamp}-${index}`}>
               <div>
@@ -158,6 +163,7 @@ function EventList({ events, analysis }: { events: Evidence[]; analysis: Analysi
                 <span className="tag">
                   {event.kind === 'mechanic-observed' ? 'observation' : event.kind}
                 </span>
+                {afterCutoff && <span className="tag">After cutoff · not scored</span>}
               </div>
               <strong>{event.ability}</strong>
               <p>{event.description}</p>
@@ -194,6 +200,12 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
         </div>
         <Score player={player} />
       </div>
+      {player.roleRank && (
+        <p className="small muted">
+          Within-role rank: #{player.roleRank} of {player.rolePeers} {player.role} players ·
+          measured factors only
+        </p>
+      )}
       <div className="notice subtle">
         <ShieldCheck size={17} />
         <div>
@@ -230,12 +242,22 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
       </div>
       <div className="stats mini">
         <div>
-          <span>Alive</span>
-          <strong>{((100 * player.aliveMs) / Math.max(1, player.durationMs)).toFixed(1)}%</strong>
+          <span>Alive · scored window</span>
+          <strong>
+            {(
+              (100 * (player.evaluatedAliveMs ?? player.aliveMs)) /
+              Math.max(1, player.evaluatedDurationMs ?? player.durationMs)
+            ).toFixed(1)}
+            %
+          </strong>
+          <small>
+            Full pull: {((100 * player.aliveMs) / Math.max(1, player.durationMs)).toFixed(1)}%
+          </small>
         </div>
         <div>
           <span>Deaths</span>
           <strong>{player.deaths}</strong>
+          {!!player.lateDeaths && <small>{player.lateDeaths} after scoring cutoff</small>}
         </div>
         <div>
           <span>
@@ -265,6 +287,35 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
           <strong>{compact.format(player.damageTaken)}</strong>
         </div>
       </div>
+      {(player.role === 'tank' || player.role === 'healer') && (
+        <div className="notice subtle">
+          <div>
+            <strong>
+              {player.role === 'tank' ? 'Tank context' : 'Healer context'} · observations, not extra
+              score
+            </strong>
+            {player.role === 'tank' ? (
+              <p>
+                Required tank damage is not a penalty. Ravage contacts before collapse:{' '}
+                {player.ravageHits ?? 'not measured'}; while prior vulnerability was active:{' '}
+                {player.ravageVulnerableHits ?? 'not measured'} (review swaps and immunities).
+                Logged taunts: {player.taunts ?? 0}. Logged healing:{' '}
+                {compact.format(player.healing)}.
+              </p>
+            ) : (
+              <p>
+                Logged healing: {compact.format(player.healing)}. Overhealing:{' '}
+                {player.overhealing == null
+                  ? 'not available'
+                  : `${((100 * player.overhealing) / Math.max(1, player.healing + player.overhealing)).toFixed(1)}%`}
+                . Observed healing / raid cooldown casts: {player.healingCooldowns ?? 0}. Successful
+                dispels: {player.dispels}. Demand and assignments affect these totals; higher HPS or
+                lower overhealing alone is not a better performance.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
       {player.notes.map((note) => (
         <p className="small muted" key={note}>
           {note}
@@ -280,7 +331,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
                 {b.pulls} pulls · {b.coverage}% scoring coverage
               </small>
             </span>
-            <Score player={{ score: b.score, provisional: b.coverage < 100 }} />
+            <Score player={{ score: b.score, provisional: b.provisional ?? b.coverage < 100 }} />
           </div>
         ))}
       </div>
@@ -452,7 +503,7 @@ export default function App() {
         <div className="top-links">
           <span className="prototype">
             <i />
-            Prototype 0.1
+            Prototype 0.2
           </span>
           <a
             href="https://github.com/akiondev/darkwhispers/tree/main/app"
@@ -655,6 +706,16 @@ export default function App() {
                   )}
                 </button>
               </div>
+              <label className="window-option">
+                <input
+                  type="checkbox"
+                  checked={selection.excludeWipeTail}
+                  disabled={busy}
+                  onChange={(e) => change({ excludeWipeTail: e.target.checked })}
+                />{' '}
+                Compare before raid collapse{' '}
+                <span className="muted">Sszorak Mythic wipes · full totals stay visible</span>
+              </label>
               {pullPicker && (
                 <div className="pull-picker">
                   <div className="section-heading">
@@ -780,7 +841,7 @@ export default function App() {
                   {analysis.summary.coverage.toFixed(0)}%
                   <small>
                     {analysis.summary.coverage < 100
-                      ? 'Provisional · missing categories excluded'
+                      ? 'Applied category weight · partial model'
                       : 'All categories available'}
                   </small>
                 </strong>
@@ -820,7 +881,11 @@ export default function App() {
                 <div>
                   <h3>Player standings</h3>
                   <p className="small muted">
-                    Weighted 0–100 score · ~ means provisional · click a player to inspect the facts
+                    Weighted 0–100 evidence score · ~ means partial coverage ·{' '}
+                    {role === 'all'
+                      ? 'combined order is not a complete ranking of role skill'
+                      : 'rank within selected role'}{' '}
+                    · click a player for details
                   </p>
                 </div>
                 <div className="table-controls">
@@ -854,7 +919,7 @@ export default function App() {
                       <th>Player</th>
                       <th>Score</th>
                       <th>Mechanics</th>
-                      <th>Alive</th>
+                      <th>Alive · scored</th>
                       <th>Deaths</th>
                       <th>Output / sec</th>
                       <th>Pulls</th>
@@ -863,7 +928,9 @@ export default function App() {
                   <tbody>
                     {shown.map((p) => (
                       <tr key={p.id} onClick={() => setPlayer(p)}>
-                        <td className="rank">{p.rank ?? '—'}</td>
+                        <td className="rank">
+                          {(role === 'all' || role === 'unknown' ? p.rank : p.roleRank) ?? '—'}
+                        </td>
                         <td>
                           <button
                             className="player-button"
@@ -877,6 +944,7 @@ export default function App() {
                               {p.name}
                               <small>
                                 {p.spec} {p.class} · {roleLabel(p)}
+                                {p.roleRank ? ` · #${p.roleRank}/${p.rolePeers} in role` : ''}
                               </small>
                             </span>
                           </button>
@@ -896,7 +964,13 @@ export default function App() {
                             </span>
                           )}
                         </td>
-                        <td>{((100 * p.aliveMs) / Math.max(1, p.durationMs)).toFixed(1)}%</td>
+                        <td>
+                          {(
+                            (100 * (p.evaluatedAliveMs ?? p.aliveMs)) /
+                            Math.max(1, p.evaluatedDurationMs ?? p.durationMs)
+                          ).toFixed(1)}
+                          %
+                        </td>
                         <td>{p.deaths}</td>
                         <td>
                           {compact.format(
@@ -1028,6 +1102,15 @@ export default function App() {
             Provisional values carry ~, and never receive the gold perfect-score badge.
           </p>
           <h3>Limits & interpretation</h3>
+          <p>
+            <a
+              href="https://github.com/akiondev/darkwhispers/blob/main/app/docs/ranking-reliability.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Real-log reliability audit <ExternalLink size={12} />
+            </a>
+          </p>
           {analysis.methodology.limitations.map((l) => (
             <p className="method-limit" key={l}>
               {l}

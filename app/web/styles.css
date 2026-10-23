@@ -451,6 +451,18 @@ h1 em {
   grid-template-columns: 1.3fr 1fr 1.1fr;
   gap: 18px;
 }
+.window-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  margin-top: 14px;
+  color: #c6a7bf;
+}
+.window-option input {
+  accent-color: #b26a90;
+}
 .selection-grid label,
 .pull-kind > span {
   display: flex;

@@ -186,6 +186,76 @@ test('battle resurrections contribute only time actually alive', () => {
     75000,
   );
 });
+
+test('Feign Death never kills a hunter or creates lost time alive', () => {
+  const f = demoData().report.fights[0];
+  assert.equal(
+    aliveTime(f, [
+      { type: 'death', timestamp: 10000, feign: true },
+      { type: 'death', timestamp: 80000 },
+    ]),
+    80000,
+  );
+  assert.equal(
+    aliveTime(f, [{ type: 'death', timestamp: 10000, feign: true }]),
+    f.endTime - f.startTime,
+  );
+});
+
+test('scoring-window measurements change grades but preserve full-pull facts and partial-model badges', () => {
+  const { report, pulls } = demoData(),
+    pull = pulls[0];
+  report.source = 'warcraftlogs';
+  report.fights = [pull.fight];
+  pull.mechanicScope = 'partial';
+  pull.evaluation = {
+    endTime: pull.fight.startTime + 50000,
+    reason: 'raid-collapse',
+    excludedMs: 45000,
+  };
+  for (const m of pull.metrics) {
+    m.deaths = 1;
+    m.aliveMs = 60000;
+    m.evaluated = { aliveMs: 50000, deaths: 0, mechanicFailures: 0, mechanicOpportunities: 5 };
+  }
+  const full = analyze(report, [pull], all),
+    cut = analyze(report, [pull], { ...all, excludeWipeTail: true });
+  for (const p of cut.players) {
+    const before = full.players.find((x) => x.id === p.id)!;
+    assert.equal(p.damage, before.damage);
+    assert.equal(p.healing, before.healing);
+    assert.equal(p.deaths, 1);
+    assert.equal(p.aliveMs, 60000);
+    assert.equal(p.evaluatedAliveMs, 50000);
+    assert.equal(p.evaluatedDurationMs, 50000);
+    assert.equal(p.lateDeaths, 1);
+    assert.ok(p.score! > before.score!);
+    assert.equal(p.confidence, 'limited');
+    assert.equal(p.perBoss[0].provisional, true);
+  }
+  assert.equal(cut.players.filter((p) => p.role === 'tank')[0].roleRank, 1);
+  assert.equal(cut.players.filter((p) => p.role === 'tank')[0].rolePeers, 2);
+  delete pull.metrics[0].evaluated;
+  assert.throws(() => analyze(report, [pull], { ...all, excludeWipeTail: true }), /incomplete/);
+});
+
+test('tank intake and healer raw HPS/overhealing never become arbitrary score penalties or bonuses', () => {
+  const { report, pulls } = demoData();
+  const before = analyze(report, pulls, all);
+  for (const p of pulls) {
+    p.metrics[0].damageTaken *= 100;
+    p.metrics[0].ravageHits = 100;
+    p.metrics[0].ravageVulnerableHits = 2;
+    p.metrics[2].healing *= 100;
+    p.metrics[2].overhealing = 100000000;
+  }
+  const after = analyze(report, pulls, all);
+  for (const id of [1, 3])
+    assert.equal(
+      after.players.find((p) => p.id === id)!.score,
+      before.players.find((p) => p.id === id)!.score,
+    );
+});
 test('report parser prevents user-supplied upstream fetches', () => {
   const code = '6fjJxRFC21YHdTXB';
   assert.equal(parseReportCode(`https://www.warcraftlogs.com/reports/${code}?fight=last`), code);

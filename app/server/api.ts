@@ -15,7 +15,7 @@ const selectionSchema = z
     difficulty: z.number().int().positive().nullable().default(null),
     mode: z.enum(['all', 'wipes', 'kills']).default('all'),
     fightIds: z.array(z.number().int().positive()).max(150).nullable().default(null),
-    excludeWipeTail: z.literal(false).default(false),
+    excludeWipeTail: z.boolean().default(true),
   })
   .strict();
 
