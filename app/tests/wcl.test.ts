@@ -304,8 +304,15 @@ test('tank vulnerability and healer cooldown/overheal context are observations w
         args[4]?.includes('((type = "damage" and ability.id = 1277101) or ability.id = 1277105)'),
         'Use WCL hit classification for Ravage; serialized damage also includes misses/immunities',
       );
+      assert.ok(args[4]?.includes('ability.id = 56222'));
+      assert.ok(!args[4]?.includes('ability.id = 3716'), 'Pet Torment is not a class taunt cast');
+      assert.ok(
+        !args[4]?.includes('type = "taunt"'),
+        'Taunts are recorded as casts, not a taunt event type',
+      );
       args[3]([
-        { type: 'taunt', sourceID: 1, targetID: 202, timestamp: 5000 },
+        { type: 'cast', sourceID: 1, targetID: 202, abilityGameID: 56222, timestamp: 5000 },
+        { type: 'cast', sourceID: 1, targetID: 202, abilityGameID: 3716, timestamp: 5500 },
         { type: 'cast', sourceID: 3, abilityGameID: 740, timestamp: 6000 },
         {
           type: 'applydebuff',
@@ -335,6 +342,8 @@ test('tank vulnerability and healer cooldown/overheal context are observations w
       [1277101, 'Ravage'],
       [1277105, 'Ravage'],
       [740, 'Tranquility'],
+      [56222, 'Dark Command'],
+      [3716, 'Torment'],
     ]),
     async () => {},
   );

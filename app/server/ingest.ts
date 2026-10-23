@@ -61,6 +61,14 @@ const HEALING_COOLDOWNS = new Set([
   'Power Word: Barrier',
   'Aura Mastery',
 ]);
+const TAUNT_CASTS = new Map([
+  [355, 'Taunt'],
+  [56222, 'Dark Command'],
+  [115546, 'Provoke'],
+  [62124, 'Hand of Reckoning'],
+  [6795, 'Growl'],
+  [185245, 'Torment'],
+]);
 
 export function baseMetric(actorId: number, duration: number): Metric {
   return {
@@ -188,8 +196,11 @@ export async function ingestPull(
   const ravageEvents: Record<string, any>[] = [];
   let enrage: number | null = null;
   const mechanicEvents: MechanicEvent[] = [];
-  const defensiveIds = [...abilities]
-    .filter(([, name]) => DEFENSIVES.has(name) || HEALING_COOLDOWNS.has(name))
+  const contextCastIds = [...abilities]
+    .filter(
+      ([id, name]) =>
+        DEFENSIVES.has(name) || HEALING_COOLDOWNS.has(name) || TAUNT_CASTS.get(id) === name,
+    )
     .map(([id]) => id);
   const filter = [
     ...(tempest
@@ -200,7 +211,6 @@ export async function ingestPull(
       : []),
     'type = "death"',
     'type = "resurrect"',
-    'type = "taunt"',
     // WCL's damage predicate excludes misses/immunities even when the API
     // serializes those records as type: damage. Full absorbs remain real hits.
     ...(tankContext
@@ -215,8 +225,8 @@ export async function ingestPull(
     'type = "dispel"',
     'type = "steal"',
     '(type = "applydebuff" and target.type = "player")',
-    ...(defensiveIds.length
-      ? [`(type = "cast" and (${defensiveIds.map((id) => `ability.id = ${id}`).join(' or ')}))`]
+    ...(contextCastIds.length
+      ? [`(type = "cast" and (${contextCastIds.map((id) => `ability.id = ${id}`).join(' or ')}))`]
       : []),
   ].join(' or ');
   const observedAuras = new Map<string, { count: number; event: Record<string, any> }>();
@@ -261,6 +271,7 @@ export async function ingestPull(
           }
         } else if (event.type === 'cast' && source) {
           const name = abilities.get(id) || text(object(event.ability).name);
+          if (TAUNT_CASTS.get(id) === name) source.taunts = (source.taunts ?? 0) + 1;
           if (HEALING_COOLDOWNS.has(name)) {
             source.healingCooldowns = (source.healingCooldowns ?? 0) + 1;
             evidence(
@@ -286,8 +297,6 @@ export async function ingestPull(
             'Observed defensive or external cooldown cast. Cast count alone is not a performance grade.',
             'casts',
           );
-        } else if (event.type === 'taunt' && source) {
-          source.taunts = (source.taunts ?? 0) + 1;
         } else if (source && ['interrupt', 'dispel', 'steal'].includes(event.type)) {
           const kind = event.type === 'interrupt' ? 'interrupt' : 'dispel';
           if (kind === 'interrupt') source.interrupts++;

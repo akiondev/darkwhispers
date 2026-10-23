@@ -299,7 +299,7 @@ function PlayerDetails({ player, analysis }: { player: RankedPlayer; analysis: A
                 Required tank damage is not a penalty. Ravage contacts before the recorded cutoff:{' '}
                 {player.ravageHits ?? 'not measured'}; while prior vulnerability was active:{' '}
                 {player.ravageVulnerableHits ?? 'not measured'} (review swaps and immunities).
-                Logged taunts: {player.taunts ?? 0}. Logged healing:{' '}
+                Observed taunt casts: {player.taunts ?? 0}. Logged healing:{' '}
                 {compact.format(player.healing)}. Ravage uses the full encounter when no cutoff was
                 recorded; the scoring toggle only changes survival and Tempest grades.
               </p>

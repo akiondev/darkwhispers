@@ -12,6 +12,8 @@ The raw timeline contained 11 Feign Death events. Nine belonged to participating
 
 The new ingestion version invalidates old cached facts. This is required for correctness; a UI refresh alone must not reuse the faulty death/life cache.
 
+Taunts are now counted from verified class taunt spell casts, rather than relying on standalone `taunt` events. The separate player-cast export contains 175 Dark Command casts across the report. These are observed attempts, not proof that every cast successfully changed the boss target; they do not award points. Pet abilities with similar names are not matched as player class taunts.
+
 ## Tanks and healers
 
 Total damage taken is never a scoring penalty or bonus. Tanks are expected to take boss hits. Sszorak's Ravage contacts and hits while a prior Ravage vulnerability was active are displayed for review. They do not become an automatic tank-swap failure: an immunity, assignment or another player's action may change the interpretation. Taunts, defensive casts and logged healing are context, not an availability/timing grade. The two tanks' lower common-factor scores in this report primarily reflect Tempest contacts; they do not establish that the tanks performed worse at tanking than every damage dealer.
