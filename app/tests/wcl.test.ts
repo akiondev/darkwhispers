@@ -170,13 +170,7 @@ test('synthetic future-zone reports import raw facts and all roles without inven
     assert.equal(result.report.source, 'warcraftlogs');
     assert.equal(result.report.zone, 'Synthetic Uncatalogued Future Raid');
     assert.equal(result.pulls[0].fight.encounterId, 990001);
-    assert.deepEqual([...operations].sort(), [
-      'Abilities',
-      'Events',
-      'Report',
-      'Tables',
-      'WipeCalls',
-    ]);
+    assert.deepEqual([...operations].sort(), ['Abilities', 'Events', 'Report', 'Tables']);
     assert.deepEqual(result.players.map((p) => p.role).sort(), ['dps', 'healer', 'tank']);
     const tank = result.players.find((p) => p.id === 21)!;
     const healer = result.players.find((p) => p.id === 22)!;
@@ -197,7 +191,7 @@ test('synthetic future-zone reports import raw facts and all roles without inven
         player.execution.alivePercent,
         'Unknown mechanics use labelled measured survival, not assumed mechanic points',
       );
-      assert.equal(player.execution.scoreBasis, 'survival-only');
+      assert.equal(player.execution.scoreBasis, 'recorded-survival');
       assert.equal(player.execution.mechanicsScore, null);
       assert.equal(player.execution.checkedMechanics, 0);
       assert.equal(player.pullReviews[0].facts.casts, 1);
@@ -373,7 +367,7 @@ test('one shared full-pull event stream records survival, preparation, casts and
         !args[4]!.includes('ability.id = 22812'),
         'All player casts share one stream across classes',
       );
-      assert.equal(args[5]?.includeResources, false);
+      assert.equal(args[5]?.includeResources, true);
       args[3]([
         { type: 'combatantinfo', sourceID: 7, timestamp: 0, auras: [{ ability: 1235111 }] },
         { type: 'death', targetID: 7, timestamp: 10000, feign: true },
@@ -608,4 +602,19 @@ test('a queued selection that loses a requested pull fails rather than analyzing
   assert.equal((await store.getJob(job.id))!.result, undefined);
   await runAnalysis(job.id, store, client);
   assert.equal((await store.getJob(job.id))!.status, 'failed');
+});
+
+test('an endpoint continuation page retains the death at exact encounter end', async () => {
+  const fight = { ...demoData().report.fights[0], startTime: 100, endTime: 200 };
+  let calls = 0;
+  const c = new WclClient('synthetic', 'synthetic', async (input, init) => {
+    if (String(input).includes('/oauth/')) return response({ access_token: 'T', expires_in: 3600 });
+    const {variables} = JSON.parse(String(init?.body));
+    calls++;
+    assert.equal(variables.start, calls === 1 ? 100 : 200);
+    return response({data:{reportData:{report:{events:calls === 1 ? {data:[],nextPageTimestamp:200} : {data:[{type:'death',timestamp:200,targetID:1}],nextPageTimestamp:null}}}}});
+  });
+  const found: unknown[]=[];
+  await c.events('6fjJxRFC21YHdTXB',fight,'All',page=>found.push(...page));
+  assert.equal(calls,2);assert.equal(found.length,1);
 });

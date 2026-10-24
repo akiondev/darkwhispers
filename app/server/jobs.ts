@@ -20,8 +20,6 @@ export async function runAnalysis(id: string, store: Store, client: WclClient): 
       pulls = demo.pulls;
     } else {
       report = (await store.getReport(job.reportCode)) ?? (await client.report(job.reportCode));
-      if (report.wipeCalls === undefined)
-        report.wipeCalls = await client.wipeCalls(report.code, report.fights);
       await store.putReport(report);
       const selected = selectFights(report, job.selection);
       if (job.selection.fightIds && new Set(job.selection.fightIds).size !== selected.length)

@@ -15,7 +15,7 @@ export function Score({ value }: { value: number | null }) {
       title={
         value === null
           ? 'Not ranked in this selection. Open player details for the recorded reason.'
-          : 'Mechanic execution and time alive. Output is shown separately.'
+          : 'Recorded time alive divided by full attended pull time. 100 means no recorded time dead; not overall player skill.'
       }
     >
       {scoreLabel(value)}

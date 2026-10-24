@@ -1,7 +1,14 @@
 export type Role = 'tank' | 'healer' | 'dps' | 'unknown';
 export type Mode = 'all' | 'wipes' | 'kills';
 export type Category = 'mechanics' | 'survival' | 'output' | 'utility';
-export type Player = { id: number; name: string; class: string; spec: string; role: Role };
+export type Player = {
+  id: number;
+  name: string;
+  class: string;
+  spec: string;
+  role: Role;
+  profile?: { region: string; realm: string; name?: string };
+};
 export type Fight = {
   id: number;
   encounterId: number;
@@ -53,6 +60,7 @@ export type Evidence = {
   url: string | null;
 };
 export type Metric = {
+  life?: import('./life.js').LifeSummary;
   facts?: PlayerFacts;
   mechanics?: MechanicResult[];
   activity?: ActivityFacts;
@@ -234,7 +242,7 @@ export type Selection = {
 };
 export type AssessmentWindow = {
   endTime: number;
-  source: 'kill' | 'logged' | 'automatic' | 'manual' | 'unconfirmed';
+  source: 'kill' | 'full' | 'logged' | 'automatic' | 'manual' | 'unconfirmed';
   /** A usable assessment window; estimated marks automatic policy rather than a recorded call. */
   confirmed: boolean;
   estimated?: boolean;
@@ -388,7 +396,12 @@ export type PlayerFacts = {
   casts: number;
 };
 export type ExecutionAssessment = {
-  scoreBasis?: 'mechanics-and-survival' | 'survival-only' | 'no-contribution' | 'mixed';
+  scoreBasis?:
+    | 'recorded-survival'
+    | 'mechanics-and-survival'
+    | 'survival-only'
+    | 'no-contribution'
+    | 'mixed';
   survivalOnlyPulls?: number;
   version: string;
   score: number | null;
@@ -424,6 +437,10 @@ export type ExecutionMechanic = {
   events: MechanicResult['events'];
 };
 export type ExecutionPullReview = {
+  deadIntervals?: { start: number; end: number }[];
+  firstDeath?: boolean;
+  resurrections?: number;
+  lifeIssues?: string[];
   window?: AssessmentWindow;
   fightId: number;
   role: Role;
@@ -446,6 +463,9 @@ export type ExecutionBossScore = {
   execution: ExecutionAssessment;
 };
 export type RankedPlayer = Player & {
+  firstDeaths?: number;
+  resurrections?: number;
+  roles?: Role[];
   rankingReason?: string;
   rowKey: string;
   rank: number | null;
@@ -479,9 +499,9 @@ export type Analysis = {
   model: {
     id: string;
     name: string;
-    deathPenalty: 5;
-    deathPolicy: 'kills-and-recorded-calls';
-    formula: 'mechanics-times-alive-minus-deaths';
+    deathPenalty: number;
+    deathPolicy: 'kills-and-recorded-calls' | 'full-encounter-time';
+    formula: 'mechanics-times-alive-minus-deaths' | 'alive-time-over-encounter-time';
   };
   report: Report;
   selection: Selection;

@@ -5,7 +5,6 @@ import type {
   ExecutionMechanic,
   ExecutionPullReview,
   Fight,
-  MechanicResult,
   Metric,
   Player,
   PlayerFacts,
@@ -20,30 +19,27 @@ import { roleFromSpec } from './players.js';
 import { VERSION } from './version.js';
 import { assessmentWindow } from './windows.js';
 
-export const EXECUTION_MODEL_VERSION = 'execution/v3';
-export const DEATH_PENALTY = 5;
-const mean = (values: number[]) =>
-  values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+export const EXECUTION_MODEL_VERSION = 'survival/v1';
+export const DEATH_PENALTY = 0;
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
-const percent = (value: number) => Math.max(0, Math.min(100, value));
 const order: Record<Role, number> = { dps: 0, healer: 1, tank: 2, unknown: 3 };
-
-/** Percentages, not probabilities. There are no neutral or inferred input values. */
-export function scoreExecution(mechanicsScore: number, alivePercent: number, deaths = 0) {
-  for (const value of [mechanicsScore, alivePercent])
-    if (!Number.isFinite(value) || value < 0 || value > 100)
-      throw new Error('Execution percentages must be finite and between 0 and 100.');
-  if (!Number.isInteger(deaths) || deaths < 0) throw new Error('Invalid death count.');
-  const baseScore = (mechanicsScore * alivePercent) / 100;
-  return {
-    score: Math.max(0, baseScore - DEATH_PENALTY * deaths),
-    baseScore,
-    deathPenalty: DEATH_PENALTY * deaths,
-    capped: false,
-  };
+export function scoreSurvival(aliveMs: number, durationMs: number): number {
+  if (
+    !Number.isFinite(durationMs) ||
+    durationMs <= 0 ||
+    !Number.isFinite(aliveMs) ||
+    aliveMs < 0 ||
+    aliveMs > durationMs
+  )
+    throw Error('Invalid survival duration.');
+  return (100 * aliveMs) / durationMs;
 }
-const roleFor = (player: Player, fight: Fight) =>
-  roleFromSpec(fight.playerSpecs?.[player.id] ?? player.spec);
+/** Legacy caller adapter. Mechanics and death count no longer alter the time measurement. */
+export function scoreExecution(_mechanicsScore: number, alivePercent: number, _deaths = 0) {
+  const score = scoreSurvival(alivePercent, 100);
+  return { score, baseScore: score, deathPenalty: 0, capped: false };
+}
+const roleFor = (p: Player, f: Fight) => roleFromSpec(f.playerSpecs?.[p.id] ?? p.spec);
 const blankFacts = (): PlayerFacts => ({
   snapshot: false,
   activeAtPull: [],
@@ -51,27 +47,68 @@ const blankFacts = (): PlayerFacts => ({
   lifeEvents: [],
   casts: 0,
 });
-const finiteNonnegative = (value: number) => Number.isFinite(value) && value >= 0;
-const windowFor = (report: Report, pull: PullData, selection: Selection) =>
-  assessmentWindow(
-    report,
-    pull.fight,
-    selection,
-    pull.boundaryLife
-      ? new Map(pull.boundaryLife.map((row) => [row.actorId, row.events]))
-      : undefined,
+const time = (ms: number) =>
+  `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+function assessment(
+  aliveMs: number,
+  durationMs: number,
+  deaths: number,
+  pulls: number,
+  scoredPulls: number,
+  issues: string[] = [],
+): ExecutionAssessment {
+  const alivePercent = scoreSurvival(aliveMs, durationMs);
+  const score = issues.length || scoredPulls !== pulls ? null : alivePercent;
+  return {
+    version: EXECUTION_MODEL_VERSION,
+    score,
+    baseScore: score,
+    alivePercent,
+    mechanicsScore: null,
+    scoreBasis: 'recorded-survival',
+    capped: false,
+    deathPenalty: 0,
+    deaths,
+    missedWhileDead: 0,
+    weightMs: durationMs,
+    passedChecks: 0,
+    failedChecks: 0,
+    checkedMechanics: 0,
+    scoredPulls,
+    totalPulls: pulls,
+    reasons:
+      score === null
+        ? [
+            ...new Set(
+              issues.length
+                ? issues
+                : ['Some survival measurements are incomplete; no score was inferred.'],
+            ),
+          ]
+        : [
+            `${time(durationMs - aliveMs)} dead of ${time(durationMs)} recorded encounter time � ${deaths} deaths.`,
+            `Score = time alive � encounter time � 100. All selected kills and wipes are included.`,
+          ],
+  };
+}
+export function combineExecutions(
+  values: ExecutionAssessment[],
+  _mode: 'duration' | 'equal' = 'duration',
+): ExecutionAssessment {
+  if (!values.length) throw Error('No survival measurements to combine.');
+  const duration = sum(values.map((v) => v.weightMs ?? 0));
+  const alive = sum(values.map((v) => (v.alivePercent * (v.weightMs ?? 0)) / 100));
+  return assessment(
+    alive,
+    duration,
+    sum(values.map((v) => v.deaths ?? 0)),
+    sum(values.map((v) => v.totalPulls)),
+    sum(values.map((v) => v.scoredPulls)),
+    values.filter((v) => v.score === null).flatMap((v) => v.reasons),
   );
-function validatePull(report: Report, pull: PullData, fight: Fight, selection: Selection) {
-  const window = windowFor(report, pull, selection);
-  const duration = window.endTime - fight.startTime;
-  if (
-    pull.window
-      ? pull.window.endTime !== window.endTime ||
-        pull.window.source !== window.source ||
-        pull.window.confirmed !== window.confirmed
-      : window.endTime !== fight.endTime
-  )
-    throw new Error('Cached facts do not match the requested assessment window.');
+}
+function validatePull(pull: PullData, fight: Fight) {
+  const duration = fight.endTime - fight.startTime;
   if (
     !pull.complete ||
     pull.fight.encounterId !== fight.encounterId ||
@@ -79,395 +116,296 @@ function validatePull(report: Report, pull: PullData, fight: Fight, selection: S
     pull.fight.startTime !== fight.startTime ||
     pull.fight.endTime !== fight.endTime
   )
-    throw new Error('Pull measurements do not match the completed report selection.');
+    throw Error('Incomplete or mismatched pull measurements.');
+  if (
+    pull.window &&
+    (pull.window.endTime !== fight.endTime || !['full', 'kill'].includes(pull.window.source))
+  )
+    throw Error('Cached assessment window is clipped. Reimport full encounter facts.');
   if (
     new Set(fight.friendlyPlayers).size !== fight.friendlyPlayers.length ||
-    new Set(pull.metrics.map((m) => m.actorId)).size !== pull.metrics.length
-  )
-    throw new Error('Duplicate participant measurements.');
-  if (
+    new Set(pull.metrics.map((m) => m.actorId)).size !== pull.metrics.length ||
     pull.metrics.length !== fight.friendlyPlayers.length ||
-    fight.friendlyPlayers.some(
-      (id) =>
-        !pull.metrics.some((m) => m.actorId === id) || !report.players.some((p) => p.id === id),
-    )
+    fight.friendlyPlayers.some((id) => !pull.metrics.some((m) => m.actorId === id))
   )
-    throw new Error('A participating player is missing measurements. No ranking was produced.');
+    throw Error('Missing or duplicate participant measurements.');
   for (const m of pull.metrics) {
+    if (pull.window && !m.life) throw Error('Full-encounter cache is missing life measurements.');
     if (
       ![m.damage, m.healing, m.damageTaken, m.aliveMs, m.deaths, m.interrupts, m.dispels].every(
-        finiteNonnegative,
+        (v) => Number.isFinite(v) && v >= 0,
       ) ||
-      m.aliveMs > duration + 1e-6 ||
+      m.aliveMs > duration ||
       !Number.isInteger(m.deaths)
     )
-      throw new Error('Invalid player measurements.');
-    const ids = new Set<string>();
-    for (const r of m.mechanics ?? []) {
-      if (ids.has(r.ruleId)) throw new Error('Duplicate mechanic measurements.');
-      ids.add(r.ruleId);
-      if (
-        ![r.opportunities, r.failures, r.unknown, r.observed, r.missedWhileDead ?? 0].every(
-          (v) => Number.isInteger(v) && v >= 0,
-        ) ||
-        r.failures + (r.missedWhileDead ?? 0) > r.opportunities
-      )
-        throw new Error('Invalid mechanic measurements.');
-    }
-  }
-}
-
-/** A check enters a role's comparison only when every living peer has a complete denominator. */
-function comparableRules(report: Report, pull: PullData, role: Role) {
-  const peers = pull.metrics.filter(
-    (m) => roleFor(report.players.find((p) => p.id === m.actorId)!, pull.fight) === role,
-  );
-  const candidateIds = new Set(
-    peers.flatMap((m) =>
-      (m.mechanics ?? [])
-        .filter(
-          (r) =>
-            r.kind === 'avoid' &&
-            r.requiredForScore !== false &&
-            r.weight > 0 &&
-            (r.scoreEligible === true || r.opportunities > 0 || r.unknown > 0),
-        )
-        .map((r) => r.ruleId),
-    ),
-  );
-  const accepted = new Set<string>();
-  for (const id of candidateIds) {
-    const rows = peers.map((m) => m.mechanics?.find((r) => r.ruleId === id));
+      throw Error('Invalid player measurements.');
     if (
-      rows.length &&
-      rows.every(
-        (r): r is MechanicResult =>
-          !!r && r.scoreEligible === true && r.unknown === 0 && r.weight > 0,
-      ) &&
-      rows.every((r) => r.opportunities > 0)
+      m.life &&
+      (![m.life.aliveMs, m.life.deadMs, m.life.deaths, m.life.resurrections].every(
+        (v) => Number.isFinite(v) && v >= 0,
+      ) ||
+        !Number.isInteger(m.life.deaths) ||
+        !Number.isInteger(m.life.resurrections) ||
+        typeof m.life.complete !== 'boolean' ||
+        !Array.isArray(m.life.issues) ||
+        (m.life.complete && m.life.issues.length > 0))
     )
-      accepted.add(id);
-    else if (rows.some((r) => r && (r.opportunities > 0 || r.unknown > 0)))
-      return { accepted: new Set<string>(), complete: false };
+      throw Error('Invalid life summary.');
+    if (
+      m.life &&
+      (Math.abs(m.life.aliveMs - m.aliveMs) > 1e-6 ||
+        m.life.deaths !== m.deaths ||
+        Math.abs(m.life.deadMs + m.life.aliveMs - duration) > 1e-6)
+    )
+      throw Error('Life timeline does not reconcile with player measurements.');
   }
-  return { accepted, complete: true };
 }
-function reviewMechanics(metric: Metric, accepted: Set<string>): ExecutionMechanic[] {
-  return (metric.mechanics ?? []).map((r) => {
-    const scored = accepted.has(r.ruleId);
-    return {
+function observations(m: Metric): ExecutionMechanic[] {
+  return (m.mechanics ?? [])
+    .filter((r) => r.observed > 0 || r.events.some((e) => e.outcome === 'failed'))
+    .map((r) => ({
       ruleId: r.ruleId,
       name: r.name,
       kind: r.kind,
-      scored,
-      exclusion: scored
-        ? undefined
-        : (r.excludedReason ?? 'Observation only; no complete common-role exposure denominator.'),
-      passed: scored ? r.opportunities - r.failures - (r.missedWhileDead ?? 0) : 0,
-      failed: scored ? r.failures : 0,
-      missedWhileDead: scored ? (r.missedWhileDead ?? 0) : 0,
-      opportunities: scored ? r.opportunities : 0,
+      scored: false,
+      exclusion: 'Context only. No universal mistake or assignment is inferred.',
+      passed: 0,
+      failed: 0,
+      missedWhileDead: 0,
+      opportunities: 0,
       observed: r.observed,
       detail: r.detail,
       source: r.source,
       breakdown: r.breakdown,
-      events: r.events.map((e) =>
-        !scored && ['passed', 'failed', 'missed-dead'].includes(e.outcome)
-          ? { ...e, outcome: 'observed' as const }
-          : e,
-      ),
-    };
-  });
+      events: r.events
+        .filter((e) => ['failed', 'observed'].includes(e.outcome))
+        .map((e) => ({ ...e, outcome: 'observed' as const })),
+    }));
 }
-function pullAssessment(
-  role: Role,
-  metric: Metric,
-  mechanics: ExecutionMechanic[],
-  duration: number,
-  source: import('./types.js').AssessmentWindow['source'],
-  integrity: boolean,
-): ExecutionAssessment {
-  const checkedMechanics = sum(mechanics.map((r) => r.opportunities)),
-    failedChecks = sum(mechanics.map((r) => r.failed));
-  const alivePercent = percent((100 * metric.aliveMs) / duration);
-  const facts = metric.facts;
-  const contribution =
-    metric.damage > 0 ||
-    metric.healing > 0 ||
-    metric.interrupts > 0 ||
-    metric.dispels > 0 ||
-    (facts?.casts ?? 0) > 0;
-  const families = mechanics.filter((m) => m.scored && m.opportunities > 0);
-  const mechanicsScore =
-    families.length && integrity
-      ? mean(families.map((m) => (100 * m.passed) / m.opportunities))
-      : null;
-  const missedWhileDead = sum(mechanics.map((m) => m.missedWhileDead ?? 0));
-  const chargedDeaths = source === 'kill' || source === 'logged' ? metric.deaths : 0;
-  const grade =
-    mechanicsScore === null
-      ? {
-          score: Math.max(0, alivePercent - DEATH_PENALTY * chargedDeaths),
-          baseScore: alivePercent,
-          deathPenalty: DEATH_PENALTY * chargedDeaths,
-          capped: false,
-        }
-      : scoreExecution(mechanicsScore, alivePercent, chargedDeaths);
-  if (!contribution) grade.score = 0;
-  const scoreBasis = !contribution
-    ? ('no-contribution' as const)
-    : mechanicsScore === null
-      ? ('survival-only' as const)
-      : ('mechanics-and-survival' as const);
-  return {
-    version: EXECUTION_MODEL_VERSION,
-    ...grade,
-    mechanicsScore,
-    alivePercent,
-    deathPenalty: chargedDeaths * DEATH_PENALTY,
-    scoreBasis,
-    survivalOnlyPulls: scoreBasis === 'survival-only' ? 1 : 0,
-    deaths: metric.deaths,
-    missedWhileDead,
-    weightMs: duration,
-    passedChecks: checkedMechanics - failedChecks - missedWhileDead,
-    failedChecks,
-    checkedMechanics,
-    scoredPulls: 1,
-    totalPulls: 1,
-    reasons: [
-      !contribution
-        ? 'No recorded combat contribution: no execution credit.'
-        : mechanicsScore === null
-          ? 'Survival-only score: no complete shared mechanic measurement; no mechanic points were assumed.'
-          : `${failedChecks} failed${missedWhileDead ? ` · ${missedWhileDead} not credited while dead` : ''} · ${checkedMechanics} checks.`,
-      source === 'automatic'
-        ? 'Automatic wipe assessment; no extra fixed death deduction without a recorded call.'
-        : `${metric.deaths} deaths: −${chargedDeaths * DEATH_PENALTY} points; deduction remains after resurrection.`,
-    ],
-  };
-}
-/** Equal child weighting. Unscored exposure never supplies points; its known absence still limits availability. */
-export function combineExecutions(
-  values: ExecutionAssessment[],
-  mode: 'duration' | 'equal' = 'duration',
-): ExecutionAssessment {
-  if (!values.length) throw new Error('No execution measurements to combine.');
-  const scored = values.filter((v) => v.score !== null);
-  const measured = scored.filter((v) => v.mechanicsScore !== null);
-  const bases = new Set(scored.map((v) => v.scoreBasis ?? 'mechanics-and-survival'));
-  const weighted = (items: ExecutionAssessment[], get: (v: ExecutionAssessment) => number) =>
-    sum(items.map((v) => get(v) * (mode === 'equal' ? 1 : (v.weightMs ?? 1)))) /
-    sum(items.map((v) => (mode === 'equal' ? 1 : (v.weightMs ?? 1))));
-  const alivePercent = weighted(scored.length ? scored : values, (v) => v.alivePercent);
-  const score = scored.length ? weighted(scored, (v) => v.score!) : null;
-  const checkedMechanics = sum(values.map((v) => v.checkedMechanics)),
-    failedChecks = sum(values.map((v) => v.failedChecks));
-  const scoredPulls = sum(values.map((v) => v.scoredPulls)),
-    totalPulls = sum(values.map((v) => v.totalPulls));
-  const missedWhileDead = sum(values.map((v) => v.missedWhileDead ?? 0));
-  return {
-    version: EXECUTION_MODEL_VERSION,
-    score,
-    baseScore: scored.length ? weighted(scored, (v) => v.baseScore!) : null,
-    mechanicsScore: measured.length ? weighted(measured, (v) => v.mechanicsScore!) : null,
-    scoreBasis: bases.size === 1 ? [...bases][0] : 'mixed',
-    survivalOnlyPulls: sum(values.map((v) => v.survivalOnlyPulls ?? 0)),
-    alivePercent,
-    capped: false,
-    deathPenalty: scored.length ? weighted(scored, (v) => v.deathPenalty ?? 0) : 0,
-    deaths: sum(values.map((v) => v.deaths ?? 0)),
-    missedWhileDead,
-    weightMs: sum(values.map((v) => v.weightMs ?? 1)),
-    passedChecks: checkedMechanics - failedChecks - missedWhileDead,
-    failedChecks,
-    checkedMechanics,
-    scoredPulls,
-    totalPulls,
-    reasons:
-      score === null
-        ? [
-            checkedMechanics
-              ? 'No execution grade is available from these attended pulls.'
-              : 'No comparable mechanic checks were recorded in these attended pulls.',
-            `0 of ${totalPulls} attended pulls scored.`,
-          ]
-        : [
-            `${failedChecks} failed · ${missedWhileDead} not credited while dead · ${checkedMechanics} checks.`,
-            `${scoredPulls} of ${totalPulls} attended pulls scored automatically${values.some((v) => (v.survivalOnlyPulls ?? 0) > 0) ? '; includes labelled survival-only pulls' : ''}.`,
-          ],
-  };
-}
-
 export function analyzeExecution(
   report: Report,
   allPulls: PullData[],
   selection: Selection,
 ): Analysis {
-  const chosen = selectFights(report, selection);
-  if (new Set(report.players.map((p) => p.id)).size !== report.players.length)
-    throw new Error('Duplicate actor metadata.');
-  if (!chosen.length) throw new Error('No completed boss pulls match this selection.');
+  const chosen = selectFights(report, selection).sort(
+    (a, b) => a.startTime - b.startTime || a.id - b.id,
+  );
+  if (!chosen.length) throw Error('No completed boss pulls match this selection.');
+  const metadata = new Map(report.players.map((p) => [p.id, p]));
+  if (metadata.size !== report.players.length) throw Error('Duplicate actor metadata.');
   const selectedIds = new Set(chosen.map((f) => f.id));
-  const pulls = allPulls.filter((p) => selectedIds.has(p.fight.id));
+  const pulls = allPulls
+    .filter((p) => selectedIds.has(p.fight.id))
+    .sort((a, b) => a.fight.startTime - b.fight.startTime || a.fight.id - b.fight.id);
   if (
     pulls.length !== chosen.length ||
     new Set(pulls.map((p) => p.fight.id)).size !== chosen.length
   )
-    throw new Error('Missing or duplicate selected pulls. No ranking was produced.');
-  const byFight = new Map(pulls.map((p) => [p.fight.id, p]));
-  for (const fight of chosen) validatePull(report, byFight.get(fight.id)!, fight, selection);
-  const rolesByFight = new Map<number, Map<Role, ReturnType<typeof comparableRules>>>();
-  for (const pull of pulls) {
-    const roles = new Set(
-      pull.fight.friendlyPlayers.map((id) =>
-        roleFor(report.players.find((p) => p.id === id)!, pull.fight),
+    throw Error('Missing or duplicate selected pulls.');
+  const fightMap = new Map(chosen.map((f) => [f.id, f]));
+  const rows = new Map<
+    string,
+    {
+      player: Player;
+      role: Role;
+      pulls: PullData[];
+      metrics: Metric[];
+      reviews: ExecutionPullReview[];
+    }
+  >();
+  const rolesByFight = new Map<number, Set<Role>>();
+  for (const p of pulls) {
+    const f = fightMap.get(p.fight.id)!;
+    validatePull(p, f);
+    const duration = f.endTime - f.startTime;
+    const first = Math.min(
+      ...p.metrics.flatMap((m) =>
+        (m.facts?.lifeEvents ?? []).filter((e) => e.type === 'death').map((e) => e.timestamp),
       ),
     );
-    rolesByFight.set(
-      pull.fight.id,
-      new Map([...roles].map((role) => [role, comparableRules(report, pull, role)])),
-    );
-  }
-  const players: RankedPlayer[] = [];
-  for (const player of report.players) {
-    const own = pulls.filter((p) => p.fight.friendlyPlayers.includes(player.id));
-    for (const role of new Set(own.map((p) => roleFor(player, p.fight)))) {
-      const rolePulls = own.filter((p) => roleFor(player, p.fight) === role);
-      const metrics = rolePulls.map((p) => p.metrics.find((m) => m.actorId === player.id)!);
-      const pullReviews: ExecutionPullReview[] = rolePulls.map((p, index) => {
-        const m = metrics[index],
-          window = windowFor(report, p, selection),
-          duration = window.endTime - p.fight.startTime;
-        const common = rolesByFight.get(p.fight.id)!.get(role)!;
-        const mechanics = reviewMechanics(
-          m,
-          window.confirmed && common.complete ? common.accepted : new Set(),
-        );
-        return {
-          fightId: p.fight.id,
-          window,
-          role,
-          execution: pullAssessment(role, m, mechanics, duration, window.source, common.complete),
-          aliveMs: m.aliveMs,
-          durationMs: duration,
-          deaths: m.deaths,
-          damage: m.damage,
-          healing: m.healing,
-          damageTaken: m.damageTaken,
-          mechanics,
-          facts: m.facts ?? blankFacts(),
-        };
-      });
-      const perBoss: ExecutionBossScore[] = [];
-      const bossGrades: ExecutionAssessment[] = [];
-      for (const encounterId of new Set(rolePulls.map((p) => p.fight.encounterId))) {
-        const boss = rolePulls.filter((p) => p.fight.encounterId === encounterId),
-          difficulties = [...new Set(boss.map((p) => p.fight.difficulty))];
-        const grades = difficulties.map((difficulty) => {
-          const selected = boss.filter((p) => p.fight.difficulty === difficulty),
-            ids = new Set(selected.map((p) => p.fight.id));
-          const execution = combineExecutions(
-            pullReviews.filter((r) => ids.has(r.fightId)).map((r) => r.execution),
-          );
-          perBoss.push({
-            encounterId,
-            name: boss[0].fight.name,
-            difficulty,
-            score: execution.score,
-            pulls: selected.length,
-            execution,
-          });
-          return execution;
-        });
-        bossGrades.push(combineExecutions(grades, 'equal'));
-      }
-      const execution = combineExecutions(bossGrades, 'equal');
-      const specs = [
-        ...new Set(rolePulls.map((p) => p.fight.playerSpecs?.[player.id] ?? player.spec)),
-      ];
-      const expected = pulls.filter((p) => {
-        const common = rolesByFight.get(p.fight.id)!.get(role);
-        return !!common;
-      });
-      const rankingReason =
-        execution.score === null
-          ? 'No complete execution grade.'
-          : expected.some(
-                (p) =>
-                  !pullReviews.some((r) => r.fightId === p.fight.id && r.execution.score !== null),
-              )
-            ? 'Partial attendance or evidence; this score is not ranked against the full role selection.'
-            : undefined;
-      const rawSum = (
-        key:
-          | 'damage'
-          | 'healing'
-          | 'damageTaken'
-          | 'aliveMs'
-          | 'deaths'
-          | 'interrupts'
-          | 'dispels'
-          | 'defensives',
-      ) => sum(metrics.map((m) => m[key]));
-      const evidence = metrics
-        .flatMap((m) => m.evidence)
-        .filter(
-          (e) =>
-            e.kind !== 'mechanic' ||
-            pullReviews.some(
-              (r) =>
-                r.fightId === e.fightId &&
-                r.mechanics.some((m) => m.scored && m.ruleId === e.ruleId),
-            ),
-        );
-      players.push({
-        ...player,
+    const roles = new Set<Role>();
+    rolesByFight.set(f.id, roles);
+    for (const m of p.metrics) {
+      const player = metadata.get(m.actorId);
+      if (!player) throw Error('A participating player is missing metadata.');
+      const role = roleFor(player, f);
+      roles.add(role);
+      const key = `${player.id}:${role}`;
+      const row = rows.get(key) ?? { player, role, pulls: [], metrics: [], reviews: [] };
+      rows.set(key, row);
+      const facts = m.facts ?? blankFacts();
+      const issues =
+        m.life?.complete === false
+          ? ['Death/resurrection events are inconsistent. Exact dead time cannot be verified.']
+          : [];
+      const activity =
+        m.damage > 0 ||
+        m.healing > 0 ||
+        m.interrupts > 0 ||
+        m.dispels > 0 ||
+        facts.casts > 0 ||
+        m.deaths > 0;
+      const reasons = activity
+        ? issues
+        : [
+            ...issues,
+            'No recorded combat contribution; survival alone cannot establish participation.',
+          ];
+      const execution = assessment(
+        m.aliveMs,
+        duration,
+        m.deaths,
+        1,
+        reasons.length ? 0 : 1,
+        reasons,
+      );
+      row.pulls.push(p);
+      row.metrics.push(m);
+      row.reviews.push({
+        fightId: f.id,
+        window: assessmentWindow(report, f, selection),
         role,
-        spec: specs.join(' / '),
-        rowKey: `${player.id}:${role}`,
-        rankingReason,
-        rank: null,
-        roleRank: null,
-        rolePeers: 0,
-        score: execution.score,
-        provisional: false,
         execution,
-        pulls: rolePulls.length,
-        bosses: bossGrades.length,
-        scoredPulls: execution.scoredPulls,
-        durationMs: sum(pullReviews.map((r) => r.durationMs)),
-        aliveMs: rawSum('aliveMs'),
-        deaths: rawSum('deaths'),
-        damage: rawSum('damage'),
-        healing: rawSum('healing'),
-        damageTaken: rawSum('damageTaken'),
-        interrupts: rawSum('interrupts'),
-        dispels: rawSum('dispels'),
-        defensives: rawSum('defensives'),
-        mechanicFailures: execution.failedChecks,
-        mechanicOpportunities: execution.checkedMechanics,
-        perBoss,
-        pullReviews,
-        evidence,
-        notes: execution.reasons,
+        aliveMs: m.aliveMs,
+        durationMs: duration,
+        deaths: m.deaths,
+        damage: m.damage,
+        healing: m.healing,
+        damageTaken: m.damageTaken,
+        mechanics: observations(m),
+        facts,
+        deadIntervals: m.life?.intervals,
+        firstDeath: facts.lifeEvents.some((e) => e.type === 'death' && e.timestamp === first),
+        resurrections:
+          m.life?.resurrections ?? facts.lifeEvents.filter((e) => e.type === 'resurrect').length,
+        lifeIssues: issues,
       });
     }
+  }
+  const players: RankedPlayer[] = [];
+  for (const [rowKey, row] of rows) {
+    const { player, role, metrics, reviews } = row;
+    const ownSum = (
+      key:
+        | 'damage'
+        | 'healing'
+        | 'damageTaken'
+        | 'aliveMs'
+        | 'deaths'
+        | 'interrupts'
+        | 'dispels'
+        | 'defensives',
+    ) => sum(metrics.map((m) => m[key]));
+    const durationMs = sum(reviews.map((r) => r.durationMs));
+    const execution = assessment(
+      ownSum('aliveMs'),
+      durationMs,
+      ownSum('deaths'),
+      reviews.length,
+      reviews.filter((r) => r.execution.score !== null).length,
+      reviews.filter((r) => r.execution.score === null).flatMap((r) => r.execution.reasons),
+    );
+    const expected = pulls.filter((p) => rolesByFight.get(p.fight.id)!.has(role)).length;
+    const rankingReason =
+      execution.score === null
+        ? 'Incomplete evidence; no survival score was inferred.'
+        : reviews.length < expected
+          ? 'Partial role attendance; compare the listed pulls before judging this score.'
+          : undefined;
+    const perBoss: ExecutionBossScore[] = [];
+    const contexts = new Map<string, ExecutionPullReview[]>();
+    for (const r of reviews) {
+      const f = fightMap.get(r.fightId)!;
+      const key = `${f.encounterId}:${f.difficulty}`;
+      const list = contexts.get(key) ?? [];
+      list.push(r);
+      contexts.set(key, list);
+    }
+    for (const group of contexts.values()) {
+      const f = fightMap.get(group[0].fightId)!;
+      const grade = assessment(
+        sum(group.map((r) => r.aliveMs)),
+        sum(group.map((r) => r.durationMs)),
+        sum(group.map((r) => r.deaths)),
+        group.length,
+        group.filter((r) => r.execution.score !== null).length,
+        group.filter((r) => r.execution.score === null).flatMap((r) => r.execution.reasons),
+      );
+      perBoss.push({
+        encounterId: f.encounterId,
+        name: f.name,
+        difficulty: f.difficulty,
+        score: grade.score,
+        pulls: group.length,
+        execution: grade,
+      });
+    }
+    const evidence = metrics
+      .flatMap((m) => m.evidence)
+      .map((e) =>
+        e.kind === 'mechanic'
+          ? {
+              ...e,
+              kind: 'mechanic-observed' as const,
+              description:
+                'Recorded encounter contact; review its context in Warcraft Logs. Not part of the survival score.',
+            }
+          : e,
+      );
+    players.push({
+      ...player,
+      role,
+      spec: [...new Set(row.pulls.map((p) => p.fight.playerSpecs?.[player.id] ?? player.spec))]
+        .sort()
+        .join(' / '),
+      roles: [
+        ...new Set([...rows.values()].filter((r) => r.player.id === player.id).map((r) => r.role)),
+      ],
+      rowKey,
+      rank: null,
+      roleRank: null,
+      rolePeers: 0,
+      rankingReason,
+      score: execution.score,
+      provisional: false,
+      execution,
+      pulls: reviews.length,
+      bosses: new Set(row.pulls.map((p) => p.fight.encounterId)).size,
+      scoredPulls: execution.scoredPulls,
+      durationMs,
+      aliveMs: ownSum('aliveMs'),
+      deaths: ownSum('deaths'),
+      damage: ownSum('damage'),
+      healing: ownSum('healing'),
+      damageTaken: ownSum('damageTaken'),
+      interrupts: ownSum('interrupts'),
+      dispels: ownSum('dispels'),
+      defensives: ownSum('defensives'),
+      mechanicFailures: 0,
+      mechanicOpportunities: 0,
+      perBoss,
+      pullReviews: reviews,
+      evidence,
+      notes: execution.reasons,
+      firstDeaths: reviews.filter((r) => r.firstDeath).length,
+      resurrections: sum(reviews.map((r) => r.resurrections ?? 0)),
+    });
   }
   players.sort(
     (a, b) =>
       order[a.role] - order[b.role] ||
       Number(!!a.rankingReason) - Number(!!b.rankingReason) ||
       (b.score ?? -1) - (a.score ?? -1) ||
-      a.name.localeCompare(b.name),
+      a.name.localeCompare(b.name) ||
+      a.id - b.id,
   );
   for (const role of ['dps', 'healer', 'tank', 'unknown'] as Role[]) {
     const ranked = players.filter((p) => p.role === role && p.score !== null && !p.rankingReason);
     let previous = -1,
       rank = 0;
-    ranked.forEach((p, index) => {
+    ranked.forEach((p, i) => {
       const shown = Math.floor(p.score! * 10 + 1e-8);
-      if (shown !== previous) rank = index + 1;
+      if (shown !== previous) rank = i + 1;
       p.rank = p.roleRank = rank;
       p.rolePeers = ranked.length;
       previous = shown;
@@ -478,18 +416,19 @@ export function analyzeExecution(
     generatedAt: new Date().toISOString(),
     model: {
       id: EXECUTION_MODEL_VERSION,
-      name: 'Execution score',
-      deathPenalty: DEATH_PENALTY,
-      deathPolicy: 'kills-and-recorded-calls',
-      formula: 'mechanics-times-alive-minus-deaths',
+      name: 'Survival score',
+      deathPenalty: 0,
+      deathPolicy: 'full-encounter-time',
+      formula: 'alive-time-over-encounter-time',
     },
     report,
     selection: { ...selection, wipeStops: undefined, excludeWipeTail: false },
     players,
     pulls: pulls.map(({ metrics, boundaryLife, ...p }) => ({
       ...p,
-      window: windowFor(report, { ...p, metrics, boundaryLife }, selection),
+      window: assessmentWindow(report, p.fight, selection),
       evaluation: undefined,
+      wipeTailMs: 0,
     })),
     findings: [],
     warnings: [...report.warnings],
@@ -501,20 +440,20 @@ export function analyzeExecution(
       players: new Set(players.map((p) => p.id)).size,
       rankedEntries: players.length,
       scoredPlayers: players.filter((p) => p.score !== null).length,
-      durationMs: sum(pulls.map((p) => p.fight.endTime - p.fight.startTime)),
+      durationMs: sum(chosen.map((f) => f.endTime - f.startTime)),
       complete: true,
     },
     methodology: {
       formula:
-        'Mechanics × time alive / 100 when measured; otherwise a labelled survival-only score. Fixed death deductions apply only to kills and recorded wipe calls.',
+        'Score = 100 � recorded time alive � full attended encounter time, separately for each role.',
       aggregation:
-        'All completed pulls are scored automatically, weighted by assessed duration within each boss/difficulty. Difficulty contexts and bosses have equal weight. Partial attendance remains labelled.',
+        'Sum milliseconds across the selected pulls in this role. Every recorded second has equal weight. No wipe cutoff, boss weights or fixed death penalties.',
       limitations: [
-        'Execution score measures comparable mechanic outcomes and recorded availability, not total class skill or responsibility for a wipe.',
-        'DPS/HPS, damage taken, preparation and observed consumables are factual context, not score inputs.',
-        'Where mechanics cannot be measured uniformly, every role peer uses labelled recorded survival instead; this is not assumed perfect mechanics.',
-        'Without a recorded wipe call, a common terminal-collapse policy selects the assessment end automatically. It is an estimate, not knowledge of a voice call. No extra flat death cost applies to these wipes.',
-        'On kills and recorded-call windows, the five-point death cost remains after resurrection. No recorded contribution earns zero credit, not an AFK accusation.',
+        'This is survival, not total player skill or proof of who caused a wipe.',
+        'All deaths during the encounter are included, including intentional wipe deaths. Voice calls cannot be inferred.',
+        'Resurrection ends dead time but never removes the death. A death at encounter end adds a death with zero remaining dead time.',
+        'DPS/HPS, damage taken, mechanics and preparation are context only; no universal mistake is inferred.',
+        'Partial role attendance is labelled. Inconsistent life events or no recorded participation cannot earn an assumed perfect score.',
       ],
     },
   };

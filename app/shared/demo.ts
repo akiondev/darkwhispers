@@ -1,5 +1,5 @@
 import type { Evidence, Fight, Metric, Player, PullData, Report } from './types.js';
-import { aliveTime } from './life.js';
+import { summarizeLife } from './life.js';
 
 const roster: [string, string, string, Player['role']][] = [
   ['Veyra', 'DeathKnight', 'Blood', 'tank'],
@@ -185,11 +185,13 @@ export function demoData(): { report: Report; pulls: PullData[] } {
   });
   const wipeCalls: Record<number, number> = {};
   for (const pull of pulls) {
-    const endTime = pull.fight.endTime - (pull.fight.kill ? 0 : 1);
-    if (!pull.fight.kill) wipeCalls[pull.fight.id] = endTime;
-    pull.window = { endTime, source: pull.fight.kill ? 'kill' : 'logged', confirmed: true };
-    for (const metric of pull.metrics)
-      metric.aliveMs = aliveTime({ ...pull.fight, endTime }, metric.facts?.lifeEvents ?? []);
+    const endTime = pull.fight.endTime;
+    pull.window = { endTime, source: pull.fight.kill ? 'kill' : 'full', confirmed: true };
+    for (const metric of pull.metrics) {
+      metric.life = summarizeLife(pull.fight, metric.facts?.lifeEvents ?? []);
+      metric.aliveMs = metric.life.aliveMs;
+      metric.deaths = metric.life.deaths;
+    }
   }
   return {
     report: {

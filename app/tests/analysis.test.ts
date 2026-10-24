@@ -37,13 +37,14 @@ test('report parser never accepts user-chosen upstream hosts or credentials', ()
     assert.throws(() => parseReportCode(url));
 });
 
-test('the labelled demo uses the current execution model without pretending to be a real log', () => {
+test('the labelled demo uses the current survival model without pretending to be a real log', () => {
   const { report, pulls } = demoData();
   const result = analyze(report, pulls, selection);
   assert.equal(result.report.source, 'demo');
   assert.equal(result.players.length, 20);
   assert.ok(result.warnings.some((w) => /synthetic|demo/i.test(w)));
-  assert.ok(result.players.every((p) => p.execution.version.startsWith('execution/')));
+  assert.equal(result.model.id, 'survival/v1');
+  assert.ok(result.players.every((p) => p.execution.version === 'survival/v1'));
   assert.ok(result.players.every((p) => p.evidence.every((e) => e.url === null)));
   assert.ok(
     result.pulls.every((p) => !('metrics' in p)),
@@ -94,7 +95,7 @@ test('input page/actor order cannot change player scores or within-role ranks', 
   assert.deepEqual(comparable(after), comparable(before));
 });
 
-test('changing raw output, intake, casts, defensive counts and old parse metadata never manufactures execution points', () => {
+test('changing raw output, intake, casts, defensive counts and old parse metadata never manufactures survival points', () => {
   const { report, pull } = fixture();
   const before = analyze(report, [pull], selection);
   for (const m of pull.metrics) {
@@ -163,6 +164,8 @@ test('actual per-pull roles produce independent rows for a character who changes
   const other = structuredClone(pull);
   other.fight.id = 2;
   other.fight.playerSpecs![3] = 'Restoration';
+  other.metrics[2].aliveMs = 150000;
+  other.metrics[2].deaths = 1;
   report.players[2] = { ...report.players[2], class: 'Druid', spec: 'Mixed', role: 'unknown' };
   pull.fight.playerSpecs![3] = 'Balance';
   report.fights = [pull.fight, other.fight];
@@ -171,6 +174,8 @@ test('actual per-pull roles produce independent rows for a character who changes
   assert.deepEqual(new Set(rows.map((p) => p.role)), new Set(['dps', 'healer']));
   assert.deepEqual(new Set(rows.map((p) => p.rowKey)), new Set(['3:dps', '3:healer']));
   assert.ok(rows.every((p) => p.pulls === 1 && p.pullReviews.length === 1));
+  assert.equal(rows.find((p) => p.role === 'dps')!.score, 100);
+  assert.equal(rows.find((p) => p.role === 'healer')!.score, 50);
   const result = analyze(report, [pull, other], selection);
   assert.equal(result.summary.players, 4, 'A role switch does not invent another character');
   assert.equal(result.summary.rankedEntries, 5, 'The actual role rows are reported separately');
@@ -217,7 +222,7 @@ test('old inferred wipe-cutoff facts cannot reactivate retired shortened-window 
   );
 });
 
-test('full execution perfection has the correct colour, and score rounding never creates false 100', () => {
+test('full recorded survival has the correct colour, and score rounding never creates false 100', () => {
   const { report, pull } = fixture();
   assert.ok(analyze(report, [pull], selection).players.every((p) => p.score === 100));
   assert.equal(scoreBand(100, false), 'perfect');
@@ -229,7 +234,7 @@ test('full execution perfection has the correct colour, and score rounding never
   assert.equal(scoreBand(69), 'green');
 });
 
-test('150-pull / 20-player synthetic benchmark measures the current execution pipeline', () => {
+test('150-pull / 20-player synthetic benchmark measures the current survival pipeline', () => {
   const demo = demoData();
   const pulls = Array.from({ length: 150 }, (_, i) => {
     const p = structuredClone(demo.pulls[i % demo.pulls.length]);
@@ -268,7 +273,7 @@ test('150-pull / 20-player synthetic benchmark measures the current execution pi
   timings.sort((a, b) => a - b);
   console.log(
     JSON.stringify({
-      benchmark: 'synthetic-execution-engine',
+      benchmark: 'synthetic-survival-engine',
       pulls: 150,
       players: 20,
       evidence: 90000,

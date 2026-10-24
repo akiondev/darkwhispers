@@ -206,7 +206,7 @@ test('a stack removal without a remaining stack count leaves protection unknown'
   assert.equal(metrics.get(1)!.tank!.unknownMeleeEvents, 1);
 });
 
-test('all tank classes use the same mechanics-and-alive formula while legacy defensive facts remain unscored', () => {
+test('all tank classes use the same recorded survival formula while mechanics and defensive facts remain unscored', () => {
   for (const profile of TANK_PROFILES) {
     const { report, pull } = executionFixture({ roles: ['tank', 'dps'] });
     report.players[0] = { ...report.players[0], class: profile.class, spec: profile.spec };
@@ -214,7 +214,7 @@ test('all tank classes use the same mechanics-and-alive formula while legacy def
     pull.metrics[0].mechanics = [check(10, 2)];
     const before = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
     assert.equal(before.role, 'tank');
-    assert.equal(before.score, 80);
+    assert.equal(before.score, 100);
     const m = pull.metrics[0];
     m.damage = 1e14;
     m.damageTaken = 1e14;

@@ -8,7 +8,7 @@ import type {
 } from '../shared/types.js';
 import { assessmentWindow } from '../shared/windows.js';
 import { evidenceUrl } from '../shared/report-url.js';
-import { aliveTime, type LifeEvent } from '../shared/life.js';
+import { summarizeLife, type LifeEvent } from '../shared/life.js';
 import { ApiError, finite, object, text, WclClient } from './wcl.js';
 import { encounterFilter, evaluateEncounter, type EncounterEvent } from './encounter-engine.js';
 import { factRecorder, recordedLifeEvent } from './facts.js';
@@ -150,81 +150,17 @@ export async function ingestPull(
       fightIds: null,
       excludeWipeTail: false,
     });
-  if (window.source === 'automatic' && boundaryLife === undefined) {
-    const timeline: Record<string, any>[] = [];
-    const fullLife = new Map<number, LifeEvent[]>();
-    const filter = [
-      'type = "combatantinfo"',
-      '(type = "cast" and source.type = "player")',
-      ...encounterFilter(fight, abilities),
-      'type = "death"',
-      'type = "resurrect"',
-      'type = "interrupt"',
-      'type = "dispel"',
-      'type = "steal"',
-    ].join(' or ');
-    await step('Selecting the automatic wipe assessment window');
-    await client.events(
-      report.code,
-      fight,
-      'All',
-      (events) => {
-        if (timeline.length + events.length > 250000)
-          throw new ApiError(
-            'MECHANIC_TIMELINE_LIMIT',
-            'This pull exceeds the bounded automatic timeline.',
-            422,
-          );
-        for (const e of events) {
-          if (typeof e.timestamp !== 'number' || !Number.isFinite(e.timestamp))
-            throw new ApiError(
-              'WCL_INVALID_EVENTS',
-              'An invalid event timestamp stopped the import.',
-            );
-          timeline.push(e);
-          const kind = recordedLifeEvent(e);
-          if (
-            kind &&
-            fight.friendlyPlayers.includes(e.targetID) &&
-            e.timestamp >= fight.startTime &&
-            e.timestamp < fight.endTime
-          ) {
-            const stream = fullLife.get(e.targetID) ?? [];
-            stream.push({ timestamp: e.timestamp, type: kind });
-            fullLife.set(e.targetID, stream);
-          }
-        }
-      },
-      filter,
-      { includeResources: false },
-    );
-    const automatic = assessmentWindow(
-      report,
-      fight,
-      { encounterId: null, difficulty: null, mode: 'all', fightIds: null, excludeWipeTail: false },
-      fullLife,
-    );
-    const replay = {
-      tables: (code: string, f: Fight) => client.tables(code, f),
-      events: async (...args: Parameters<WclClient['events']>) => args[3](timeline),
-    } as unknown as WclClient;
-    return ingestPull(
-      replay,
-      report,
-      fight,
-      abilities,
-      step,
-      automatic,
-      [...fullLife].map(([actorId, events]) => ({ actorId, events })),
-    );
-  }
-  if (window.endTime <= fight.startTime || window.endTime > fight.endTime)
-    throw new Error('Invalid assessment window.');
-  fight = { ...fight, endTime: window.endTime };
+  if (window.endTime !== fight.endTime || !['full', 'kill'].includes(window.source))
+    throw new Error('Full encounter window required.');
   const duration = fight.endTime - fight.startTime;
   const metrics = new Map(fight.friendlyPlayers.map((id) => [id, baseMetric(id, duration)]));
   const recorder = factRecorder(fight, fight.friendlyPlayers, abilities);
   const life = new Map<number, LifeEvent[]>();
+  const selfReturns = new Map<
+    number,
+    { timestamp: number; abilityId: number; abilityName: string }[]
+  >();
+  const livingCasts = new Map<number, number[]>();
   const lifeDetails = new Map<string, NonNullable<Metric['facts']>['lifeEvents'][number]>();
   const tables = await client.tables(report.code, fight);
   for (const [key, field] of [
@@ -262,9 +198,9 @@ export async function ingestPull(
     metric.evidence.push({
       fightId: fight.id,
       timestamp: e.timestamp,
-      abilityId: id,
+      abilityId: kind === 'death' ? finite(e.killingAbilityGameID) || id : id,
       ability:
-        abilities.get(id ?? 0) ||
+        abilities.get((kind === 'death' ? finite(e.killingAbilityGameID) : 0) || id || 0) ||
         text(
           object(e.ability).name,
           kind === 'death' ? 'Death' : `Ability ${id ?? 'unclassified'}`,
@@ -295,9 +231,11 @@ export async function ingestPull(
     fight,
     'All',
     (events) => {
+      if (events.some((e) => typeof e.timestamp !== 'number' || !Number.isFinite(e.timestamp)))
+        throw new ApiError('WCL_INVALID_EVENTS', 'Invalid event timestamp; no score was inferred.');
       events = events.filter(
         (event) =>
-          event.timestamp < fight.endTime &&
+          event.timestamp <= fight.endTime &&
           (event.timestamp >= fight.startTime ||
             (event.type === 'combatantinfo' && event.timestamp >= fight.startTime - 1)),
       );
@@ -308,8 +246,13 @@ export async function ingestPull(
             'WCL_INVALID_EVENTS',
             'The event timeline contained an invalid timestamp.',
           );
-        if (event.timestamp < fight.startTime || event.timestamp >= fight.endTime) continue;
+        if (event.timestamp < fight.startTime || event.timestamp > fight.endTime) continue;
         const lifeKind = recordedLifeEvent(event);
+        if (lifeKind && (!Number.isInteger(event.targetID) || event.targetID <= 0))
+          throw new ApiError(
+            'WCL_INVALID_LIFE_TARGET',
+            'A death or resurrection has no valid target. No survival score was inferred.',
+          );
         if (event.type === 'death' && !lifeKind) continue;
         if (encounterClauses.length) {
           if (encounterEvents.length >= 250000)
@@ -341,6 +284,32 @@ export async function ingestPull(
         );
         const target = metrics.get(finite(event.targetID));
         const id = finite(event.abilityGameID) || finite(object(event.ability).guid);
+        // Raw WCL resourceActor is an enum: 1=source, 2=target. An active cast with
+        // positive source health can disprove a continuous dead interval, never date a missing res.
+        if (event.type === 'cast' && metrics.has(event.sourceID)) {
+          if (
+            event.resourceActor === 1 &&
+            Number.isFinite(event.hitPoints) &&
+            event.hitPoints > 0 &&
+            Number.isFinite(event.maxHitPoints) &&
+            event.maxHitPoints > 0
+          ) {
+            const times = livingCasts.get(event.sourceID) ?? [];
+            times.push(event.timestamp);
+            livingCasts.set(event.sourceID, times);
+          }
+          // WCL logs successful Reincarnation as a self-cast rather than always as
+          // resurrect. Same normalization is used by WoWAnalyzer's AnkhNormalizer.
+          if (id === 21169 && abilities.get(id) === 'Reincarnation') {
+            const returns = selfReturns.get(event.sourceID) ?? [];
+            returns.push({
+              timestamp: event.timestamp,
+              abilityId: id,
+              abilityName: 'Reincarnation',
+            });
+            selfReturns.set(event.sourceID, returns);
+          }
+        }
         if (lifeKind && target) {
           const stream = life.get(target.actorId) ?? [];
           stream.push({ timestamp: event.timestamp, type: lifeKind });
@@ -390,33 +359,42 @@ export async function ingestPull(
       }
     },
     filter,
-    { includeResources: false },
+    { includeResources: true },
   );
   for (const [id, metric] of metrics) {
-    const seen = new Set<string>();
-    const ordered = (life.get(id) ?? [])
-      .filter((e) => {
-        const key = `${e.type}:${e.timestamp}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => a.timestamp - b.timestamp);
-    let alive = ordered[0]?.type !== 'resurrect';
-    const stream = ordered.filter((e) => {
-      if (e.type === 'death' && alive) {
-        alive = false;
-        return true;
-      }
-      if (e.type === 'resurrect' && !alive) {
-        alive = true;
-        return true;
-      }
-      return false;
-    });
+    const recorded = life.get(id) ?? [];
+    for (const returned of selfReturns.get(id) ?? []) {
+      const priorDeath = Math.max(
+        fight.startTime,
+        ...recorded
+          .filter((e) => e.type === 'death' && e.timestamp <= returned.timestamp)
+          .map((e) => e.timestamp),
+      );
+      const nextDeath = Math.min(
+        fight.endTime + 1,
+        ...recorded
+          .filter((e) => e.type === 'death' && e.timestamp > returned.timestamp)
+          .map((e) => e.timestamp),
+      );
+      if (
+        recorded.some(
+          (e) => e.type === 'resurrect' && e.timestamp >= priorDeath && e.timestamp < nextDeath,
+        )
+      )
+        continue;
+      recorded.push({ type: 'resurrect', timestamp: returned.timestamp });
+      lifeDetails.set(`${id}:${returned.timestamp}:resurrect`, {
+        ...returned,
+        type: 'resurrect',
+        sourceId: id,
+      });
+    }
+    const summary = summarizeLife(fight, recorded, livingCasts.get(id) ?? []);
+    metric.life = summary;
+    const stream = summary.events;
     life.set(id, stream);
-    metric.aliveMs = aliveTime(fight, stream);
-    metric.deaths = stream.filter((e) => e.type === 'death').length;
+    metric.aliveMs = summary.aliveMs;
+    metric.deaths = summary.deaths;
     metric.facts = recorder.facts.get(id)!;
     metric.facts.lifeEvents = stream.map(
       (e) =>

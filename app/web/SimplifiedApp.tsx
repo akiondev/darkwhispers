@@ -30,7 +30,6 @@ import { analysisLink, sharedAnalysisId } from '../shared/share.js';
 import ShareLink from './ShareLink.js';
 import RecentAnalyses from './RecentAnalyses.js';
 import CompactPlayerDetails from './CompactPlayerDetails.js';
-import { windowLabel } from '../shared/windows.js';
 import { duration, RoleIcon, Score } from './presentation.js';
 
 type SavedAnalysis = Analysis | LegacyAnalysis;
@@ -45,9 +44,8 @@ const defaults: Selection = {
 const roles: Role[] = ['dps', 'healer', 'tank', 'unknown'];
 const roleName = (role: Role) =>
   ({ dps: 'DPS', healer: 'Healers', tank: 'Tanks', unknown: 'Role not recorded' })[role];
-const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 export const currentModel = (analysis: SavedAnalysis): analysis is Analysis =>
-  'model' in analysis && analysis.model?.id === 'execution/v3';
+  'model' in analysis && analysis.model?.id === 'survival/v1';
 async function api<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -118,7 +116,8 @@ function LegacyResults({ analysis }: { analysis: LegacyAnalysis }) {
     <section className="panel legacy-results" aria-label="Previous model results">
       <h3>Saved results</h3>
       <p className="muted">
-        These scores belong to the previous model. Update this analysis to use the simplified score.
+        These saved scores use the previous model. Reanalyze to include the full recorded death
+        timeline.
       </p>
       <div className="table-scroll">
         <table>
@@ -404,7 +403,7 @@ export default function App() {
               </>
             )}
           </h1>
-          {!report && <p className="lead">Clear rankings. Measurable mechanics. Time alive.</p>}
+          {!report && <p className="lead">Recorded deaths. Time alive. A clearer raid review.</p>}
           <form
             className="report-form"
             onSubmit={(e) => {
@@ -601,7 +600,7 @@ export default function App() {
                   </div>
                 </div>
                 <p className="small muted">
-                  Kills and wipes are assessed automatically. No manual stop times are needed.
+                  Every selected pull is measured from start to finish, including wipes.
                 </p>
                 {selectFights(report, { ...selection, fightIds: null }).map((f) => (
                   <div className="pull-config" key={f.id}>
@@ -668,7 +667,10 @@ export default function App() {
               <div className="notice legacy-notice">
                 <div>
                   <strong>Saved with the earlier scoring model</strong>
-                  <p>This snapshot is unchanged. Update it to use mechanics and time alive.</p>
+                  <p>
+                    This older snapshot may omit deaths near the end of wipes. Update it to use
+                    full-pull survival measurements.
+                  </p>
                   <button className="primary" disabled={busy} onClick={() => void start()}>
                     Update analysis
                   </button>
@@ -677,7 +679,7 @@ export default function App() {
             )}
             <div className="section-heading result-heading">
               <div>
-                <h2>Raid performance</h2>
+                <h2>Your raid, in numbers</h2>
                 <p className="muted">
                   {analysis.summary.pulls} pulls · {analysis.summary.kills} kills ·{' '}
                   {analysis.summary.bosses} bosses · {analysis.summary.players} players
@@ -700,9 +702,9 @@ export default function App() {
               <section className="panel ranking" aria-label="Separate role rankings">
                 <div className="section-heading">
                   <div>
-                    <h3>Player standings</h3>
+                    <h3>Survival rankings</h3>
                     <p className="ranking-caption">
-                      Automatic kill & wipe scoring · measured mechanics and survival
+                      Score = time alive ÷ full pull time. Separate scores for each role.
                     </p>
                   </div>
                   <div className="table-controls">
@@ -735,9 +737,8 @@ export default function App() {
                         <th>#</th>
                         <th>Player</th>
                         <th>Score</th>
-                        <th>Mechanics</th>
-                        <th className="detail-column">Alive</th>
-                        <th className="detail-column">Output / sec</th>
+                        <th>Deaths</th>
+                        <th className="dead-column">Time dead</th>
                         <th className="detail-column">Pulls</th>
                       </tr>
                     </thead>
@@ -746,10 +747,10 @@ export default function App() {
                         <Fragment key={p.rowKey}>
                           {(index === 0 || shown[index - 1].role !== p.role) && (
                             <tr className="role-group">
-                              <th colSpan={7}>
+                              <th colSpan={6}>
                                 <RoleIcon role={p.role} />
                                 {roleName(p.role)}
-                                <small>Rank within the same complete role selection</small>
+                                <small>Compared within this role</small>
                               </th>
                             </tr>
                           )}
@@ -769,8 +770,17 @@ export default function App() {
                                   <small>
                                     {p.spec} {p.class}
                                     <span className="mobile-pulls"> · {p.pulls} pulls</span>
-                                    {p.rankingReason && p.score !== null && (
-                                      <span className="cell-sub">Partial selection · unranked</span>
+                                    {fresh.players.some(
+                                      (other) => other.id === p.id && other.role !== p.role,
+                                    ) && (
+                                      <span className="role-split-badge">Separate role score</span>
+                                    )}
+                                    {p.rankingReason && (
+                                      <span className="cell-sub" title={p.rankingReason}>
+                                        {p.score === null
+                                          ? 'Check data details'
+                                          : 'Partial selection · unranked'}
+                                      </span>
                                     )}
                                   </small>
                                 </span>
@@ -778,49 +788,27 @@ export default function App() {
                             </td>
                             <td>
                               <Score value={p.score} />
-                              {p.execution?.scoreBasis === 'survival-only' && (
-                                <small className="cell-sub">Survival only</small>
-                              )}
                             </td>
-                            <td className="mechanic-cell">
-                              {p.execution.checkedMechanics ? (
-                                <>
-                                  <strong>
-                                    {p.execution.passedChecks} / {p.execution.checkedMechanics}
-                                  </strong>
-                                  <small
-                                    className={p.execution.failedChecks ? 'failed-text' : 'muted'}
-                                  >
-                                    {p.execution.failedChecks || p.execution.missedWhileDead
-                                      ? `${p.execution.failedChecks} failed`
-                                      : 'passed'}
-                                    {(p.execution.missedWhileDead ?? 0) > 0 &&
-                                      ` · ${p.execution.missedWhileDead} dead`}
-                                  </small>
-                                </>
-                              ) : (
-                                <span className="muted">
-                                  {p.execution.scoreBasis === 'no-contribution'
-                                    ? 'No actions'
-                                    : 'Survival only'}
-                                </span>
-                              )}
+                            <td className="death-count">
+                              <strong>{p.deaths}</strong>
+                            </td>
+                            <td
+                              className="dead-column"
+                              title={
+                                p.pullReviews.some((r) => r.lifeIssues?.length)
+                                  ? 'Incomplete life timeline; open player details.'
+                                  : `${((p.durationMs - p.aliveMs) / 1000).toFixed(3)} recorded seconds dead`
+                              }
+                            >
+                              {p.pullReviews.some((r) => r.lifeIssues?.length)
+                                ? '—'
+                                : p.durationMs - p.aliveMs > 0 && p.durationMs - p.aliveMs < 1000
+                                  ? '< 1s'
+                                  : duration(Math.max(0, p.durationMs - p.aliveMs))}
                             </td>
                             <td className="detail-column">
-                              {p.execution.alivePercent.toFixed(1)}%
-                            </td>
-                            <td className="detail-column">
-                              {compact.format(
-                                (p.role === 'healer' ? p.healing : p.damage) /
-                                  Math.max(1, p.durationMs / 1000),
-                              )}
-                              <small className="cell-sub">
-                                {p.role === 'healer' ? 'HPS' : 'DPS'} · raw
-                              </small>
-                            </td>
-                            <td className="detail-column">
-                              {p.scoredPulls} / {p.pulls}
-                              <small className="cell-sub">scored</small>
+                              {p.pulls}
+                              <small className="cell-sub">in this role</small>
                             </td>
                           </tr>
                         </Fragment>
@@ -857,11 +845,6 @@ export default function App() {
                     <span>{duration(p.fight.endTime - p.fight.startTime)}</span>
                     <span className={p.fight.kill ? 'kill' : 'muted'}>
                       {p.fight.kill ? 'Kill' : 'Wipe'}
-                      {p.window && (
-                        <small>
-                          {windowLabel(p.window)} · {duration(p.window.endTime - p.fight.startTime)}
-                        </small>
-                      )}
                     </span>
                   </div>
                 ))}
@@ -889,39 +872,37 @@ export default function App() {
       )}
       {player && fresh && (
         <Modal title="Player analysis" onClose={() => setPlayer(null)} wide>
-          <CompactPlayerDetails key={player.rowKey} player={player} analysis={fresh} />
+          <CompactPlayerDetails
+            key={player.rowKey}
+            player={player}
+            analysis={fresh}
+            onPlayerChange={setPlayer}
+          />
         </Modal>
       )}
       {method && fresh && (
         <Modal title="How scoring works" onClose={() => setMethod(false)}>
           <div className="method-simple">
+            <div className="method-equation">Score = 100 × time alive ÷ full pull time</div>
             <p>
-              <strong>Automatic scores for kills and wipes</strong>
+              We add the recorded time across every selected pull you attended in the same role.
+              Deaths remain counted after resurrection. A resurrection ends that period of dead
+              time.
             </p>
             <p>
-              When measured, the base is <b>mechanics × time alive / 100</b>. If shared mechanics
-              cannot be measured, the pull uses a labelled survival-only base. No mechanic success
-              is invented.
+              Kills and wipes use their full duration. No guessed wipe call can remove your deaths.
+              A voice call or an intentional death cannot be established from these measurements.
             </p>
             <p>
-              Each reviewed mechanic family has an equal budget. Applicable checks remain uncredited
-              while dead. Kills and recorded wipe-call windows deduct five points per death,
-              retained after resurrection. Unmarked wipes have no extra flat death deduction.
+              DPS, healers and tanks have separate lists. Changing role creates a separate score; a
+              different specialization in the same role stays in that role’s score. Attendance is
+              shown so different selections can be reviewed in context.
             </p>
             <p>
-              A recorded wipe call is used automatically. Otherwise a common terminal-collapse
-              policy selects the assessment end. This is an estimate, not knowledge of a voice call.
-              Every completed pull contributes without manual setup.
-            </p>
-            <p>
-              Pull scores are weighted by assessed duration within each boss/difficulty, then bosses
-              and difficulty contexts have equal weight. Ordinal ranks require the same complete
-              role selection. DPS, healers and tanks stay separate; partial attendance is labelled.
-            </p>
-            <p>
-              Raw DPS/HPS, intake, preparation and items carry no score weight. Execution score is
-              not a complete class-skill or AFK assessment. No recorded contribution earns zero
-              credit.
+              <b>100 means no recorded time dead.</b> It does not mean perfect mechanics or prove
+              who caused a wipe. Output, damage taken and item usage are context, not score inputs.
+              Incomplete life data or no recorded contribution is flagged instead of receiving an
+              assumed score.
             </p>
             <details>
               <summary>Data & references</summary>
@@ -936,7 +917,7 @@ export default function App() {
                 target="_blank"
                 rel="noreferrer"
               >
-                Methodology and rule sources <ExternalLink size={13} />
+                Methodology and source code <ExternalLink size={13} />
               </a>
               <p className="small muted">
                 Engine {fresh.version} · {fresh.model.id}

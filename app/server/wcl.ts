@@ -29,6 +29,7 @@ export class WclClient {
   private budget: { remaining: number; resetAt: number } | null = null;
   private inFlight = 0;
   private waiting: (() => void)[] = [];
+  private realms = new Map<number, Promise<Map<string, string>>>();
   constructor(
     private id: string,
     private secret: string,
@@ -194,7 +195,7 @@ export class WclClient {
   async report(code: string): Promise<Report> {
     parseReportCode(code);
     const data = await this.query(
-      `query Report($code:String!){reportData{report(code:$code){code title startTime endTime revision visibility zone{name} masterData{actors{id name type subType petOwner}} fights(killType:Encounters){id encounterID name difficulty startTime endTime kill fightPercentage friendlyPlayers friendlySpecs inProgress}}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
+      `query Report($code:String!){reportData{report(code:$code){code title startTime endTime revision visibility region{id slug} zone{name} masterData{actors{id name type subType server petOwner}} fights(killType:Encounters){id encounterID name difficulty startTime endTime kill fightPercentage friendlyPlayers friendlySpecs inProgress}}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
       { code },
     );
     const raw = object(object(data.reportData).report);
@@ -226,6 +227,16 @@ export class WclClient {
       }))
       .filter((f) => f.encounterId > 0 && f.endTime > f.startTime);
     const participants = new Set(fights.flatMap((f) => f.friendlyPlayers));
+    const region = text(object(raw.region).slug).toLowerCase();
+    let realms = new Map<string, string>();
+    if (/^(eu|us|kr|tw|cn)$/.test(region) && finite(object(raw.region).id) > 0) {
+      // Optional identity enrichment cannot prevent the factual combat analysis.
+      try {
+        realms = await this.realmDirectory(finite(object(raw.region).id));
+      } catch {
+        /* Buttons disclose missing realm data. */
+      }
+    }
     const players: Player[] = list(object(raw.masterData).actors)
       .filter((a) => a.type === 'Player' && participants.has(a.id))
       .map((a) => {
@@ -242,6 +253,15 @@ export class WclClient {
           class: text(a.subType, 'Unknown'),
           spec,
           role,
+          ...(realms.has(text(a.server).toLowerCase())
+            ? {
+                profile: {
+                  region,
+                  realm: realms.get(text(a.server).toLowerCase())!,
+                  name: text(a.name),
+                },
+              }
+            : {}),
         };
       });
     const missing = [...participants].filter((id) => !players.some((p) => p.id === id));
@@ -276,8 +296,33 @@ export class WclClient {
           ]
         : [],
     };
-    result.wipeCalls = await this.wipeCalls(code, fights);
     return result;
+  }
+  private realmDirectory(regionId: number): Promise<Map<string, string>> {
+    const cached = this.realms.get(regionId);
+    if (cached) return cached;
+    const promise = (async () => {
+      const result = new Map<string, string>();
+      for (let page = 1; page <= 5; page++) {
+        const data = await this.query(
+          `query Realms($id:Int!,$page:Int!){worldData{region(id:$id){servers(limit:5000,page:$page){data{normalizedName slug} has_more_pages}}}}`,
+          { id: regionId, page },
+        );
+        const servers = object(object(object(data.worldData).region).servers);
+        if (!Array.isArray(servers.data)) throw new Error('Realm directory unavailable');
+        for (const item of servers.data) {
+          if (typeof item.normalizedName === 'string' && typeof item.slug === 'string' && item.slug)
+            result.set(item.normalizedName.toLowerCase(), item.slug);
+        }
+        if (servers.has_more_pages === false) return result;
+      }
+      throw new Error('Realm directory pagination limit');
+    })().catch((error) => {
+      this.realms.delete(regionId);
+      throw error;
+    });
+    this.realms.set(regionId, promise);
+    return promise;
   }
   async wipeCalls(code: string, fights: Fight[]): Promise<Record<number, number>> {
     const result: Record<number, number> = {};
@@ -350,7 +395,7 @@ export class WclClient {
   ): Promise<void> {
     let start = fight.startTime;
     let pages = 0;
-    while (start < fight.endTime) {
+    while (start <= fight.endTime) {
       const data = await this.query(
         `query Events($code:String!,$ids:[Int],$start:Float,$end:Float,$kind:EventDataType,$filter:String,$resources:Boolean){reportData{report(code:$code){events(fightIDs:$ids,startTime:$start,endTime:$end,dataType:$kind,filterExpression:$filter,includeResources:$resources,limit:10000,useActorIDs:true,useAbilityIDs:true){data nextPageTimestamp}}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
         {

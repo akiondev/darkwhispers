@@ -1,20 +1,33 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
-import type { Analysis, ExecutionMechanic, RankedPlayer } from '../shared/types.js';
-import { difficultyName } from '../shared/report-url.js';
+import { ChevronLeft, ChevronRight, ExternalLink, Skull } from 'lucide-react';
+import type { Analysis, RankedPlayer } from '../shared/types.js';
+import { characterLinks } from '../shared/profile-links.js';
+import { difficultyName, evidenceUrl } from '../shared/report-url.js';
 import { duration, RoleIcon, Score } from './presentation.js';
-import { windowLabel } from '../shared/windows.js';
-const number = new Intl.NumberFormat('en', { maximumFractionDigits: 0 });
+
 const output = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+const numeric = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
+const roleLabel = (role: string) =>
+  role === 'dps'
+    ? 'DPS'
+    : role === 'healer'
+      ? 'Healer'
+      : role === 'tank'
+        ? 'Tank'
+        : 'Unrecorded role';
+const time = (ms: number) => (ms > 0 && ms < 1000 ? '< 1s' : duration(Math.max(0, ms)));
+
 export default function CompactPlayerDetails({
   player,
   analysis,
+  onPlayerChange,
 }: {
   player: RankedPlayer;
   analysis: Analysis;
+  onPlayerChange: (player: RankedPlayer) => void;
 }) {
-  const [pullId, setPullId] = useState('all'),
-    [eventLimit, setEventLimit] = useState(15);
+  const [pullId, setPullId] = useState('all');
+  const [eventLimit, setEventLimit] = useState(8);
   const reviews = player.pullReviews;
   const selected = reviews.find((r) => String(r.fightId) === pullId);
   const rows = selected ? [selected] : reviews;
@@ -24,84 +37,89 @@ export default function CompactPlayerDetails({
       duration: n.duration + r.durationMs,
       alive: n.alive + r.aliveMs,
       deaths: n.deaths + r.deaths,
+      firstDeaths: n.firstDeaths + (r.firstDeath ? 1 : 0),
+      returns:
+        n.returns +
+        (r.resurrections ?? r.facts.lifeEvents.filter((e) => e.type === 'resurrect').length),
       damage: n.damage + r.damage,
       healing: n.healing + r.healing,
       taken: n.taken + r.damageTaken,
       casts: n.casts + r.facts.casts,
     }),
-    { duration: 0, alive: 0, deaths: 0, damage: 0, healing: 0, taken: 0, casts: 0 },
+    {
+      duration: 0,
+      alive: 0,
+      deaths: 0,
+      firstDeaths: 0,
+      returns: 0,
+      damage: 0,
+      healing: 0,
+      taken: 0,
+      casts: 0,
+    },
+  );
+  const deadMs = Math.max(0, totals.duration - totals.alive);
+  const issues = [...new Set(rows.flatMap((r) => r.lifeIssues ?? []))];
+  const lifeReliable = issues.length === 0;
+  const profiles = characterLinks(player, analysis.report);
+  const profileMessage =
+    analysis.report.source === 'demo'
+      ? 'Synthetic characters do not have live profiles.'
+      : player.profile?.region === 'cn'
+        ? 'The Armory link is not available for this region.'
+        : 'Character region or realm was not supplied by this report.';
+  const otherRoles = analysis.players.filter((p) => p.id === player.id);
+  const active = reviews.findIndex((r) => String(r.fightId) === pullId);
+  const select = (value: string) => {
+    setPullId(value);
+    setEventLimit(8);
+  };
+  const deaths = useMemo(
+    () =>
+      rows
+        .flatMap((r) =>
+          r.facts.lifeEvents
+            .filter((e) => e.type === 'death')
+            .map((e) => {
+              const fight = analysis.pulls.find((p) => p.fight.id === r.fightId)!.fight;
+              const interval = r.deadIntervals?.find((i) => i.start === e.timestamp);
+              const evidence = player.evidence.find(
+                (v) => v.kind === 'death' && v.fightId === r.fightId && v.timestamp === e.timestamp,
+              );
+              return {
+                event: e,
+                fight,
+                deadMs: interval ? interval.end - interval.start : null,
+                evidence,
+                url:
+                  evidence?.url ??
+                  evidenceUrl(analysis.report, r.fightId, player.id, e.timestamp, 'deaths'),
+              };
+            }),
+        )
+        .sort((a, b) => a.event.timestamp - b.event.timestamp),
+    [pullId, player, analysis],
+  );
+  const observations = player.evidence.filter(
+    (e) => e.kind !== 'death' && (pullId === 'all' || String(e.fightId) === pullId),
   );
   const snapshots = rows.filter((r) => r.facts.snapshot);
   const atPull = (category: 'flask' | 'food' | 'combat-potion') =>
     snapshots.length
-      ? `${snapshots.filter((r) => r.facts.activeAtPull.some((a) => a.category === category)).length} / ${snapshots.length} starts`
+      ? `${snapshots.filter((r) => r.facts.activeAtPull.some((a) => a.category === category)).length} / ${snapshots.length} recorded starts`
       : 'Not recorded';
-  const consumables = rows.flatMap((r) => r.facts.consumables);
   const uses = (kind: 'healthstone' | 'healing-potion' | 'combat-potion') =>
-    consumables.filter((c) => c.kind === kind).reduce((n, c) => n + c.uses, 0);
-  const enchants = snapshots
-    .filter((r) => r.facts.enchantsObserved !== undefined)
-    .map((r) => r.facts.enchantsObserved!.length);
-  const enchantLabel = !enchants.length
-    ? 'Not recorded'
-    : selected
-      ? `${enchants[0]} slots recorded`
-      : Math.min(...enchants) === Math.max(...enchants)
-        ? `${enchants[0]} slots per recorded pull`
-        : `${Math.min(...enchants)}–${Math.max(...enchants)} slots per recorded pull`;
-  const gems = snapshots
-    .filter((r) => r.facts.gemsObserved !== undefined)
-    .map((r) => r.facts.gemsObserved!.length);
-  const gemLabel =
-    !gems.length || !gems.some((count) => count > 0)
-      ? 'Not recorded'
-      : selected
-        ? `${gems[0]} gems recorded`
-        : Math.min(...gems) === Math.max(...gems)
-          ? `${gems[0]} gems per recorded pull`
-          : `${Math.min(...gems)}–${Math.max(...gems)} gems per recorded pull`;
-  const mechanics = useMemo(() => {
-    const grouped = new Map<string, ExecutionMechanic>();
-    for (const r of rows)
-      for (const m of r.mechanics) {
-        if (!m.observed && !m.opportunities) continue;
-        const prior = grouped.get(m.ruleId);
-        if (!prior)
-          grouped.set(m.ruleId, {
-            ...m,
-            passed: m.scored ? m.passed : 0,
-            failed: m.scored ? m.failed : 0,
-            opportunities: m.scored ? m.opportunities : 0,
-            events: [...m.events],
-            breakdown: m.breakdown ? [...m.breakdown] : undefined,
-          });
-        else {
-          prior.passed += m.scored ? m.passed : 0;
-          prior.failed += m.scored ? m.failed : 0;
-          prior.missedWhileDead =
-            (prior.missedWhileDead ?? 0) + (m.scored ? (m.missedWhileDead ?? 0) : 0);
-          prior.opportunities += m.scored ? m.opportunities : 0;
-          prior.observed += m.observed;
-          prior.scored ||= m.scored;
-        }
-      }
-    return [...grouped.values()].sort(
-      (a, b) =>
-        Number(b.scored) - Number(a.scored) || b.failed - a.failed || a.name.localeCompare(b.name),
-    );
-  }, [pullId, player]);
-  const evidence = player.evidence.filter(
-    (e) =>
-      (pullId === 'all' || String(e.fightId) === pullId) &&
-      ['mechanic', 'death', 'interrupt', 'dispel'].includes(e.kind),
-  );
-  const life = rows
-    .flatMap((r) => r.facts.lifeEvents.map((e) => ({ ...e, fightId: r.fightId })))
-    .sort((a, b) => a.timestamp - b.timestamp);
-  const active = reviews.findIndex((r) => String(r.fightId) === pullId);
-  const select = (value: string) => {
-    setPullId(value);
-    setEventLimit(15);
+    rows
+      .flatMap((r) => r.facts.consumables)
+      .filter((c) => c.kind === kind)
+      .reduce((n, c) => n + c.uses, 0);
+  const gearLabel = (kind: 'enchantsObserved' | 'gemsObserved') => {
+    const counts = snapshots
+      .filter((r) => r.facts[kind] !== undefined)
+      .map((r) => r.facts[kind]!.length);
+    return counts.length
+      ? `${Math.min(...counts) === Math.max(...counts) ? counts[0] : `${Math.min(...counts)}–${Math.max(...counts)}`} per recorded pull`
+      : 'Not recorded';
   };
   return (
     <>
@@ -109,118 +127,234 @@ export default function CompactPlayerDetails({
         <RoleIcon role={player.role} />
         <div>
           <p className="eyebrow">
-            {player.spec} {player.class} ·{' '}
-            {player.role === 'unknown'
-              ? 'role not recorded'
-              : player.role === 'dps'
-                ? 'DPS'
-                : player.role}
+            {player.spec} {player.class} · {roleLabel(player.role)}
           </p>
           <h3>{player.name}</h3>
         </div>
-        <Score value={assessment.score} />
-      </div>
-      <ul className="score-reasons" aria-label="Score explanation">
-        {assessment.reasons.slice(0, 2).map((reason) => (
-          <li key={reason}>{reason}</li>
-        ))}
-      </ul>
-      {assessment.scoreBasis === 'survival-only' && (
-        <p className="small muted">
-          Survival-only score: shared mechanic results are not available for this assessment.
-        </p>
-      )}
-      {player.rankingReason && player.score !== null && (
-        <p className="small muted">{player.rankingReason}</p>
-      )}
-      <section className="compact-player-pulls" aria-label="Player review by pull">
-        <div className="pull-navigation">
-          <button
-            className="icon-button"
-            aria-label="Previous player pull"
-            disabled={active < 0}
-            onClick={() => select(active === 0 ? 'all' : String(reviews[active - 1].fightId))}
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <label className="sr-only" htmlFor="player-pull">
-            Player pull
-          </label>
-          <select id="player-pull" value={pullId} onChange={(e) => select(e.target.value)}>
-            <option value="all">All attended pulls · {player.pulls}</option>
-            {reviews.map((r) => {
-              const f = analysis.pulls.find((p) => p.fight.id === r.fightId)!.fight;
-              return (
-                <option key={f.id} value={f.id}>
-                  Pull {f.id} · {f.name} · {difficultyName(f.difficulty)} ·{' '}
-                  {f.kill ? 'Kill' : 'Wipe'}
-                </option>
-              );
-            })}
-          </select>
-          <button
-            className="icon-button"
-            aria-label="Next player pull"
-            disabled={active === reviews.length - 1 || !reviews.length}
-            onClick={() => select(String(reviews[active + 1].fightId))}
-          >
-            <ChevronRight size={18} />
-          </button>
+        <div className="player-score">
+          <span>Survival score</span>
+          <Score value={assessment.score} />
         </div>
-        {selected?.window && (
-          <p className="window-caption">
-            {windowLabel(selected.window)} · assessment {duration(selected.durationMs)}
-            {!selected.window.confirmed && ' · statistics only'}
+      </div>
+      <div className="profile-links" aria-label="Character profiles">
+        {(
+          [
+            ['Warcraft Logs', profiles.warcraftLogs],
+            ['Raider.IO', profiles.raiderIO],
+            ['Armory', profiles.armory],
+          ] as const
+        ).map(([label, href]) =>
+          href ? (
+            <a className="secondary" key={label} href={href} target="_blank" rel="noreferrer">
+              {label}
+              <ExternalLink size={12} />
+            </a>
+          ) : (
+            <button className="secondary" key={label} disabled title={profileMessage}>
+              {label}
+              <ExternalLink size={12} />
+            </button>
+          ),
+        )}
+      </div>
+      {(!profiles.raiderIO || !profiles.armory) && (
+        <p className="profile-unavailable">{profileMessage}</p>
+      )}
+      {otherRoles.length > 1 && (
+        <div className="role-scores" aria-label="Separate scores by role">
+          <span>This character’s role scores</span>
+          <div>
+            {otherRoles.map((p) => (
+              <button
+                key={p.rowKey}
+                className={p.rowKey === player.rowKey ? 'selected' : ''}
+                aria-pressed={p.rowKey === player.rowKey}
+                onClick={() => onPlayerChange(p)}
+              >
+                <RoleIcon role={p.role} />
+                {roleLabel(p.role)}
+                <Score value={p.score} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="pull-navigation">
+        <button
+          className="icon-button"
+          aria-label="Previous player pull"
+          disabled={active < 0}
+          onClick={() => select(active === 0 ? 'all' : String(reviews[active - 1].fightId))}
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <label className="sr-only" htmlFor="player-pull">
+          Player pull
+        </label>
+        <select id="player-pull" value={pullId} onChange={(e) => select(e.target.value)}>
+          <option value="all">
+            All {reviews.length} pulls as {roleLabel(player.role)}
+          </option>
+          {reviews.map((r) => {
+            const f = analysis.pulls.find((p) => p.fight.id === r.fightId)!.fight;
+            return (
+              <option key={f.id} value={f.id}>
+                #{f.id} · {f.name} · {difficultyName(f.difficulty)} · {f.kill ? 'Kill' : 'Wipe'}
+              </option>
+            );
+          })}
+        </select>
+        <button
+          className="icon-button"
+          aria-label="Next player pull"
+          disabled={active === reviews.length - 1 || !reviews.length}
+          onClick={() => select(String(reviews[active + 1].fightId))}
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+      <div className="survival-summary" aria-label="Score explanation">
+        {lifeReliable ? (
+          <p>
+            <strong>
+              {totals.deaths} {totals.deaths === 1 ? 'death' : 'deaths'}
+            </strong>{' '}
+            · <strong>{time(deadMs)}</strong> dead out of {time(totals.duration)} recorded in this
+            role.
+          </p>
+        ) : (
+          <p>
+            <strong>Life timeline needs review.</strong> Some recorded events do not establish a
+            complete alive/dead sequence.
           </p>
         )}
-        <div className="execution-stats">
+        {assessment.score === null ? (
+          <p className="small muted">
+            {assessment.reasons[0] ?? 'A reliable score is not available for this selection.'}
+          </p>
+        ) : (
+          <p
+            className="formula-visible"
+            title="Calculated using unrounded milliseconds; displayed seconds are rounded."
+          >
+            100 × {numeric.format(totals.alive / 1000)}s alive ÷{' '}
+            {numeric.format(totals.duration / 1000)}s full time = <Score value={assessment.score} />
+          </p>
+        )}
+        <p className="small muted">
+          Includes every recorded death through pull end, including wipes. This measures survival,
+          not responsibility for a wipe.
+        </p>
+      </div>
+      {player.rankingReason && <p className="ranking-note">{player.rankingReason}</p>}
+      {issues.length > 0 && (
+        <div className="notice error">
           <div>
-            <span>Mechanics</span>
-            <strong>
-              {assessment.passedChecks} / {assessment.checkedMechanics}
-            </strong>
-            <small className={assessment.failedChecks ? 'failed-text' : ''}>
-              {assessment.failedChecks} failed
-              {assessment.missedWhileDead
-                ? ` · ${assessment.missedWhileDead} not credited while dead`
-                : ''}
-            </small>
-          </div>
-          <div>
-            <span>Time alive</span>
-            <strong>{assessment.alivePercent.toFixed(1)}%</strong>
-            <small>{selected ? 'This pull' : 'Scoring average'}</small>
-          </div>
-          <div>
-            <span>Time dead</span>
-            <strong>{duration(Math.max(0, totals.duration - totals.alive))}</strong>
-            <small>
-              {totals.deaths} {totals.deaths === 1 ? 'death' : 'deaths'}
-            </small>
+            <strong>Incomplete life evidence</strong>
+            {issues.map((issue) => (
+              <p key={issue}>{issue}</p>
+            ))}
           </div>
         </div>
+      )}
+      <div className="execution-stats survival-stats">
+        <div>
+          <span>Time dead</span>
+          <strong title={`${(deadMs / 1000).toFixed(3)} seconds`}>
+            {lifeReliable ? time(deadMs) : '—'}
+          </strong>
+          <small>
+            {lifeReliable
+              ? `${numeric.format((100 * deadMs) / Math.max(1, totals.duration))}% of full time`
+              : 'Timeline incomplete'}
+          </small>
+        </div>
+        <div>
+          <span>Deaths</span>
+          <strong>{totals.deaths}</strong>
+          <small>Resurrection does not erase these</small>
+        </div>
+        <div>
+          <span title="Earliest recorded raid death in a pull, including simultaneous ties. This does not establish who caused a wipe.">
+            First-death pulls
+          </span>
+          <strong>{totals.firstDeaths}</strong>
+          <small>{totals.returns} recorded resurrections</small>
+        </div>
+      </div>
+      <section className="death-evidence" aria-label="Death evidence">
+        <div className="section-heading">
+          <h4>
+            <Skull size={16} />
+            Deaths to review
+          </h4>
+          <span className="small muted">Full encounter timeline</span>
+        </div>
+        {!deaths.length && (
+          <p className="empty">
+            No recorded deaths in this {selected ? 'pull' : 'role selection'}.
+          </p>
+        )}
+        {deaths
+          .slice(0, eventLimit)
+          .map(({ event, fight, deadMs: intervalMs, evidence, url }, i) => (
+            <article className="death-event" key={`${fight.id}:${event.timestamp}:${i}`}>
+              <div>
+                <strong>
+                  #{fight.id} · {fight.name}
+                </strong>
+                <small>
+                  {time(event.timestamp - fight.startTime)} into pull ·{' '}
+                  {fight.kill ? 'Kill' : 'Wipe'}
+                  {intervalMs !== null ? ` · ${time(intervalMs)} dead` : ''}
+                </small>
+                {evidence?.abilityId && evidence.ability && (
+                  <small>Recorded killing ability: {evidence.ability}</small>
+                )}
+              </div>
+              {url ? (
+                <a href={url} target="_blank" rel="noreferrer" className="evidence-link">
+                  View death
+                  <ExternalLink size={13} />
+                </a>
+              ) : (
+                <span className="small muted">Synthetic event</span>
+              )}
+            </article>
+          ))}
+        {deaths.length > eventLimit && (
+          <button className="text-button" onClick={() => setEventLimit((n) => n + 12)}>
+            Show {Math.min(12, deaths.length - eventLimit)} more deaths <ChevronRight size={14} />
+          </button>
+        )}
+      </section>
+      <details className="context-details">
+        <summary>
+          Output, preparation & observations <span>Context only</span>
+        </summary>
         <div className="raw-summary">
           <span>
-            <b>
-              {output.format(
-                (player.role === 'healer' ? totals.healing : totals.damage) /
-                  Math.max(1, totals.duration / 1000),
-              )}
-            </b>{' '}
-            {player.role === 'healer' ? 'HPS' : 'DPS'}
+            <b>{output.format(totals.damage / Math.max(1, totals.duration / 1000))}</b> DPS
+          </span>
+          <span>
+            <b>{output.format(totals.healing / Math.max(1, totals.duration / 1000))}</b> HPS
           </span>
           <span>
             <b>{output.format(totals.taken)}</b> damage taken
           </span>
           <span>
-            <b>{totals.casts}</b> recorded casts
+            <b>{totals.casts}</b> casts
           </span>
         </div>
+        <p className="small muted">
+          These values have no score weight. Assignments, class abilities and intentional damage
+          cannot be judged uniformly.
+        </p>
         <div className="preparation-summary">
           <h4>
             Preparation & item usage{' '}
             <span>
-              Statistics · {snapshots.length}/{rows.length} start snapshots
+              {snapshots.length}/{rows.length} start snapshots
             </span>
           </h4>
           <dl>
@@ -250,154 +384,55 @@ export default function CompactPlayerDetails({
             </div>
             <div>
               <dt>Observed enchants</dt>
-              <dd>{enchantLabel}</dd>
+              <dd>{gearLabel('enchantsObserved')}</dd>
             </div>
             <div>
               <dt>Observed gems</dt>
-              <dd>{gemLabel}</dd>
+              <dd>{gearLabel('gemsObserved')}</dd>
             </div>
           </dl>
         </div>
-        <details className="calculation-evidence">
-          <summary>
-            Calculation & evidence <ChevronRight size={16} />
-          </summary>
-          <div className="formula-line">
-            <span>
-              {selected ? 'Mechanics' : 'Mechanics average'}{' '}
-              <b>
-                {assessment.mechanicsScore === null ? '—' : assessment.mechanicsScore.toFixed(1)}
-              </b>{' '}
-              {selected && assessment.mechanicsScore !== null && '×'}
-            </span>
-            <span>
-              Time alive <b>{assessment.alivePercent.toFixed(1)}%</b>{' '}
-              {selected && assessment.mechanicsScore !== null && '/ 100'}
-            </span>
-            <span>
-              {selected ? 'Base' : 'Base average'}{' '}
-              <b>{assessment.baseScore === null ? '—' : assessment.baseScore.toFixed(1)}</b>
-            </span>
-            <span>
-              {selected ? 'Death deduction' : 'Weighted death deduction'}{' '}
-              <b>−{(assessment.deathPenalty ?? 0).toFixed(1)}</b>
-            </span>
-          </div>
-          <p className="small muted">
-            Fixed death deductions apply to kills and recorded wipe-call windows, and remain after
-            resurrection. Wipes without a recorded call have no extra flat death cost.{' '}
-            {assessment.scoredPulls} of {assessment.totalPulls} attended pulls scored automatically;{' '}
-            {assessment.survivalOnlyPulls ?? 0} use survival only.
-          </p>
-          {!selected && (
-            <p className="small muted">
-              Pull scores use assessed duration weights within each boss/difficulty. Bosses and
-              difficulty contexts then have equal weight. These average inputs do not directly
-              reproduce the final score. Automatic wipe boundaries are estimates and apply to
-              everyone equally.
-            </p>
-          )}
-          {!selected && (
-            <div className="boss-summary-list">
-              {player.perBoss.map((b) => (
-                <div key={`${b.encounterId}:${b.difficulty}`}>
-                  <span>
-                    {b.name}
-                    <small>
-                      {difficultyName(b.difficulty)} · {b.execution.scoredPulls} / {b.pulls} scored
-                      pulls
-                    </small>
-                  </span>
-                  <Score value={b.score} />
-                </div>
-              ))}
-            </div>
-          )}
-          {mechanics.length > 0 && (
-            <div className="mechanic-summary-list">
-              <h4>Tracked mechanics</h4>
-              {mechanics.map((m) => (
-                <div key={m.ruleId}>
-                  <span>
-                    {m.scored && <CheckCircle2 size={14} />}
-                    <b>{m.name}</b>
-                    <small>
-                      {m.scored
-                        ? `${m.passed} passed · ${m.failed} failed · ${m.missedWhileDead ?? 0} not credited while dead · ${m.opportunities} checks`
-                        : `Observed only · ${m.observed} records`}
-                    </small>
-                    {m.scored && <small>{m.detail}</small>}
-                    {!m.scored && m.exclusion && <small>{m.exclusion}</small>}
-                  </span>
-                  <a
-                    href={m.source}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`${m.name} encounter reference`}
-                  >
-                    <ExternalLink size={15} />
-                  </a>
-                </div>
-              ))}
-            </div>
-          )}
-          {life.length > 0 && (
-            <div className="life-summary">
-              <h4>Deaths & returns</h4>
-              {life.slice(0, 12).map((e, i) => {
-                const f = analysis.pulls.find((p) => p.fight.id === e.fightId)!.fight;
-                return (
-                  <p key={i}>
-                    <span>
-                      Pull {e.fightId} · {duration(e.timestamp - f.startTime)}
-                    </span>
-                    {e.type === 'death'
-                      ? 'Died'
-                      : e.combatRes
-                        ? `Combat resurrection${e.abilityName ? ` · ${e.abilityName}` : ''}`
-                        : 'Recorded resurrection'}
-                  </p>
-                );
-              })}
-              {life.length > 12 && (
-                <small>{life.length - 12} more life events in the WCL timeline.</small>
-              )}
-            </div>
-          )}
+        {observations.length > 0 && (
           <div className="event-list">
-            {evidence.slice(0, eventLimit).map((e, index) => {
-              const f = analysis.pulls.find((p) => p.fight.id === e.fightId)!.fight;
-              return (
-                <article className="event" key={`${e.fightId}:${e.timestamp}:${index}`}>
-                  <div>
-                    <time>
-                      #{e.fightId} · {duration(e.timestamp - f.startTime)}
-                    </time>
-                    <strong>{e.ability}</strong>
-                  </div>
-                  <p>{e.description}</p>
-                  {e.amount !== undefined && (
-                    <small>{number.format(e.amount)} recorded damage</small>
-                  )}
-                  {e.url && (
-                    <a href={e.url} target="_blank" rel="noreferrer">
-                      View in Warcraft Logs <ExternalLink size={12} />
-                    </a>
-                  )}
-                </article>
-              );
-            })}
+            <h4>Recorded observations</h4>
+            {observations.slice(0, 20).map((e, i) => (
+              <article className="event" key={`${e.fightId}:${e.timestamp}:${i}`}>
+                <div>
+                  <time>Pull #{e.fightId}</time>
+                  <strong>{e.ability}</strong>
+                </div>
+                <p>{e.description}</p>
+                {e.url && (
+                  <a href={e.url} target="_blank" rel="noreferrer">
+                    View in Warcraft Logs <ExternalLink size={12} />
+                  </a>
+                )}
+              </article>
+            ))}
+            {observations.length > 20 && (
+              <p className="small muted">Select a pull to narrow these observations.</p>
+            )}
           </div>
-          {evidence.length > eventLimit && (
-            <button className="secondary" onClick={() => setEventLimit((n) => n + 20)}>
-              Show more events ({evidence.length - eventLimit} remaining)
-            </button>
-          )}
-          {!evidence.length && (
-            <p className="small muted">No individual scoring or death events in this selection.</p>
-          )}
+        )}
+      </details>
+      {!selected && player.perBoss.length > 1 && (
+        <details className="context-details">
+          <summary>Score by boss</summary>
+          <div className="boss-summary-list">
+            {player.perBoss.map((b) => (
+              <div key={`${b.encounterId}:${b.difficulty}`}>
+                <span>
+                  {b.name}
+                  <small>
+                    {difficultyName(b.difficulty)} · {b.pulls} pulls as {roleLabel(player.role)}
+                  </small>
+                </span>
+                <Score value={b.score} />
+              </div>
+            ))}
+          </div>
         </details>
-      </section>
+      )}
     </>
   );
 }
