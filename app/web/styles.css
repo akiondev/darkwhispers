@@ -1850,7 +1850,6 @@ footer a {
     scroll-behavior: auto !important;
   }
 }
-/* Shared wipe boundaries belong to the whole pull, never to an individual player. */
 .pull-config {
   border-top: 1px solid #2c1f32;
   padding: 5px 0 10px;
@@ -1858,40 +1857,7 @@ footer a {
 .pull-picker .pull-config > label {
   border: 0;
 }
-.wipe-stop-editor {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding-left: 24px;
-}
-.pull-picker .wipe-stop-editor label {
-  display: inline;
-  padding: 0;
-  border: 0;
-  font-size: 12px;
-  color: #b89cac;
-}
-.wipe-stop-editor input {
-  width: 135px;
-  min-height: 34px;
-  padding: 6px 9px;
-}
-.wipe-stop-editor small {
-  font-size: 11px;
-}
 .window-caption {
   font-size: 12px;
   color: #bba4b9;
-}
-@media (max-width: 600px) {
-  .wipe-stop-editor {
-    padding-left: 0;
-  }
-  .wipe-stop-editor small {
-    flex-basis: 100%;
-  }
-  .pull-config > label {
-    flex-wrap: wrap;
-  }
 }

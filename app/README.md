@@ -1,4 +1,4 @@
-# DarkWhispers App · prototype 0.8.0
+# DarkWhispers App · prototype 0.9.0
 
 A compact Warcraft Logs raid review app using React, TypeScript, Vite, Fastify, PostgreSQL16 and pg-boss. API and worker are isolated services. No paid services or generated grades.
 
@@ -10,11 +10,15 @@ Live imports require WCL_CLIENT_ID and WCL_CLIENT_SECRET on the backend only. Cl
 
 ## Score and UI
 
-The [execution model](docs/execution-model.md) uses max(0, mechanics * time alive /100 -5 * deaths) per pull. Each reviewed mechanic family has equal budget. Applicable checks remain uncredited while dead. A death's five-point deduction persists after battle resurrection. Required tank contact, uncertain assignments, DPS/HPS, intake, preparation and items have no automatic score weight.
+Every completed kill and wipe is scored automatically. No manual stop-time setup is required. DPS, healers and tanks have separate standings; partial attendance is labelled.
 
-Wipes require a recorded wipe call or a clearly labelled manual shared stop. Without one, statistics remain available and the wipe is unscored. All post-stop events and unfinished checks are excluded. There are no inferred collapse thresholds, Unknown weights or neutral replacement points.
+When shared mechanics are measurable, a pull uses mechanics * time alive /100. Mechanic families have equal budgets and applicable checks stay uncredited while dead. Kills and recorded wipe-call windows deduct five points per real death, retained after resurrection. Unmarked wipes have no extra flat death deduction because voluntary cleanup deaths cannot be reliably distinguished.
 
-DPS, healers and tanks have separate lists. Same-role characters who change role get independent rows. Duration-weighted pull scores are combined by boss/difficulty; partial attendance/evidence has a visible score without a misleading ordinal comparison. Details show short reasons, a pull selector, preparation/items and one expandable calculation/evidence section. This is not an overall skill or AFK-proof contribution score.
+A recorded wipe call selects the common assessment end. Otherwise an automatic terminal-collapse comparison policy chooses an estimated boundary from recorded death/resurrection events. It is not a claim to know a voice call. If a clear terminal collapse is absent, the full pull is used. Events after the selected boundary and unfinished checks are excluded for all actors.
+
+Where common mechanic measurements are incomplete or absent, the role/pull uses a labelled survival-only score from actual recorded availability. Mechanics remain null, not assumed100 or a neutral midpoint. No recorded contribution earns zero credit. All attended pulls still contribute to duration-weighted boss/difficulty results. DPS/HPS, intake, preparation and items are factual context outside the score. This is not an AFK-proof overall player-skill assessment.
+
+See the [execution model](docs/execution-model.md) for the policy, constants and limitations. There are no Unknown-weight categories or manual wipe-time controls. Explicit repair redirects can resolve known broken links to newly analysed results while keeping their original stored snapshots intact; normal share reads never enqueue work.
 
 ## New reports and compatibility
 
@@ -24,9 +28,9 @@ Up to150 completed boss pulls can be selected per analysis; larger reports can b
 
 ## Performance, sharing and integrity
 
-Two pulls import concurrently, at most three upstream requests per process. OAuth refresh is single-flight. Completed pulls are independently cached with report revision, boundaries, ingestion version and exact assessment window. Reanalysis at a new manual stop cannot accidentally use full-pull statistics. Missing/invalid pages, tables or required evidence never become perfect scores.
+Two pulls import concurrently, at most three upstream requests per process. OAuth refresh is single-flight. Completed pulls are independently cached with report revision, boundaries, ingestion version and assessment policy. Automatic boundaries are reproduced from private cached life events, which are excluded from public results. Missing/invalid pages, tables or required evidence never become perfect scores.
 
-Selections and manual stop provenance are frozen before enqueueing. Jobs are capped at12 active and expire after two hours. Saved results have immutable /?analysis=<uuid> links with seven-day retention. Reading a link does not enqueue work or query WCL. Older scoring snapshots remain unchanged and offer explicit reanalysis.
+Selections are frozen before enqueueing. Jobs are capped at12 active and expire after two hours. Saved results have immutable /?analysis=<uuid> links with seven-day retention. Reading a link does not enqueue work or query WCL. Older scoring snapshots remain unchanged and offer explicit reanalysis.
 
 The recent feed contains minimal metadata only for completed public live reports, not demo/private/unlisted data. Anyone with a share link can read that saved result. Cloudflare-aware rate limits and fixed upstream origins prevent trusting arbitrary forwarding headers or user-supplied fetch hosts. See server/client-ip.ts.
 

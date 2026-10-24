@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyze } from '../shared/analysis.js';
 import { scoreExecution } from '../shared/execution.js';
-import { assessmentWindow, validateWipeStops } from '../shared/windows.js';
+import { assessmentWindow } from '../shared/windows.js';
 import { evaluateEncounter } from '../server/encounter-engine.js';
 import { TANK_PROFILES } from '../shared/tanks.js';
 import { fixture, selection, check } from './execution-fixtures.js';
@@ -46,13 +46,22 @@ test('equal family budgets prevent frequent easy checks from diluting another fa
   assert.equal(a.model.deathPenalty, 5);
   assert.ok(a.players.every((p) => p.score === 50 && p.execution.mechanicsScore === 50));
 });
-test('ambiguous peer evidence withholds the whole role/pull grade rather than boosting clean leftovers', () => {
+test('ambiguous shared mechanics switch the role uniformly to labelled survival-only scoring', () => {
   const { report, pull } = fixture();
   for (const m of pull.metrics)
     m.mechanics = [check(10, 0, { ruleId: 'clean' }), check(4, 4, { ruleId: 'uncertain' })];
   pull.metrics[2].mechanics![1].unknown = 1;
   const a = analyze(report, [pull], selection);
-  assert.ok(a.players.filter((p) => p.role === 'dps').every((p) => p.score === null));
+  assert.ok(
+    a.players
+      .filter((p) => p.role === 'dps')
+      .every(
+        (p) =>
+          p.score === 100 &&
+          p.execution.scoreBasis === 'survival-only' &&
+          p.execution.mechanicsScore === null,
+      ),
+  );
   assert.equal(a.players.find((p) => p.role === 'tank')!.score, 50);
 });
 test('resurrection restores availability without erasing the death deduction', () => {
@@ -144,35 +153,35 @@ test('pending windows at the shared assessment end grant neither passes nor fail
       (m) => m.mechanics!.find((r) => r.name === 'Anguished Echoes')!.opportunities === 0,
     ),
   );
-  assert.ok(analyze(report, [pull], selection).players.every((p) => p.score === null));
+  assert.ok(
+    analyze(report, [pull], selection).players.every(
+      (p) => p.execution.mechanicsScore === null && p.score !== null,
+    ),
+  );
 });
-test('unconfirmed wipes retain all role rows and statistics but carry no grade', () => {
+test('unmarked wipes score automatically without extra flat death deductions', () => {
   const { report, pull } = fixture();
   pull.fight.kill = false;
+  for (const m of pull.metrics) {
+    m.deaths = 1;
+    m.aliveMs = 294000;
+  }
   const a = analyze(report, [pull], selection);
   assert.equal(a.players.length, 4);
-  assert.ok(a.players.every((p) => p.score === null && p.damage > 0));
-  assert.ok(a.players.every((p) => /wipe call/i.test(p.pullReviews[0].execution.reasons[0])));
+  assert.ok(
+    a.players.every((p) => p.score === 98 && p.execution.deathPenalty === 0 && p.scoredPulls === 1),
+  );
+  assert.equal(a.pulls[0].window!.source, 'automatic');
 });
-test('manual stops are shared, explicit and strictly bounded; mismatched cached windows are rejected', () => {
+test('legacy manual stops are ignored and recorded calls still select a shared window', () => {
   const { report, pull, fight } = fixture();
   fight.kill = false;
-  report.wipeCalls = { [fight.id]: fight.startTime + 100000 };
-  assert.equal(assessmentWindow(report, fight, selection).source, 'logged');
   const manual = { ...selection, wipeStops: { [fight.id]: 50000 } };
-  assert.deepEqual(assessmentWindow(report, fight, manual), {
-    endTime: fight.startTime + 50000,
-    source: 'manual',
-    confirmed: true,
-  });
+  assert.equal(assessmentWindow(report, fight, manual).endTime, fight.endTime);
+  report.wipeCalls = { [fight.id]: fight.startTime + 100000 };
+  assert.equal(assessmentWindow(report, fight, manual).source, 'logged');
+  assert.equal(assessmentWindow(report, fight, manual).endTime, fight.startTime + 100000);
   assert.throws(() => analyze(report, [pull], manual), /window/);
-  for (const wipeStops of [{ '1': 0 }, { '1': 300001 }, { '999': 1 }, { bad: 1 }] as Record<
-    string,
-    number
-  >[])
-    assert.throws(() => validateWipeStops(report, { ...selection, wipeStops }));
-  fight.kill = true;
-  assert.throws(() => validateWipeStops(report, manual));
 });
 test('pull duration weighting stops a ten-second clean pull equalling five minutes of mistakes', () => {
   const { report, pull } = fixture();
@@ -215,7 +224,7 @@ test('all six tank classes use identical mechanics, availability and death rules
     assert.equal(tank.role, 'tank');
   }
 });
-test('zero contribution remains ungraded instead of passive perfection', () => {
+test('zero recorded contribution earns zero credit instead of passive perfection', () => {
   const { report, pull } = fixture();
   const m = pull.metrics[0];
   m.damage = 0;
@@ -224,6 +233,6 @@ test('zero contribution remains ungraded instead of passive perfection', () => {
   m.dispels = 0;
   m.facts!.casts = 0;
   const p = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
-  assert.equal(p.score, null);
-  assert.equal(p.roleRank, null);
+  assert.equal(p.score, 0);
+  assert.equal(p.execution.scoreBasis, 'no-contribution');
 });

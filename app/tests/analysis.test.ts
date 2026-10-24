@@ -213,9 +213,7 @@ test('old inferred wipe-cutoff facts cannot reactivate retired shortened-window 
   assert.deepEqual(flagged.players, full.players);
   assert.equal(flagged.selection.excludeWipeTail, false);
   assert.ok(
-    flagged.players.every(
-      (p) => p.aliveMs === 60000 && p.durationMs === 300000 && p.score === null,
-    ),
+    flagged.players.every((p) => p.aliveMs === 60000 && p.durationMs === 300000 && p.score === 20),
   );
 });
 

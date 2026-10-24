@@ -18,9 +18,9 @@ import type {
 import { selectFights } from './report-url.js';
 import { roleFromSpec } from './players.js';
 import { VERSION } from './version.js';
-import { assessmentWindow, validateWipeStops } from './windows.js';
+import { assessmentWindow } from './windows.js';
 
-export const EXECUTION_MODEL_VERSION = 'execution/v2';
+export const EXECUTION_MODEL_VERSION = 'execution/v3';
 export const DEATH_PENALTY = 5;
 const mean = (values: number[]) =>
   values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
@@ -52,8 +52,17 @@ const blankFacts = (): PlayerFacts => ({
   casts: 0,
 });
 const finiteNonnegative = (value: number) => Number.isFinite(value) && value >= 0;
+const windowFor = (report: Report, pull: PullData, selection: Selection) =>
+  assessmentWindow(
+    report,
+    pull.fight,
+    selection,
+    pull.boundaryLife
+      ? new Map(pull.boundaryLife.map((row) => [row.actorId, row.events]))
+      : undefined,
+  );
 function validatePull(report: Report, pull: PullData, fight: Fight, selection: Selection) {
-  const window = assessmentWindow(report, fight, selection);
+  const window = windowFor(report, pull, selection);
   const duration = window.endTime - fight.startTime;
   if (
     pull.window
@@ -135,7 +144,7 @@ function comparableRules(report: Report, pull: PullData, role: Role) {
         (r): r is MechanicResult =>
           !!r && r.scoreEligible === true && r.unknown === 0 && r.weight > 0,
       ) &&
-      rows.some((r) => r.opportunities > 0)
+      rows.every((r) => r.opportunities > 0)
     )
       accepted.add(id);
     else if (rows.some((r) => r && (r.opportunities > 0 || r.unknown > 0)))
@@ -175,7 +184,7 @@ function pullAssessment(
   metric: Metric,
   mechanics: ExecutionMechanic[],
   duration: number,
-  confirmed: boolean,
+  source: import('./types.js').AssessmentWindow['source'],
   integrity: boolean,
 ): ExecutionAssessment {
   const checkedMechanics = sum(mechanics.map((r) => r.opportunities)),
@@ -188,45 +197,54 @@ function pullAssessment(
     metric.interrupts > 0 ||
     metric.dispels > 0 ||
     (facts?.casts ?? 0) > 0;
-  const reason = !confirmed
-    ? 'No wipe call recorded. Set a shared stop time to score this wipe.'
-    : !integrity
-      ? 'Incomplete common mechanic evidence. This role/pull is not scored.'
-      : role === 'unknown'
-        ? 'Role could not be identified.'
-        : !contribution
-          ? 'No recorded combat contribution.'
-          : !checkedMechanics
-            ? 'No comparable mechanic checks in this pull.'
-            : null;
   const families = mechanics.filter((m) => m.scored && m.opportunities > 0);
-  const mechanicsScore = families.length
-    ? mean(families.map((m) => (100 * m.passed) / m.opportunities))
-    : null;
+  const mechanicsScore =
+    families.length && integrity
+      ? mean(families.map((m) => (100 * m.passed) / m.opportunities))
+      : null;
   const missedWhileDead = sum(mechanics.map((m) => m.missedWhileDead ?? 0));
-  const grade = reason
-    ? { score: null, baseScore: null, capped: false }
-    : scoreExecution(mechanicsScore!, alivePercent, metric.deaths);
+  const chargedDeaths = source === 'kill' || source === 'logged' ? metric.deaths : 0;
+  const grade =
+    mechanicsScore === null
+      ? {
+          score: Math.max(0, alivePercent - DEATH_PENALTY * chargedDeaths),
+          baseScore: alivePercent,
+          deathPenalty: DEATH_PENALTY * chargedDeaths,
+          capped: false,
+        }
+      : scoreExecution(mechanicsScore, alivePercent, chargedDeaths);
+  if (!contribution) grade.score = 0;
+  const scoreBasis = !contribution
+    ? ('no-contribution' as const)
+    : mechanicsScore === null
+      ? ('survival-only' as const)
+      : ('mechanics-and-survival' as const);
   return {
     version: EXECUTION_MODEL_VERSION,
     ...grade,
     mechanicsScore,
     alivePercent,
-    deathPenalty: metric.deaths * DEATH_PENALTY,
+    deathPenalty: chargedDeaths * DEATH_PENALTY,
+    scoreBasis,
+    survivalOnlyPulls: scoreBasis === 'survival-only' ? 1 : 0,
     deaths: metric.deaths,
     missedWhileDead,
     weightMs: duration,
     passedChecks: checkedMechanics - failedChecks - missedWhileDead,
     failedChecks,
     checkedMechanics,
-    scoredPulls: grade.score === null ? 0 : 1,
+    scoredPulls: 1,
     totalPulls: 1,
-    reasons: reason
-      ? [reason]
-      : [
-          `${failedChecks} failed · ${missedWhileDead} not credited while dead · ${checkedMechanics} checks.`,
-          `${metric.deaths} deaths: −${metric.deaths * DEATH_PENALTY} points; ${Math.round((duration - metric.aliveMs) / 1000)} seconds recorded dead.`,
-        ],
+    reasons: [
+      !contribution
+        ? 'No recorded combat contribution: no execution credit.'
+        : mechanicsScore === null
+          ? 'Survival-only score: no complete shared mechanic measurement; no mechanic points were assumed.'
+          : `${failedChecks} failed${missedWhileDead ? ` · ${missedWhileDead} not credited while dead` : ''} · ${checkedMechanics} checks.`,
+      source === 'automatic'
+        ? 'Automatic wipe assessment; no extra fixed death deduction without a recorded call.'
+        : `${metric.deaths} deaths: −${chargedDeaths * DEATH_PENALTY} points; deduction remains after resurrection.`,
+    ],
   };
 }
 /** Equal child weighting. Unscored exposure never supplies points; its known absence still limits availability. */
@@ -236,6 +254,8 @@ export function combineExecutions(
 ): ExecutionAssessment {
   if (!values.length) throw new Error('No execution measurements to combine.');
   const scored = values.filter((v) => v.score !== null);
+  const measured = scored.filter((v) => v.mechanicsScore !== null);
+  const bases = new Set(scored.map((v) => v.scoreBasis ?? 'mechanics-and-survival'));
   const weighted = (items: ExecutionAssessment[], get: (v: ExecutionAssessment) => number) =>
     sum(items.map((v) => get(v) * (mode === 'equal' ? 1 : (v.weightMs ?? 1)))) /
     sum(items.map((v) => (mode === 'equal' ? 1 : (v.weightMs ?? 1))));
@@ -250,7 +270,9 @@ export function combineExecutions(
     version: EXECUTION_MODEL_VERSION,
     score,
     baseScore: scored.length ? weighted(scored, (v) => v.baseScore!) : null,
-    mechanicsScore: scored.length ? weighted(scored, (v) => v.mechanicsScore!) : null,
+    mechanicsScore: measured.length ? weighted(measured, (v) => v.mechanicsScore!) : null,
+    scoreBasis: bases.size === 1 ? [...bases][0] : 'mixed',
+    survivalOnlyPulls: sum(values.map((v) => v.survivalOnlyPulls ?? 0)),
     alivePercent,
     capped: false,
     deathPenalty: scored.length ? weighted(scored, (v) => v.deathPenalty ?? 0) : 0,
@@ -272,7 +294,7 @@ export function combineExecutions(
           ]
         : [
             `${failedChecks} failed · ${missedWhileDead} not credited while dead · ${checkedMechanics} checks.`,
-            `${scoredPulls} of ${totalPulls} attended pulls scored; death deductions remain after resurrection.`,
+            `${scoredPulls} of ${totalPulls} attended pulls scored automatically${values.some((v) => (v.survivalOnlyPulls ?? 0) > 0) ? '; includes labelled survival-only pulls' : ''}.`,
           ],
   };
 }
@@ -283,7 +305,6 @@ export function analyzeExecution(
   selection: Selection,
 ): Analysis {
   const chosen = selectFights(report, selection);
-  validateWipeStops(report, selection);
   if (new Set(report.players.map((p) => p.id)).size !== report.players.length)
     throw new Error('Duplicate actor metadata.');
   if (!chosen.length) throw new Error('No completed boss pulls match this selection.');
@@ -316,7 +337,7 @@ export function analyzeExecution(
       const metrics = rolePulls.map((p) => p.metrics.find((m) => m.actorId === player.id)!);
       const pullReviews: ExecutionPullReview[] = rolePulls.map((p, index) => {
         const m = metrics[index],
-          window = assessmentWindow(report, p.fight, selection),
+          window = windowFor(report, p, selection),
           duration = window.endTime - p.fight.startTime;
         const common = rolesByFight.get(p.fight.id)!.get(role)!;
         const mechanics = reviewMechanics(
@@ -327,14 +348,7 @@ export function analyzeExecution(
           fightId: p.fight.id,
           window,
           role,
-          execution: pullAssessment(
-            role,
-            m,
-            mechanics,
-            duration,
-            window.confirmed,
-            common.complete,
-          ),
+          execution: pullAssessment(role, m, mechanics, duration, window.source, common.complete),
           aliveMs: m.aliveMs,
           durationMs: duration,
           deaths: m.deaths,
@@ -369,28 +383,12 @@ export function analyzeExecution(
         bossGrades.push(combineExecutions(grades, 'equal'));
       }
       const execution = combineExecutions(bossGrades, 'equal');
-      const inactive = pullReviews.filter(
-        (r) =>
-          r.execution.checkedMechanics > 0 &&
-          r.execution.reasons.includes('No recorded combat contribution.'),
-      );
-      if (inactive.length) {
-        execution.score = null;
-        execution.reasons = [
-          `No recorded combat contribution in ${inactive.length} attended pull${inactive.length === 1 ? '' : 's'}.`,
-          `${execution.scoredPulls} of ${execution.totalPulls} attended pulls scored.`,
-        ];
-      }
       const specs = [
         ...new Set(rolePulls.map((p) => p.fight.playerSpecs?.[player.id] ?? player.spec)),
       ];
       const expected = pulls.filter((p) => {
         const common = rolesByFight.get(p.fight.id)!.get(role);
-        return (
-          assessmentWindow(report, p.fight, selection).confirmed &&
-          common?.complete &&
-          common.accepted.size > 0
-        );
+        return !!common;
       });
       const rankingReason =
         execution.score === null
@@ -482,14 +480,15 @@ export function analyzeExecution(
       id: EXECUTION_MODEL_VERSION,
       name: 'Execution score',
       deathPenalty: DEATH_PENALTY,
+      deathPolicy: 'kills-and-recorded-calls',
       formula: 'mechanics-times-alive-minus-deaths',
     },
     report,
-    selection: { ...selection, excludeWipeTail: false },
+    selection: { ...selection, wipeStops: undefined, excludeWipeTail: false },
     players,
-    pulls: pulls.map(({ metrics, ...p }) => ({
+    pulls: pulls.map(({ metrics, boundaryLife, ...p }) => ({
       ...p,
-      window: assessmentWindow(report, p.fight, selection),
+      window: windowFor(report, { ...p, metrics, boundaryLife }, selection),
       evaluation: undefined,
     })),
     findings: [],
@@ -507,15 +506,15 @@ export function analyzeExecution(
     },
     methodology: {
       formula:
-        'Per pull: max(0, mechanics × time alive / 100 − 5 × recorded deaths). Equal mechanic-family budgets; dead checks remain uncredited.',
+        'Mechanics × time alive / 100 when measured; otherwise a labelled survival-only score. Fixed death deductions apply only to kills and recorded wipe calls.',
       aggregation:
-        'Duration-weighted scored pulls per boss/difficulty, then equal difficulty and boss weighting. Ordinal ranks require the same complete role selection. Unconfirmed wipes carry no score.',
+        'All completed pulls are scored automatically, weighted by assessed duration within each boss/difficulty. Difficulty contexts and bosses have equal weight. Partial attendance remains labelled.',
       limitations: [
         'Execution score measures comparable mechanic outcomes and recorded availability, not total class skill or responsibility for a wipe.',
         'DPS/HPS, damage taken, preparation and observed consumables are factual context, not score inputs.',
-        'No comparable checks means no full execution grade. Read scored pulls alongside the score. Different attendance and role exposures are not equivalent.',
-        'Wipes require a logged or explicitly manual shared stop. Nothing after that stop affects score or displayed window statistics.',
-        'The five-point death cost is an explicit policy, not proof of fault. Resurrection never erases it. This model does not claim reliable AFK detection.',
+        'Where mechanics cannot be measured uniformly, every role peer uses labelled recorded survival instead; this is not assumed perfect mechanics.',
+        'Without a recorded wipe call, a common terminal-collapse policy selects the assessment end automatically. It is an estimate, not knowledge of a voice call. No extra flat death cost applies to these wipes.',
+        'On kills and recorded-call windows, the five-point death cost remains after resurrection. No recorded contribution earns zero credit, not an AFK accusation.',
       ],
     },
   };

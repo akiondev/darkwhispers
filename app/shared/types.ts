@@ -208,6 +208,11 @@ export type TankReview = {
   grade: TankGrade;
 };
 export type PullData = {
+  /** Private cache facts used to reproduce an automatic assessment boundary. Never returned in analysis payloads. */
+  boundaryLife?: {
+    actorId: number;
+    events: { timestamp: number; type: string; feign?: boolean }[];
+  }[];
   window?: AssessmentWindow;
   fight: Fight;
   metrics: Metric[];
@@ -219,7 +224,7 @@ export type PullData = {
   evaluation?: { endTime: number; reason: 'raid-collapse' | 'boss-enrage'; excludedMs: number };
 };
 export type Selection = {
-  /** Explicit shared manual stop offsets in milliseconds from each wipe's start. */
+  /** Legacy snapshots only. New analyses ignore manual stops and select boundaries automatically. */
   wipeStops?: Record<string, number>;
   encounterId: number | null;
   difficulty: number | null;
@@ -229,8 +234,10 @@ export type Selection = {
 };
 export type AssessmentWindow = {
   endTime: number;
-  source: 'kill' | 'logged' | 'manual' | 'unconfirmed';
+  source: 'kill' | 'logged' | 'automatic' | 'manual' | 'unconfirmed';
+  /** A usable assessment window; estimated marks automatic policy rather than a recorded call. */
   confirmed: boolean;
+  estimated?: boolean;
 };
 export type CategoryScore = {
   score: number | null;
@@ -381,6 +388,8 @@ export type PlayerFacts = {
   casts: number;
 };
 export type ExecutionAssessment = {
+  scoreBasis?: 'mechanics-and-survival' | 'survival-only' | 'no-contribution' | 'mixed';
+  survivalOnlyPulls?: number;
   version: string;
   score: number | null;
   mechanicsScore: number | null;
@@ -471,6 +480,7 @@ export type Analysis = {
     id: string;
     name: string;
     deathPenalty: 5;
+    deathPolicy: 'kills-and-recorded-calls';
     formula: 'mechanics-times-alive-minus-deaths';
   };
   report: Report;
@@ -493,6 +503,8 @@ export type Analysis = {
   methodology: { formula: string; aggregation: string; limitations: string[] };
 };
 export type Job = {
+  /** Explicit repair redirect; original saved result remains unchanged. */
+  replacementId?: string;
   id: string;
   status: 'queued' | 'running' | 'complete' | 'failed';
   progress: number;

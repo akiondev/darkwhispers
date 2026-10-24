@@ -125,6 +125,11 @@ export default function CompactPlayerDetails({
           <li key={reason}>{reason}</li>
         ))}
       </ul>
+      {assessment.scoreBasis === 'survival-only' && (
+        <p className="small muted">
+          Survival-only score: shared mechanic results are not available for this assessment.
+        </p>
+      )}
       {player.rankingReason && player.score !== null && (
         <p className="small muted">{player.rankingReason}</p>
       )}
@@ -175,8 +180,10 @@ export default function CompactPlayerDetails({
               {assessment.passedChecks} / {assessment.checkedMechanics}
             </strong>
             <small className={assessment.failedChecks ? 'failed-text' : ''}>
-              {assessment.failedChecks} failed · {assessment.missedWhileDead ?? 0} not credited
-              while dead
+              {assessment.failedChecks} failed
+              {assessment.missedWhileDead
+                ? ` · ${assessment.missedWhileDead} not credited while dead`
+                : ''}
             </small>
           </div>
           <div>
@@ -261,10 +268,11 @@ export default function CompactPlayerDetails({
               <b>
                 {assessment.mechanicsScore === null ? '—' : assessment.mechanicsScore.toFixed(1)}
               </b>{' '}
-              {selected && '×'}
+              {selected && assessment.mechanicsScore !== null && '×'}
             </span>
             <span>
-              Time alive <b>{assessment.alivePercent.toFixed(1)}%</b> {selected && '/ 100'}
+              Time alive <b>{assessment.alivePercent.toFixed(1)}%</b>{' '}
+              {selected && assessment.mechanicsScore !== null && '/ 100'}
             </span>
             <span>
               {selected ? 'Base' : 'Base average'}{' '}
@@ -276,15 +284,17 @@ export default function CompactPlayerDetails({
             </span>
           </div>
           <p className="small muted">
-            Each recorded assessed death deducts five points before averaging. Battle resurrection
-            does not erase it. {assessment.scoredPulls} of {assessment.totalPulls} attended pulls
-            have comparable checks. Raw output, preparation and consumables carry no score weight.
+            Fixed death deductions apply to kills and recorded wipe-call windows, and remain after
+            resurrection. Wipes without a recorded call have no extra flat death cost.{' '}
+            {assessment.scoredPulls} of {assessment.totalPulls} attended pulls scored automatically;{' '}
+            {assessment.survivalOnlyPulls ?? 0} use survival only.
           </p>
           {!selected && (
             <p className="small muted">
               Pull scores use assessed duration weights within each boss/difficulty. Bosses and
               difficulty contexts then have equal weight. These average inputs do not directly
-              reproduce the final score. Raw statistics also include unscored pulls.
+              reproduce the final score. Automatic wipe boundaries are estimates and apply to
+              everyone equally.
             </p>
           )}
           {!selected && (

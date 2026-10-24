@@ -1,8 +1,7 @@
 import { analyze } from '../shared/analysis.js';
-import { PULL_CACHE_VERSION } from '../shared/version.js';
 import { demoData } from '../shared/demo.js';
 import { selectFights } from '../shared/report-url.js';
-import { assessmentWindow, validateWipeStops } from '../shared/windows.js';
+import { assessmentWindow, pullCacheKey } from '../shared/windows.js';
 import type { PullData, Report } from '../shared/types.js';
 import { ingestPull } from './ingest.js';
 import { ApiError, WclClient } from './wcl.js';
@@ -19,17 +18,10 @@ export async function runAnalysis(id: string, store: Store, client: WclClient): 
       const demo = demoData();
       report = demo.report;
       pulls = demo.pulls;
-      if (Object.keys(job.selection.wipeStops ?? {}).length)
-        throw new ApiError(
-          'DEMO_FIXED_WINDOWS',
-          'The synthetic demo uses fixed example windows. Manual wipe stops are available for live reports.',
-          422,
-        );
     } else {
       report = (await store.getReport(job.reportCode)) ?? (await client.report(job.reportCode));
       if (report.wipeCalls === undefined)
         report.wipeCalls = await client.wipeCalls(report.code, report.fights);
-      validateWipeStops(report, job.selection);
       await store.putReport(report);
       const selected = selectFights(report, job.selection);
       if (job.selection.fightIds && new Set(job.selection.fightIds).size !== selected.length)
@@ -47,10 +39,7 @@ export async function runAnalysis(id: string, store: Store, client: WclClient): 
           422,
         );
       const windows = selected.map((f) => assessmentWindow(report, f, job.selection));
-      const keys = selected.map(
-        (f, index) =>
-          `${report.code}:${report.revision}:${f.id}:${f.startTime}:${f.endTime}:${PULL_CACHE_VERSION}:${windows[index].source}:${windows[index].endTime}`,
-      );
+      const keys = selected.map((f, index) => pullCacheKey(report, f, windows[index]));
       const cached = await Promise.all(keys.map((key) => store.getPull(key)));
       const abilities = cached.every(Boolean)
         ? new Map<number, string>()

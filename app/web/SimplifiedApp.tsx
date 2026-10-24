@@ -30,7 +30,6 @@ import { analysisLink, sharedAnalysisId } from '../shared/share.js';
 import ShareLink from './ShareLink.js';
 import RecentAnalyses from './RecentAnalyses.js';
 import CompactPlayerDetails from './CompactPlayerDetails.js';
-import WipeStopEditor from './WipeStopEditor.js';
 import { windowLabel } from '../shared/windows.js';
 import { duration, RoleIcon, Score } from './presentation.js';
 
@@ -48,7 +47,7 @@ const roleName = (role: Role) =>
   ({ dps: 'DPS', healer: 'Healers', tank: 'Tanks', unknown: 'Role not recorded' })[role];
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 export const currentModel = (analysis: SavedAnalysis): analysis is Analysis =>
-  'model' in analysis && analysis.model?.id === 'execution/v2';
+  'model' in analysis && analysis.model?.id === 'execution/v3';
 async function api<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -337,7 +336,8 @@ export default function App() {
     setPlayer(null);
     setMethod(false);
     setPollPaused(false);
-    const frozen = { ...selection, excludeWipeTail: false, fightIds: chosen.map((f) => f.id) };
+    const { wipeStops: _legacyStops, ...automatic } = selection;
+    const frozen = { ...automatic, excludeWipeTail: false, fightIds: chosen.map((f) => f.id) };
     try {
       const created = await api<{ id: string; status: Job['status'] }>(
         '/api/analyses',
@@ -601,8 +601,7 @@ export default function App() {
                   </div>
                 </div>
                 <p className="small muted">
-                  Wipes need a logged call or a shared manual stop (m:ss). Manual stops apply to
-                  everyone and are saved with the analysis.
+                  Kills and wipes are assessed automatically. No manual stop times are needed.
                 </p>
                 {selectFights(report, { ...selection, fightIds: null }).map((f) => (
                   <div className="pull-config" key={f.id}>
@@ -630,20 +629,6 @@ export default function App() {
                         {f.kill ? 'Kill' : 'Wipe'} · {duration(f.endTime - f.startTime)}
                       </span>
                     </label>
-                    {!f.kill && report.source !== 'demo' && (
-                      <WipeStopEditor
-                        fight={f}
-                        value={selection.wipeStops?.[String(f.id)]}
-                        logged={report.wipeCalls?.[f.id]}
-                        disabled={busy}
-                        onChange={(value) => {
-                          const stops = { ...selection.wipeStops };
-                          if (value === undefined) delete stops[String(f.id)];
-                          else stops[String(f.id)] = value;
-                          change({ wipeStops: stops });
-                        }}
-                      />
-                    )}
                   </div>
                 ))}
               </div>
@@ -713,36 +698,11 @@ export default function App() {
             </div>
             {fresh ? (
               <section className="panel ranking" aria-label="Separate role rankings">
-                {fresh.pulls.some((p) => p.window?.source === 'unconfirmed') && (
-                  <div className="notice">
-                    <div>
-                      <strong>
-                        {fresh.pulls.filter((p) => p.window?.source === 'unconfirmed').length} wipes
-                        need a shared stop time
-                      </strong>
-                      <p>
-                        Statistics are available. These wipes carry no score until a logged or
-                        manual stop is available.
-                      </p>
-                      <button
-                        className="text-button"
-                        onClick={() => {
-                          setPullPicker(true);
-                          document
-                            .querySelector('.selection-panel')
-                            ?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                      >
-                        Set wipe times
-                      </button>
-                    </div>
-                  </div>
-                )}
                 <div className="section-heading">
                   <div>
                     <h3>Player standings</h3>
                     <p className="ranking-caption">
-                      Mechanics × time alive · −5 per death, retained after resurrection
+                      Automatic kill & wipe scoring · measured mechanics and survival
                     </p>
                   </div>
                   <div className="table-controls">
@@ -818,6 +778,9 @@ export default function App() {
                             </td>
                             <td>
                               <Score value={p.score} />
+                              {p.execution?.scoreBasis === 'survival-only' && (
+                                <small className="cell-sub">Survival only</small>
+                              )}
                             </td>
                             <td className="mechanic-cell">
                               {p.execution.checkedMechanics ? (
@@ -836,7 +799,11 @@ export default function App() {
                                   </small>
                                 </>
                               ) : (
-                                <span className="muted">No checks</span>
+                                <span className="muted">
+                                  {p.execution.scoreBasis === 'no-contribution'
+                                    ? 'No actions'
+                                    : 'Survival only'}
+                                </span>
                               )}
                             </td>
                             <td className="detail-column">
@@ -929,34 +896,32 @@ export default function App() {
         <Modal title="How scoring works" onClose={() => setMethod(false)}>
           <div className="method-simple">
             <p>
-              <strong>Mechanics × time alive · five points per death</strong>
+              <strong>Automatic scores for kills and wipes</strong>
             </p>
             <p>
-              Score = max(0, <b>mechanics × time alive / 100 − 5 × deaths</b>). Mechanics and time
-              alive use a 0–100 scale.
+              When measured, the base is <b>mechanics × time alive / 100</b>. If shared mechanics
+              cannot be measured, the pull uses a labelled survival-only base. No mechanic success
+              is invented.
             </p>
             <p>
-              Each verified mechanic family has an equal budget. Applicable checks remain in the
-              denominator while dead and cannot earn a pass. The five-point death deduction remains
-              after battle resurrection; accepting a resurrection adds no extra penalty.
+              Each reviewed mechanic family has an equal budget. Applicable checks remain uncredited
+              while dead. Kills and recorded wipe-call windows deduct five points per death,
+              retained after resurrection. Unmarked wipes have no extra flat death deduction.
             </p>
             <p>
-              Wipes stop at the logged call or an explicitly manual shared time. Without a stop they
-              show statistics only. Pending checks and all later events are excluded for everyone.
+              A recorded wipe call is used automatically. Otherwise a common terminal-collapse
+              policy selects the assessment end. This is an estimate, not knowledge of a voice call.
+              Every completed pull contributes without manual setup.
             </p>
             <p>
               Pull scores are weighted by assessed duration within each boss/difficulty, then bosses
               and difficulty contexts have equal weight. Ordinal ranks require the same complete
-              role selection. DPS, healers and tanks stay separate; partial results remain visible
-              without a misleading rank.
+              role selection. DPS, healers and tanks stay separate; partial attendance is labelled.
             </p>
             <p>
-              Raw DPS/HPS, damage taken, preparation and item usage do not add or deduct score
-              points. Execution score is not a complete grade of raid contribution or class skill.
-            </p>
-            <p>
-              No comparable mechanic checks means no combined score. Missing data never becomes a
-              free success or neutral points.
+              Raw DPS/HPS, intake, preparation and items carry no score weight. Execution score is
+              not a complete class-skill or AFK assessment. No recorded contribution earns zero
+              credit.
             </p>
             <details>
               <summary>Data & references</summary>

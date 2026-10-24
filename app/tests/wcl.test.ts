@@ -192,8 +192,12 @@ test('synthetic future-zone reports import raw facts and all roles without inven
     );
     for (const player of result.players) {
       assert.equal(player.durationMs, 100000);
-      assert.equal(player.score, null, 'An uncatalogued boss has facts, not a fabricated grade');
-      assert.equal(player.rank, null);
+      assert.equal(
+        player.score,
+        player.execution.alivePercent,
+        'Unknown mechanics use labelled measured survival, not assumed mechanic points',
+      );
+      assert.equal(player.execution.scoreBasis, 'survival-only');
       assert.equal(player.execution.mechanicsScore, null);
       assert.equal(player.execution.checkedMechanics, 0);
       assert.equal(player.pullReviews[0].facts.casts, 1);

@@ -138,6 +138,7 @@ export async function ingestPull(
   abilities: Map<number, string>,
   step: (message: string) => Promise<void>,
   requestedWindow?: AssessmentWindow,
+  boundaryLife?: PullData['boundaryLife'],
 ): Promise<PullData> {
   const originalFight = fight;
   const window =
@@ -149,6 +150,74 @@ export async function ingestPull(
       fightIds: null,
       excludeWipeTail: false,
     });
+  if (window.source === 'automatic' && boundaryLife === undefined) {
+    const timeline: Record<string, any>[] = [];
+    const fullLife = new Map<number, LifeEvent[]>();
+    const filter = [
+      'type = "combatantinfo"',
+      '(type = "cast" and source.type = "player")',
+      ...encounterFilter(fight, abilities),
+      'type = "death"',
+      'type = "resurrect"',
+      'type = "interrupt"',
+      'type = "dispel"',
+      'type = "steal"',
+    ].join(' or ');
+    await step('Selecting the automatic wipe assessment window');
+    await client.events(
+      report.code,
+      fight,
+      'All',
+      (events) => {
+        if (timeline.length + events.length > 250000)
+          throw new ApiError(
+            'MECHANIC_TIMELINE_LIMIT',
+            'This pull exceeds the bounded automatic timeline.',
+            422,
+          );
+        for (const e of events) {
+          if (typeof e.timestamp !== 'number' || !Number.isFinite(e.timestamp))
+            throw new ApiError(
+              'WCL_INVALID_EVENTS',
+              'An invalid event timestamp stopped the import.',
+            );
+          timeline.push(e);
+          const kind = recordedLifeEvent(e);
+          if (
+            kind &&
+            fight.friendlyPlayers.includes(e.targetID) &&
+            e.timestamp >= fight.startTime &&
+            e.timestamp < fight.endTime
+          ) {
+            const stream = fullLife.get(e.targetID) ?? [];
+            stream.push({ timestamp: e.timestamp, type: kind });
+            fullLife.set(e.targetID, stream);
+          }
+        }
+      },
+      filter,
+      { includeResources: false },
+    );
+    const automatic = assessmentWindow(
+      report,
+      fight,
+      { encounterId: null, difficulty: null, mode: 'all', fightIds: null, excludeWipeTail: false },
+      fullLife,
+    );
+    const replay = {
+      tables: (code: string, f: Fight) => client.tables(code, f),
+      events: async (...args: Parameters<WclClient['events']>) => args[3](timeline),
+    } as unknown as WclClient;
+    return ingestPull(
+      replay,
+      report,
+      fight,
+      abilities,
+      step,
+      automatic,
+      [...fullLife].map(([actorId, events]) => ({ actorId, events })),
+    );
+  }
   if (window.endTime <= fight.startTime || window.endTime > fight.endTime)
     throw new Error('Invalid assessment window.');
   fight = { ...fight, endTime: window.endTime };
@@ -380,6 +449,7 @@ export async function ingestPull(
   return {
     fight: originalFight,
     window,
+    boundaryLife,
     metrics: [...metrics.values()],
     complete: true,
     warnings: mechanic.warnings,

@@ -9,7 +9,6 @@ import { QueueFullError } from './store.js';
 import { ApiError, WclClient } from './wcl.js';
 import { VERSION } from '../shared/version.js';
 import { clientAddress } from './client-ip.js';
-import { validateWipeStops } from '../shared/windows.js';
 const selectionSchema = z
   .object({
     wipeStops: z
@@ -162,7 +161,8 @@ export async function createApi(
         })
         .strict()
         .parse(req.body);
-      const selection = { ...input.selection, excludeWipeTail: false } as Selection;
+      const { wipeStops: _legacyStops, ...automaticSelection } = input.selection;
+      const selection = { ...automaticSelection, excludeWipeTail: false } as Selection;
       if (!input.demo && !client.configured)
         throw new ApiError(
           'WCL_NOT_CONFIGURED',
@@ -182,15 +182,6 @@ export async function createApi(
       if (!report) {
         report = await client.report(input.reportCode);
         await store.putReport(report);
-      }
-      try {
-        validateWipeStops(report, selection);
-      } catch (error) {
-        throw new ApiError(
-          'INVALID_WIPE_STOP',
-          error instanceof Error ? error.message : 'Invalid manual wipe stop.',
-          422,
-        );
       }
       const selected = selectFights(report, selection);
       if (selection.fightIds && new Set(selection.fightIds).size !== selected.length)
@@ -227,13 +218,27 @@ export async function createApi(
       .string()
       .uuid()
       .parse((req.params as { id: string }).id);
-    const job = await store.getJob(id);
+    let job = await store.getJob(id);
     if (!job)
       throw new ApiError(
         'ANALYSIS_NOT_FOUND',
         'This analysis was not found or its seven-day retention period expired.',
         404,
       );
+    const seen = new Set([id]);
+    for (let depth = 0; job.replacementId && depth < 5; depth++) {
+      if (seen.has(job.replacementId))
+        throw new ApiError('INVALID_REPLACEMENT', 'This repaired analysis link is invalid.');
+      seen.add(job.replacementId);
+      const next = await store.getJob(job.replacementId);
+      if (!next) break;
+      if (next.reportCode !== job.reportCode)
+        throw new ApiError(
+          'INVALID_REPLACEMENT',
+          'This repaired analysis refers to a different report.',
+        );
+      job = next;
+    }
     return job;
   });
   return app;
