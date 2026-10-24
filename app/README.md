@@ -32,6 +32,14 @@ This is an **execution score**, not proof of total skill or responsibility for a
 
 The [S2 encounter inventory](docs/midnight-s2-rules.md) remains the source of verified mechanic identities and context. Its older 0.6 scoring/weight descriptions are historical; the execution model above defines current scoring. New event variants fail closed rather than becoming guessed player mistakes.
 
+## New reports and future encounters
+
+Imports are independent of the two acceptance-report codes, guilds, player names and raid-zone names. Report metadata supplies the encounters, roster, fight boundaries, difficulty and actual per-pull specs. New reports for supported encounters use the existing model without adding their report IDs to the code.
+
+An encounter outside the mechanic catalogue still imports output, intake, recorded survival, utility and available preparation facts. It receives no invented mechanic checks or execution score. New boss mechanics, difficulty variants and specializations require verified interpretation before they can participate in comparable scoring; a stable GraphQL schema alone does not establish what a mechanic means.
+
+The current service accepts up to 150 selected completed boss pulls per analysis. Larger reports can be reviewed in selected subsets. It also bounds individual event timelines and API usage, and clearly rejects incomplete imports. Client Credentials can read only data accessible through WCL's public client API; private reports need a separate user-authorization feature. Ongoing pulls and trash are excluded. Breaking upstream API changes cannot be guaranteed compatible without maintenance.
+
 ## Saved links and recent reports
 
 Each analysis has an opaque `/?analysis=<uuid>` link. Refreshes resume the same job; readers retrieve the stored result without enqueuing work or calling WCL. Completed snapshots are immutable and expire after seven days. Updating the scoring model requires explicit reanalysis and creates a new result/link.

@@ -69,6 +69,126 @@ test('live-compatible report metadata uses fight specs without an unbounded play
   assert.equal(report.players[0].spec, 'Mixed');
   assert.equal(report.players[1].role, 'tank');
 });
+test('synthetic future-zone reports import raw facts and all roles without inventing unknown-boss scores', async () => {
+  for (const code of ['Z9y8X7w6V5u4T3s2', 'a1B2c3D4e5F6g7H8']) {
+    const operations = new Set<string>();
+    const client = new WclClient('synthetic-client', 'synthetic-secret', async (input, init) => {
+      if (String(input).includes('/oauth/'))
+        return response({ access_token: 'T', expires_in: 3600 });
+      const { query, variables } = JSON.parse(String(init?.body));
+      assert.equal(variables.code, code, 'Every API request uses the submitted report code');
+      const operation = /^query (\w+)/.exec(query)?.[1];
+      assert.ok(operation);
+      operations.add(operation);
+      const payloads: Record<string, unknown> = {
+        Report: {
+          code,
+          title: 'Synthetic future-zone compatibility fixture; not live raid data',
+          startTime: 1,
+          endTime: 102000,
+          revision: 1,
+          visibility: 'public',
+          zone: { name: 'Synthetic Uncatalogued Future Raid' },
+          masterData: {
+            actors: [
+              { id: 21, name: 'SyntheticTank', type: 'Player', subType: 'Warrior' },
+              { id: 22, name: 'SyntheticHealer', type: 'Player', subType: 'Druid' },
+              { id: 23, name: 'SyntheticDps', type: 'Player', subType: 'Mage' },
+            ],
+          },
+          fights: [
+            {
+              id: 7,
+              encounterID: 990001,
+              name: 'Synthetic Uncatalogued Boss',
+              difficulty: 4,
+              startTime: 1000,
+              endTime: 101000,
+              kill: false,
+              inProgress: false,
+              friendlyPlayers: [21, 22, 23],
+              friendlySpecs: ['Protection', 'Restoration', 'Fire'],
+            },
+          ],
+        },
+        Abilities: { masterData: { abilities: [] } },
+        Tables: {
+          damage: {
+            entries: [
+              { id: 21, total: 12000 },
+              { id: 23, total: 90000 },
+            ],
+          },
+          healing: { entries: [{ id: 22, total: 100000 }] },
+          taken: {
+            entries: [
+              { id: 21, total: 160000 },
+              { id: 23, total: 25000 },
+            ],
+          },
+        },
+        Events: {
+          events: {
+            data: [
+              { type: 'cast', timestamp: 2000, sourceID: 21, abilityGameID: 990002 },
+              { type: 'cast', timestamp: 2000, sourceID: 22, abilityGameID: 990003 },
+              { type: 'cast', timestamp: 2000, sourceID: 23, abilityGameID: 990004 },
+              { type: 'death', timestamp: 21000, targetID: 21 },
+              { type: 'resurrect', timestamp: 41000, targetID: 21 },
+              { type: 'death', timestamp: 90000, targetID: 23 },
+            ],
+            nextPageTimestamp: null,
+          },
+        },
+      };
+      const payload = payloads[operation];
+      assert.ok(payload, `Unexpected GraphQL operation: ${operation}`);
+      return response({ data: { reportData: { report: payload } } });
+    });
+    const store = new MemoryStore();
+    const job = await store.createJob(
+      code,
+      {
+        encounterId: null,
+        difficulty: null,
+        mode: 'all',
+        fightIds: null,
+        excludeWipeTail: false,
+      },
+      false,
+    );
+    await runAnalysis(job.id, store, client);
+    const finished = (await store.getJob(job.id))!;
+    assert.equal(finished.status, 'complete', finished.error);
+    const result = finished.result!;
+    assert.equal(result.report.code, code);
+    assert.equal(result.report.source, 'warcraftlogs');
+    assert.equal(result.report.zone, 'Synthetic Uncatalogued Future Raid');
+    assert.equal(result.pulls[0].fight.encounterId, 990001);
+    assert.deepEqual([...operations].sort(), ['Abilities', 'Events', 'Report', 'Tables']);
+    assert.deepEqual(result.players.map((p) => p.role).sort(), ['dps', 'healer', 'tank']);
+    const tank = result.players.find((p) => p.id === 21)!;
+    const healer = result.players.find((p) => p.id === 22)!;
+    const dps = result.players.find((p) => p.id === 23)!;
+    assert.deepEqual(
+      [tank.damage, tank.damageTaken, tank.aliveMs, tank.deaths],
+      [12000, 160000, 80000, 1],
+    );
+    assert.deepEqual([healer.healing, healer.aliveMs, healer.deaths], [100000, 100000, 0]);
+    assert.deepEqual(
+      [dps.damage, dps.damageTaken, dps.aliveMs, dps.deaths],
+      [90000, 25000, 89000, 1],
+    );
+    for (const player of result.players) {
+      assert.equal(player.durationMs, 100000);
+      assert.equal(player.score, null, 'An uncatalogued boss has facts, not a fabricated grade');
+      assert.equal(player.rank, null);
+      assert.equal(player.execution.mechanicsScore, null);
+      assert.equal(player.execution.checkedMechanics, 0);
+      assert.equal(player.pullReviews[0].facts.casts, 1);
+    }
+  }
+});
 test('OAuth refresh is single-flight and upstream concurrency is bounded at three', async () => {
   let auth = 0,
     active = 0,
