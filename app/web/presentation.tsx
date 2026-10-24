@@ -14,8 +14,8 @@ export function Score({ value }: { value: number | null }) {
       className={`score ${scoreBand(value)}`}
       title={
         value === null
-          ? 'Not ranked in this selection. Open player details for the recorded reason.'
-          : 'Weighted mechanics, output, survival and preparation. Open player details for the calculation and evidence.'
+          ? 'Score unavailable. Open player details for the recorded reason.'
+          : 'Weighted mechanic completion, output and survival. Open player details for the calculation and evidence.'
       }
     >
       {scoreLabel(value)}

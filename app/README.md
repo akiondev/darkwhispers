@@ -1,4 +1,4 @@
-# DarkWhispers App · 0.11.0
+# DarkWhispers App · 0.12.0
 
 A compact Warcraft Logs raid review app using React, TypeScript, Vite, Fastify, PostgreSQL 16 and pg-boss. API and worker are isolated services. No paid services or generated grades.
 
@@ -10,13 +10,16 @@ Live imports require `WCL_CLIENT_ID` and `WCL_CLIENT_SECRET` on the backend only
 
 ## Score and UI
 
-The fixed composite combines reviewed mechanics, report-relative DPS/HPS, full-encounter survival and verified flask/food preparation. Weights are DPS 45/30/20/5, healer 45/20/30/5 and tank 55/10/30/5. No generic damage-taken penalty. Output compares same-role peers in the same pull for both kills and wipes; it is not a spec-normalized global parse. See [the model](docs/execution-model.md) for exact formula and limitations.
+One numeric 0-100 score combines verified mechanic completion, recorded DPS/HPS contribution and full-encounter survival. Weights are DPS 50/30/20, healer 50/20/30 and tank 60/10/30. Checks while dead earn no completion credit but are not labelled mechanic failures. No generic intake penalty or flat death charge. See [the model](docs/execution-model.md).
 
-DPS, healer and tank have separate standings. Role changes produce separate rows. Missing evidence retains fixed-weight bounds and a preliminary interval, never an invented midpoint, perfect grade or survival-only replacement. Partial attendance is labelled. Player details show component contributions, observed mistakes/deaths and Warcraft Logs links. Correct full death/resurrection intervals are preserved, including intentional wipe deaths.
+Scope is shared by the same-role group in each pull. Unsupported rules are excluded for everyone in that group; without mechanics use output/survival (DPS 60/40, healer 40/60, tank 25/75). Valid pulls do not become preliminary because another pull lacks a mechanic check or food snapshot. Preparation and item use stay outside the score.
+
+DPS, healer and tank have separate standings. Role changes produce separate rows. Full death/resurrection intervals remain unchanged. Only genuinely invalid life data, absent contribution or essential import errors prevent a score. Details show component arithmetic, scope and WCL evidence links. Output is report-relative, not spec-normalized global ranking.
 
 ## New reports and compatibility
 
-Report IDs, guilds and player names are not allowlisted. Standard output and survival facts work across supported API reports. Verified mechanics require versioned encounter rules; future unknown bosses cannot receive fabricated mechanical grades. Preparation uses positive verified snapshot evidence; an unknown buff does not prove missing preparation.
+Report IDs, guilds and player names are not allowlisted. Standard output and survival facts work across supported API reports. New boss mechanics need validated rules; the common two-component fallback applies until then. Compare within the measured report and role, with participation and scope visible.
+
 Up to 150 completed boss pulls can be selected per analysis; larger reports can be reviewed in subsets. Individual timelines, pagination, queue capacity and API retries/budget are bounded. Ongoing pulls and trash are excluded. Private or archived reports need permissions beyond this public client feature.
 
 ## Performance, sharing and integrity

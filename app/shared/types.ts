@@ -427,24 +427,20 @@ export type ExecutionAssessment = {
   totalPulls: number;
   reasons: string[];
 };
-export type CompositeKey = 'mechanics' | 'output' | 'survival' | 'preparation';
+export type CompositeKey = 'mechanics' | 'output' | 'survival';
 export type CompositeComponent = {
   score: number | null;
   weight: number;
-  /** Verified earned points, equal to lower. Never an inferred midpoint. */
+  /** Earned weighted points. Missing required input blocks the total rather than inventing a number. */
   points: number;
-  /** Weighted points, not component percentages. */
-  lower: number;
-  upper: number;
-  coverage: number;
   reason: string;
   basis?: string;
 };
 export type CompositeAssessment = {
-  lower: number;
-  upper: number;
-  coverage: number;
+  role: Role;
+  score: number | null;
   complete: boolean;
+  scope: 'mechanics-output-survival' | 'output-survival' | 'mixed' | 'unavailable';
   components: Record<CompositeKey, CompositeComponent>;
 };
 export type ExecutionMechanic = {

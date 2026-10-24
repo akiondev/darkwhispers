@@ -5,44 +5,32 @@ export const componentNames = {
   mechanics: 'Mechanics',
   output: 'Output',
   survival: 'Survival',
-  preparation: 'Preparation',
 } as const;
-export const componentOrder = ['mechanics', 'output', 'survival', 'preparation'] as const;
+export const componentOrder = ['mechanics', 'output', 'survival'] as const;
 const number = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
 export const points = (value: number) => number.format(value);
 
 export function CompositeScore({ assessment }: { assessment: ExecutionAssessment }) {
-  const composite = assessment.composite;
-  if (assessment.score !== null || !composite) return <Score value={assessment.score} />;
-  return (
-    <span
-      className="score-range"
-      title="Possible total score range. Some required evidence is incomplete; no missing weight is redistributed."
-    >
-      <span>
-        {Math.floor(composite.lower)}–{Math.ceil(composite.upper)}
-      </span>
-      <small>Preliminary</small>
-    </span>
-  );
+  return <Score value={assessment.score} />;
 }
 
 export function ScoreBreakdown({ assessment }: { assessment: ExecutionAssessment }) {
   const composite = assessment.composite;
   if (!composite) return null;
+  const included = componentOrder.filter((key) => composite.components[key].weight > 0);
   return (
     <section className="composite-breakdown" aria-label="Score breakdown">
       <div className="section-heading">
         <h4>How this score adds up</h4>
-        <span className="small muted">Fixed weights for this role</span>
+        <span className="small muted">Points contributing to this score</span>
       </div>
-      <div className="component-grid">
-        {componentOrder.map((key) => {
+      <div className={`component-grid component-count-${included.length}`}>
+        {included.map((key) => {
           const component = composite.components[key];
           const complete = component.score !== null;
           const explanation =
             key === 'mechanics' && assessment.checkedMechanics > 0
-              ? `${assessment.passedChecks} verified clean checks, ${assessment.failedChecks} failed checks.${assessment.missedWhileDead ? ` ${assessment.missedWhileDead} checks could not be judged while dead.` : ''}`
+              ? `${assessment.passedChecks} completed, ${assessment.failedChecks} failed.${assessment.missedWhileDead ? ` ${assessment.missedWhileDead} not completed while dead; these are not mechanic failures.` : ''}`
               : key === 'survival' && complete
                 ? `${points(assessment.alivePercent)}% of full recorded time alive. ${assessment.deaths ?? 0} recorded deaths; resurrections do not erase earlier dead time.`
                 : component.reason;
@@ -50,15 +38,13 @@ export function ScoreBreakdown({ assessment }: { assessment: ExecutionAssessment
             <div className={`component-card component-${key}`} key={key}>
               <span>{componentNames[key]}</span>
               <strong>
-                {complete
-                  ? points(component.points)
-                  : `${points(component.lower)}–${points(component.upper)}`}
+                {complete ? points(component.points) : '—'}
                 <small> / {points(component.weight * 100)}</small>
               </strong>
               <div className="component-track" aria-hidden="true">
                 <i
                   style={{
-                    width: `${component.weight ? (100 * component.lower) / (component.weight * 100) : 0}%`,
+                    width: `${complete ? component.score : 0}%`,
                   }}
                 />
               </div>
@@ -71,25 +57,33 @@ export function ScoreBreakdown({ assessment }: { assessment: ExecutionAssessment
         className="composite-equation"
         title="Displayed points are rounded. The total uses full precision."
       >
-        {componentOrder.map((key, index) => {
+        {included.map((key, index) => {
           const component = composite.components[key];
           return (
             <span key={key}>
               {index > 0 && <b> + </b>}
-              {component.score !== null
-                ? points(component.points)
-                : `[${points(component.lower)}–${points(component.upper)}]`}
+              {component.score !== null ? points(component.points) : '—'}
             </span>
           );
         })}
         <b> = </b>
         <CompositeScore assessment={assessment} />
       </p>
-      {!composite.complete && (
+      {composite.components.mechanics.weight === 0 && (
         <p className="small muted">
-          This is a possible range, not an estimated score. Missing evidence cannot earn full
-          points.
+          No comparable mechanic checks are scored for this selection. Output and survival use the
+          same fallback weights for everyone in the same pull and role.
         </p>
+      )}
+      {composite.scope === 'mixed' && (
+        <p className="small muted">
+          Each pull is scored first, then its points are weighted by full encounter duration. Some
+          pulls use output and survival only, so the maximum weights above are averages too.
+          Recorded time alive remains the actual full-timeline percentage.
+        </p>
+      )}
+      {assessment.score === null && (
+        <p className="score-unavailable">Score unavailable: {assessment.reasons.join(' ')}</p>
       )}
     </section>
   );

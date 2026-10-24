@@ -141,6 +141,10 @@ export function demoData(): { report: Report; pulls: PullData[] } {
               requiredForScore: true,
               opportunities,
               failures,
+              missedWhileDead: Math.min(
+                opportunities - failures,
+                Math.floor((opportunities * deadMs) / duration),
+              ),
               unknown: 0,
               observed: failures,
               detail:

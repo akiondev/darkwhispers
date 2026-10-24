@@ -186,20 +186,23 @@ test('synthetic future-zone reports import raw facts and all roles without inven
     );
     for (const player of result.players) {
       assert.equal(player.durationMs, 100000);
-      assert.equal(
-        player.score,
-        null,
-        'Unknown mechanics cannot become a complete survival-only composite',
-      );
+      const expectedScore = player.role === 'dps' ? 95.6 : player.role === 'healer' ? 100 : 85;
+      assert.ok(Math.abs(player.score! - expectedScore) < 1e-8);
       assert.equal(player.execution.scoreBasis, 'composite');
       const composite = player.execution.composite!;
       assert.equal(composite.components.survival.score, player.execution.alivePercent);
       assert.equal(composite.components.mechanics.score, null);
-      assert.equal(composite.components.output.score, null, 'Each role has only one participant');
-      assert.equal(composite.components.preparation.score, null);
-      assert.equal(composite.lower, composite.components.survival.points);
-      assert.ok(composite.upper > composite.lower);
-      assert.equal(player.roleRank, null);
+      assert.equal(
+        composite.components.output.score,
+        100,
+        'Each role has one positive contributor',
+      );
+      assert.equal(composite.components.mechanics.weight, 0);
+      assert.ok(composite.components.output.weight > 0, 'Never reduce this to survival-only');
+      assert.equal(composite.scope, 'output-survival');
+      assert.equal(composite.complete, true);
+      assert.ok(!('preparation' in composite.components));
+      assert.equal(player.roleRank, null, 'A sole role participant has no peer rank');
       assert.equal(player.execution.mechanicsScore, null);
       assert.equal(player.execution.checkedMechanics, 0);
       assert.equal(player.pullReviews[0].facts.casts, 1);

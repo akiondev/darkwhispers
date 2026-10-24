@@ -56,8 +56,8 @@ test('the labelled demo uses the composite model without pretending to be a real
   assert.equal(result.report.source, 'demo');
   assert.equal(result.players.length, 20);
   assert.ok(result.warnings.some((w) => /synthetic|demo/i.test(w)));
-  assert.equal(result.model.id, 'composite/v1');
-  assert.ok(result.players.every((p) => p.execution.version === 'composite/v1'));
+  assert.equal(result.model.id, 'composite/v2');
+  assert.ok(result.players.every((p) => p.execution.version === 'composite/v2'));
   assert.ok(result.players.every((p) => p.evidence.every((e) => e.url === null)));
   assert.ok(
     result.pulls.every((p) => !('metrics' in p)),
@@ -79,8 +79,9 @@ test('ranking is deterministic and separates role ordinals instead of comparing 
   assert.ok(first.players.every((p) => p.rank === p.roleRank));
   const tank = first.players.find((p) => p.role === 'tank')!;
   assert.equal(tank.execution.composite!.components.survival.score, 100);
-  assert.equal(tank.execution.composite!.components.output.score, null);
-  assert.equal(tank.score, null, 'A single tank is not its own perfect output benchmark');
+  assert.equal(tank.execution.composite!.components.output.score, 100);
+  assert.equal(tank.score, 100, 'A sole positive contributor has the whole measured role output');
+  assert.equal(tank.roleRank, null, 'A sole contributor has no peer rank');
   const peers = first.players.filter((p) => p.role === 'dps');
   assert.ok(peers.every((p) => p.roleRank === 1 && p.rolePeers === 2));
 });
@@ -249,7 +250,11 @@ test('complete composite has the correct colour, and score rounding never create
   const { report, pull } = fixture();
   const result = analyze(report, [pull], selection);
   assert.ok(result.players.filter((p) => p.role === 'dps').every((p) => p.score === 100));
-  assert.ok(result.players.filter((p) => p.role !== 'dps').every((p) => p.score === null));
+  assert.ok(
+    result.players
+      .filter((p) => p.role !== 'dps')
+      .every((p) => p.score === 100 && p.roleRank === null),
+  );
   assert.equal(scoreBand(100, false), 'perfect');
   assert.equal(scoreBand(100, true), 'provisional');
   assert.equal(scoreBand(99.999), 'pink');

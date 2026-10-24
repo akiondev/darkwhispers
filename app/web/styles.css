@@ -2257,37 +2257,6 @@ footer a {
   font-weight: 600;
   color: #e6d8e7;
 }
-.score-range {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 4px;
-  white-space: nowrap;
-  color: #c1b4cc;
-}
-.score-range > span {
-  font-size: 22px;
-  font-weight: 650;
-  letter-spacing: -0.7px;
-  line-height: 1.15;
-}
-.score-range > small {
-  font-size: 10px;
-  letter-spacing: 0.1px;
-  font-weight: 400;
-  color: #b09cb9;
-}
-.player-score .score-range > span {
-  font-size: 34px;
-}
-.player-score .score-range > small {
-  text-align: right;
-}
-.role-scores .score-range > span {
-  font-size: 16px;
-}
-.role-scores .score-range > small {
-  font-size: 9px;
-}
 .composite-breakdown {
   margin: 24px 0 22px;
 }
@@ -2298,9 +2267,19 @@ footer a {
 }
 .component-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 13px;
+}
+.component-count-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.score-unavailable {
+  border-left: 2px solid #bd738d;
+  padding: 8px 12px;
+  color: #d7b7c5;
+  font-size: 12px;
+  line-height: 1.6;
 }
 .component-card {
   border: 1px solid #493047;
@@ -2351,9 +2330,6 @@ footer a {
 .component-survival .component-track > i {
   background: #7eb6a6;
 }
-.component-preparation .component-track > i {
-  background: #baa36d;
-}
 .composite-equation {
   display: flex;
   align-items: center;
@@ -2372,15 +2348,6 @@ footer a {
 .composite-equation .score {
   font-size: 22px;
   margin-left: 4px;
-}
-.composite-equation .score-range {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 6px;
-  margin-left: 4px;
-}
-.composite-equation .score-range > span {
-  font-size: 20px;
 }
 .mechanic-review {
   border-top: 1px solid #453046;
@@ -2466,9 +2433,6 @@ footer a {
   .composite-ranking .score {
     font-size: 22px;
   }
-  .composite-ranking .score-range > span {
-    font-size: 20px;
-  }
   .composite-ranking .cell-sub {
     font-size: 10px;
   }
@@ -2480,6 +2444,7 @@ footer a {
   }
   .component-grid {
     gap: 8px;
+    grid-template-columns: minmax(0, 1fr);
   }
   .component-card {
     padding: 12px;
@@ -2497,9 +2462,6 @@ footer a {
   .composite-breakdown h4,
   .mechanic-review h4 {
     font-size: 13px;
-  }
-  .player-score .score-range > span {
-    font-size: 26px;
   }
   .mechanic-checks > div {
     flex-wrap: wrap;

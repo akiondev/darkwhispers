@@ -47,7 +47,7 @@ const roleName = (role: Role) =>
   ({ dps: 'DPS', healer: 'Healers', tank: 'Tanks', unknown: 'Role not recorded' })[role];
 const formatOutput = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 export const currentModel = (analysis: SavedAnalysis): analysis is Analysis =>
-  'model' in analysis && analysis.model?.id === 'composite/v1';
+  'model' in analysis && analysis.model?.id === 'composite/v2';
 async function api<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -118,8 +118,8 @@ function LegacyResults({ analysis }: { analysis: LegacyAnalysis }) {
     <section className="panel legacy-results" aria-label="Previous model results">
       <h3>Saved results</h3>
       <p className="muted">
-        These saved scores use a previous model. Reanalyze to use the weighted mechanics, output,
-        survival and preparation score.
+        These saved scores use a previous model. Reanalyze to use the single mechanics, output and
+        survival score.
       </p>
       <div className="table-scroll">
         <table>
@@ -662,8 +662,8 @@ export default function App() {
                 <div>
                   <strong>Saved with the earlier scoring model</strong>
                   <p>
-                    Update this snapshot to the composite score, with full-pull death statistics and
-                    a separate calculation for each role.
+                    Update this snapshot to the single composite score, with full-pull death
+                    statistics and a separate calculation for each role.
                   </p>
                   <button className="primary" disabled={busy} onClick={() => void start()}>
                     Update analysis
@@ -701,7 +701,7 @@ export default function App() {
                   <div>
                     <h3>Player rankings</h3>
                     <p className="ranking-caption">
-                      Mechanics, output, survival and preparation. Compared within each role.
+                      Mechanic completion, output and survival. Compared within each role.
                     </p>
                   </div>
                   <div className="table-controls">
@@ -790,7 +790,7 @@ export default function App() {
                                     {p.rankingReason && (
                                       <span className="cell-sub" title={p.rankingReason}>
                                         {p.score === null
-                                          ? 'Preliminary · view evidence'
+                                          ? 'Data needs review'
                                           : 'Partial selection · unranked'}
                                       </span>
                                     )}
@@ -808,8 +808,9 @@ export default function App() {
                                   : `${points(p.execution.mechanicsScore)}%`}
                               </strong>
                               <small className="cell-sub">
-                                {p.execution.failedChecks} failed · {p.execution.checkedMechanics}{' '}
-                                checks
+                                {p.execution.checkedMechanics
+                                  ? `${p.execution.passedChecks}/${p.execution.checkedMechanics} completed`
+                                  : 'Not included'}
                               </small>
                             </td>
                             <td className="output-column">
@@ -917,9 +918,7 @@ export default function App() {
       {method && fresh && (
         <Modal title="How scoring works" onClose={() => setMethod(false)}>
           <div className="method-simple">
-            <div className="method-equation">
-              Score = mechanics + output + survival + preparation points
-            </div>
+            <div className="method-equation">Score = mechanics + output + survival points</div>
             <table className="method-weights">
               <thead>
                 <tr>
@@ -932,9 +931,9 @@ export default function App() {
               <tbody>
                 <tr>
                   <td>Mechanics</td>
-                  <td>45%</td>
-                  <td>45%</td>
-                  <td>55%</td>
+                  <td>50%</td>
+                  <td>50%</td>
+                  <td>60%</td>
                 </tr>
                 <tr>
                   <td>Output</td>
@@ -947,12 +946,6 @@ export default function App() {
                   <td>20%</td>
                   <td>30%</td>
                   <td>30%</td>
-                </tr>
-                <tr>
-                  <td>Preparation</td>
-                  <td>5%</td>
-                  <td>5%</td>
-                  <td>5%</td>
                 </tr>
               </tbody>
             </table>
@@ -970,8 +963,14 @@ export default function App() {
             <p>
               <b>100 requires full points in every measured component.</b> It is not a guarantee of
               perfect play or proof of responsibility for a wipe. Total damage taken and raw
-              defensive-cast counts are not penalties. Missing required evidence produces a
-              preliminary range; its weight is never reassigned to survival.
+              defensive-cast counts are not penalties. Preparation remains visible as factual
+              context and does not change the score.
+            </p>
+            <p>
+              Mechanics credit verified completed checks. Opportunities while dead earn no
+              completion points but are not labelled mechanic failures. Unsupported rules are
+              excluded for everyone in the same pull and role. Where no comparable mechanic checks
+              exist, everyone uses output/survival weights: DPS 60/40, healer 40/60 and tank 25/75.
             </p>
             <details>
               <summary>Data & references</summary>

@@ -143,7 +143,7 @@ export default function CompactPlayerDetails({
           <h3>{player.name}</h3>
         </div>
         <div className="player-score">
-          <span>Composite score</span>
+          <span>Score</span>
           <CompositeScore assessment={assessment} />
         </div>
       </div>
@@ -229,18 +229,18 @@ export default function CompactPlayerDetails({
         <div className="section-heading">
           <h4>Mechanics to review</h4>
           <span className="small muted">
-            {assessment.passedChecks} passed · {assessment.failedChecks} failed ·{' '}
+            {assessment.passedChecks} completed · {assessment.failedChecks} failed ·{' '}
             {assessment.checkedMechanics} checks
           </span>
         </div>
         {!scoredMechanics.length ? (
           <p className="small muted">
-            No verified individual mechanic checks are available for this selection. This does not
-            earn a perfect mechanics score.
+            No comparable mechanic checks are scored for this selection. The score uses output and
+            survival instead.
           </p>
         ) : !mechanicFailures.length ? (
           <p className="small muted">
-            No recorded failures among the verified mechanic checks in this selection.
+            No recorded failures among the scored mechanic checks in this selection.
           </p>
         ) : (
           mechanicFailures.slice(0, eventLimit).map((event, i) => (
@@ -261,6 +261,12 @@ export default function CompactPlayerDetails({
             </article>
           ))
         )}
+        {(assessment.missedWhileDead ?? 0) > 0 && (
+          <p className="small muted">
+            {assessment.missedWhileDead} opportunities were not completed while dead. These earn no
+            completion points and are recorded separately from mechanic failures.
+          </p>
+        )}
         {mechanicFailures.length > eventLimit && (
           <button className="text-button" onClick={() => setEventLimit((n) => n + 12)}>
             Show {Math.min(12, mechanicFailures.length - eventLimit)} more mechanic events{' '}
@@ -276,8 +282,10 @@ export default function CompactPlayerDetails({
                 <div key={m.ruleId}>
                   <span>{m.name}</span>
                   <span>
-                    {matches.reduce((n, v) => n + v.passed, 0)} passed ·{' '}
+                    {matches.reduce((n, v) => n + v.passed, 0)} completed ·{' '}
                     {matches.reduce((n, v) => n + v.failed, 0)} failed
+                    {matches.some((v) => (v.missedWhileDead ?? 0) > 0) &&
+                      ` · ${matches.reduce((n, v) => n + (v.missedWhileDead ?? 0), 0)} not completed while dead`}
                   </span>
                 </div>
               );
@@ -407,8 +415,8 @@ export default function CompactPlayerDetails({
           </span>
         </div>
         <p className="small muted">
-          Output and verified preparation contribute as shown above. Damage taken, raw cast counts
-          and unverified observations do not create extra penalties.
+          Output contributes as shown above. Preparation, item usage, damage taken and raw cast
+          counts are factual context; they do not add points or penalties.
         </p>
         <div className="preparation-summary">
           <h4>

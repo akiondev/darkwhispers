@@ -21,10 +21,10 @@ import { assessmentWindow } from './windows.js';
 import {
   COMPOSITE_VERSION,
   combineComposites,
+  mechanicRulesForPeers,
   mechanicsComponent,
   measuredComponent,
   outputComponent,
-  preparationComponent,
   scoreComposite,
   unknownComponent,
 } from './composite.js';
@@ -69,7 +69,7 @@ function assessment(
   composite?: CompositeAssessment,
 ): ExecutionAssessment {
   const alivePercent = scoreSurvival(aliveMs, durationMs);
-  const score = issues.length || !composite?.complete ? null : composite.lower;
+  const score = issues.length || !composite?.complete ? null : composite.score;
   return {
     version: EXECUTION_MODEL_VERSION,
     composite,
@@ -95,13 +95,15 @@ function assessment(
               issues.length
                 ? issues
                 : [
-                    'Some components are incomplete. The range retains their original weight; no midpoint was inferred.',
+                    'Required measurements could not be verified. Review the data issue before assigning a score.',
                   ],
             ),
           ]
         : [
             `${time(durationMs - aliveMs)} dead of ${time(durationMs)} recorded encounter time · ${deaths} deaths.`,
-            'Score combines reviewed mechanics, report-relative output, recorded survival and verified preparation. All selected kills and wipes are included.',
+            composite?.scope === 'output-survival'
+              ? 'Score uses output and survival. No common verified mechanic checks were available for this role; the same scope applies to every role participant in each pull.'
+              : 'Score combines verified mechanic completion, report-relative output and recorded survival. All selected kills and wipes are included.',
           ],
   };
 }
@@ -119,14 +121,7 @@ export function combineExecutions(
     sum(values.map((v) => v.deaths ?? 0)),
     sum(values.map((v) => v.totalPulls)),
     sum(values.map((v) => v.scoredPulls)),
-    [
-      ...new Set(
-        values
-          .filter((v) => v.score === null)
-          .flatMap((v) => v.reasons)
-          .filter((reason) => !reason.startsWith('Some components are incomplete.')),
-      ),
-    ],
+    [...new Set(values.filter((v) => v.score === null).flatMap((v) => v.reasons))],
     combineComposites(values.map((v) => ({ composite: v.composite!, durationMs: v.weightMs! }))),
   );
   result.passedChecks = sum(values.map((v) => v.passedChecks));
@@ -220,6 +215,7 @@ export function analyzeExecution(
     }
   >();
   const rolesByFight = new Map<number, Set<Role>>();
+  const hasPeerComparison = new Set<string>();
   for (const p of pulls) {
     const f = fightMap.get(p.fight.id)!;
     validatePull(p, f);
@@ -229,7 +225,19 @@ export function analyzeExecution(
         (m.facts?.lifeEvents ?? []).filter((e) => e.type === 'death').map((e) => e.timestamp),
       ),
     );
-    const roles = new Set<Role>();
+    const peersByRole = new Map<Role, Metric[]>();
+    for (const metric of p.metrics) {
+      const participant = metadata.get(metric.actorId);
+      if (!participant) throw Error('A participating player is missing metadata.');
+      const role = roleFor(participant, f);
+      const peers = peersByRole.get(role) ?? [];
+      peers.push(metric);
+      peersByRole.set(role, peers);
+    }
+    const allowedByRole = new Map(
+      [...peersByRole].map(([role, peers]) => [role, mechanicRulesForPeers(peers)]),
+    );
+    const roles = new Set<Role>(peersByRole.keys());
     rolesByFight.set(f.id, roles);
     for (const m of p.metrics) {
       const player = metadata.get(m.actorId);
@@ -257,31 +265,33 @@ export function analyzeExecution(
             ...issues,
             'No recorded combat contribution; survival alone cannot establish participation.',
           ];
-      const mechanical = mechanicsComponent(m);
+      const allowedRules = allowedByRole.get(role)!;
+      const mechanical = mechanicsComponent(m, allowedRules);
       const mechanicsAvailable = activity && !issues.length;
-      const peerMetrics = p.metrics.filter((peer) => {
-        const peerPlayer = metadata.get(peer.actorId);
-        return peerPlayer && roleFor(peerPlayer, f) === role;
-      });
-      const component = scoreComposite(role, {
-        mechanics: mechanicsAvailable
-          ? mechanical.observation
-          : unknownComponent(
-              'Participation or the life timeline is incomplete; mechanic exposure cannot be verified.',
-            ),
-        output: activity
-          ? outputComponent(m, role, peerMetrics)
-          : unknownComponent('No recorded combat contribution.'),
-        survival:
-          activity && !issues.length
-            ? measuredComponent(
-                scoreSurvival(m.aliveMs, duration),
-                `${time(duration - m.aliveMs)} dead of ${time(duration)} recorded encounter time. Resurrection does not erase a death.`,
-                'full encounter timeline',
-              )
-            : unknownComponent(reasons.join(' '), 'full encounter timeline'),
-        preparation: preparationComponent(facts),
-      });
+      const peerMetrics = peersByRole.get(role)!;
+      if (peerMetrics.length > 1) hasPeerComparison.add(key);
+      const component = scoreComposite(
+        role,
+        {
+          mechanics: mechanicsAvailable
+            ? mechanical.observation
+            : unknownComponent(
+                'Participation or the life timeline is incomplete; mechanic exposure cannot be verified.',
+              ),
+          output: activity
+            ? outputComponent(m, role, peerMetrics)
+            : unknownComponent('No recorded combat contribution.'),
+          survival:
+            activity && !issues.length
+              ? measuredComponent(
+                  scoreSurvival(m.aliveMs, duration),
+                  `${time(duration - m.aliveMs)} dead of ${time(duration)} recorded encounter time. Resurrection does not erase a death.`,
+                  'full encounter timeline',
+                )
+              : unknownComponent(reasons.join(' '), 'full encounter timeline'),
+        },
+        allowedRules.size > 0,
+      );
       const execution = assessment(
         m.aliveMs,
         duration,
@@ -351,10 +361,12 @@ export function analyzeExecution(
     if (reviews.length === expected) fullAttendance.add(rowKey);
     const rankingReason =
       execution.score === null
-        ? `Preliminary composite range; incomplete components keep their fixed weight.${reviews.length < expected ? ' Partial role attendance; compare the listed pulls.' : ''}`
+        ? execution.reasons.join(' ')
         : reviews.length < expected
           ? 'Partial role attendance; compare the listed pulls before judging this score.'
-          : undefined;
+          : !hasPeerComparison.has(rowKey)
+            ? 'Only one participant in this role in the attended pulls; no comparative rank is assigned.'
+            : undefined;
     const perBoss: ExecutionBossScore[] = [];
     const contexts = new Map<string, ExecutionPullReview[]>();
     for (const r of reviews) {
@@ -408,7 +420,7 @@ export function analyzeExecution(
       rolePeers: 0,
       rankingReason,
       score: execution.score,
-      provisional: !execution.composite?.complete,
+      provisional: false,
       execution,
       pulls: reviews.length,
       bosses: new Set(row.pulls.map((p) => p.fight.encounterId)).size,
@@ -436,8 +448,7 @@ export function analyzeExecution(
     (a, b) =>
       order[a.role] - order[b.role] ||
       Number(fullAttendance.has(b.rowKey)) - Number(fullAttendance.has(a.rowKey)) ||
-      (b.score ?? b.execution.composite?.lower ?? -1) -
-        (a.score ?? a.execution.composite?.lower ?? -1) ||
+      (b.score ?? -1) - (a.score ?? -1) ||
       a.name.localeCompare(b.name) ||
       a.id - b.id,
   );
@@ -458,7 +469,7 @@ export function analyzeExecution(
     generatedAt: new Date().toISOString(),
     model: {
       id: EXECUTION_MODEL_VERSION,
-      name: 'Composite raid score',
+      name: 'Measured raid score',
       deathPenalty: 0,
       deathPolicy: 'full-encounter-time',
       formula: 'weighted-composite',
@@ -487,16 +498,17 @@ export function analyzeExecution(
     },
     methodology: {
       formula:
-        'DPS: 45% mechanics + 30% output + 20% survival + 5% preparation. Healer: 45/20/30/5. Tank: 55/10/30/5. Output is report-relative contribution, not a global parse.',
+        'DPS: 50% mechanics + 30% output + 20% survival. Healer: 50/20/30. Tank: 60/10/30. Output is report-relative contribution, not a global parse.',
       aggregation:
-        'Calculate each component per pull, then weight by full attended encounter duration within each role. Missing components retain their weight as a range; no wipe cutoff or fixed death penalties.',
+        'Calculate each pull using the same verified mechanic rules for everyone in that role, then average by full attended duration. If no common mechanic rule is available, everyone in that role uses output/survival weights: DPS 60/40, healer 40/60, tank 25/75. No wipe cutoff or fixed death penalties.',
       limitations: [
         'This is a transparent composite of measured contribution and reviewed mechanics, not proof of total player skill or who caused a wipe.',
         'All deaths during the encounter are included, including intentional wipe deaths. Voice calls cannot be inferred.',
         'Resurrection ends dead time but never removes the death. A death at encounter end adds a death with zero remaining dead time.',
         'Output is relative to the highest recorded same-role total in each pull. It is not adjusted for spec, gear, phase assignments or external support. WCL kill percentiles are not applied to wipes.',
-        'Mechanics use only reviewed opportunities. Checks while dead are bounded as unavailable, not invented successes or failures. Tank intake and unassigned utility never receive generic penalties.',
-        'Preparation rewards verified flask and food snapshots. Missing or unrecognized buffs remain unresolved. Healthstone, potion, defensive and enchant counts are context, not automatic grades.',
+        'Mechanic completion credits verified successes out of valid opportunities. Checks while dead earn no completion credit but are not labelled mechanic failures. Death therefore affects availability, output and completion by explicit policy.',
+        'A questionable rule is excluded for the entire role in the affected pull, not selectively for one player. Other verified pulls retain their checks. Output/survival fallback measures a narrower scope, which remains visible in the breakdown.',
+        'Tank intake and unassigned utility never receive generic penalties. Preparation, healthstone, potion, defensive and enchant observations are context outside the score.',
         'Partial role attendance is labelled. Inconsistent life events or no recorded participation cannot earn an assumed perfect score.',
       ],
     },

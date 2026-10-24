@@ -75,13 +75,15 @@ test('verified mechanics alter composite points without altering the survival me
   }
   pull.metrics[2].mechanics![1].unknown = 1;
   const a = analyze(report, [pull], selection);
-  assert.equal(a.model.id, 'composite/v1');
+  assert.equal(a.model.id, 'composite/v2');
   assert.equal(a.model.deathPenalty, 0);
   assert.ok(a.players.every((p) => p.execution.alivePercent === 80));
-  const uncertain = a.players.find((p) => p.id === 3)!;
-  assert.equal(uncertain.score, null);
-  assert.ok(uncertain.execution.composite!.upper > uncertain.execution.composite!.lower);
-  for (const p of a.players.filter((p) => p.id !== 3)) {
+  for (const p of a.players.filter((p) => p.role === 'dps')) {
+    assert.equal(p.score, 96);
+    assert.equal(p.execution.composite!.components.mechanics.score, 100);
+    assert.ok(p.pullReviews[0].mechanics.find((m) => m.ruleId === 'other')?.scored === false);
+  }
+  for (const p of a.players.filter((p) => p.role !== 'dps')) {
     assert.ok(p.execution.composite!.components.mechanics.score! < 1);
     assert.ok(p.pullReviews[0].mechanics.some((m) => m.scored && m.failed === 1));
   }
@@ -220,11 +222,9 @@ test('boss identity, difficulty and specialization do not alter identical surviv
       p.execution.alivePercent,
       before.players.find((v) => v.id === p.id)!.execution.alivePercent,
     );
-    assert.equal(
-      p.score,
-      null,
-      'An unknown boss without verified mechanics cannot earn a complete composite',
-    );
+    const expected = p.role === 'dps' ? 88 : p.role === 'healer' ? 82 : 77.5;
+    close(p.score!, expected);
+    assert.equal(p.execution.composite!.scope, 'output-survival');
     assert.equal(p.execution.composite!.components.mechanics.score, null);
   }
 });
@@ -281,7 +281,7 @@ test('all six tank classes use identical composite rules without intake or mitig
     const tank = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
     close(tank.execution.alivePercent, 80);
     close(tank.execution.composite!.components.mechanics.score!, 80);
-    close(tank.score!, 83);
+    close(tank.score!, 82);
     assert.equal(tank.role, 'tank');
   }
 });
@@ -337,19 +337,17 @@ test('no recorded contribution is unscored rather than perfect or an invented ze
   assert.match(p.execution.reasons.join(' '), /No recorded combat contribution/i);
 });
 
-test('approved composite example reconciles four fixed contributions to 88.5 points', () => {
+test('approved single-score example reconciles three contributions to 82 points', () => {
   const result = scoreComposite('dps', {
-    mechanics: measuredComponent(90, 'Synthetic checked mechanics'),
+    mechanics: measuredComponent(80, 'Synthetic checked mechanics'),
     output: measuredComponent(80, 'Synthetic report contribution'),
-    survival: measuredComponent(95, 'Synthetic verified life interval'),
-    preparation: measuredComponent(100, 'Synthetic verified preparation'),
+    survival: measuredComponent(90, 'Synthetic verified life interval'),
   });
-  close(result.lower, 88.5);
-  close(result.upper, 88.5);
-  close(result.components.mechanics.points, 40.5);
+  close(result.score!, 82);
+  close(result.components.mechanics.points, 40);
   close(result.components.output.points, 24);
-  close(result.components.survival.points, 19);
-  close(result.components.preparation.points, 5);
+  close(result.components.survival.points, 18);
+  assert.equal(Object.keys(result.components).length, 3);
   assert.equal(result.complete, true);
 });
 
@@ -393,7 +391,7 @@ test('verified mechanic failures reduce total score while raw intake and unassig
   assert.equal(actor().score, 100);
   pull.metrics[2].mechanics = [check(10, 2)];
   const failed = actor();
-  close(failed.score!, 91);
+  close(failed.score!, 90);
   close(failed.execution.composite!.components.mechanics.score!, 80);
   pull.metrics[2].damageTaken = 1e20;
   pull.metrics[2].defensives = 100000;
@@ -402,7 +400,7 @@ test('verified mechanic failures reduce total score while raw intake and unassig
   assert.equal(actor().score, failed.score);
 });
 
-test('unverified mechanics and preparation retain their own score interval without reallocating weight', () => {
+test('an unavailable mechanic rule changes the whole role cohort to the documented two-factor score', () => {
   const { report, pull } = fixture();
   const m = pull.metrics[2];
   m.mechanics = [];
@@ -411,30 +409,40 @@ test('unverified mechanics and preparation retain their own score interval witho
     food: 'unknown',
     basis: 'Synthetic partial snapshot',
   };
-  const p = analyze(report, [pull], selection).players.find((p) => p.id === 3)!;
+  const result = analyze(report, [pull], selection);
+  const p = result.players.find((p) => p.id === 3)!;
   const c = p.execution.composite!;
-  assert.equal(p.score, null);
-  assert.equal(p.roleRank, null);
-  close(c.lower, 52.5);
-  close(c.upper, 100);
-  close(c.components.mechanics.lower, 0);
-  close(c.components.mechanics.upper, 45);
-  close(c.components.survival.points, 20);
-  close(c.components.preparation.lower, 2.5);
-  close(c.components.preparation.upper, 5);
-  assert.equal(c.complete, false);
+  assert.equal(p.score, 100);
+  assert.equal(p.roleRank, 1);
+  assert.equal(c.components.mechanics.score, null);
+  close(c.components.mechanics.weight, 0);
+  close(c.components.output.points, 60);
+  close(c.components.survival.points, 40);
+  assert.equal(c.complete, true);
+  assert.equal(c.scope, 'output-survival');
+  assert.ok(!('preparation' in c.components));
+  assert.ok(
+    result.players
+      .filter((p) => p.role === 'dps')
+      .every((p) => p.execution.composite!.components.mechanics.weight === 0),
+  );
+  assert.ok(
+    result.players
+      .filter((p) => p.role !== 'dps')
+      .every((p) => p.execution.composite!.components.mechanics.weight > 0),
+  );
 });
 
-test('a lone participant in a role cannot become their own perfect output reference', () => {
+test('a lone participant has a measured contribution score but no peer rank', () => {
   const { report, pull } = fixture({ roles: ['dps', 'healer', 'tank'] });
   for (const p of analyze(report, [pull], selection).players) {
     const c = p.execution.composite!;
-    assert.equal(c.components.output.score, null);
-    assert.equal(p.score, null);
+    assert.equal(c.components.output.score, 100);
+    assert.equal(p.score, 100);
     assert.equal(p.roleRank, null);
     assert.equal(c.components.mechanics.score, 100);
     assert.equal(c.components.survival.score, 100);
-    assert.equal(c.components.preparation.score, 100);
-    close(c.upper - c.lower, c.components.output.weight * 100);
+    assert.equal(c.complete, true);
+    assert.match(c.components.output.reason, /single|only|sole|solo|one participant/i);
   }
 });
