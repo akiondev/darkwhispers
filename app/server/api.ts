@@ -157,7 +157,7 @@ export async function createApi(
         })
         .strict()
         .parse(req.body);
-      const selection = input.selection as Selection;
+      const selection = { ...input.selection, excludeWipeTail: false } as Selection;
       if (!input.demo && !client.configured)
         throw new ApiError(
           'WCL_NOT_CONFIGURED',

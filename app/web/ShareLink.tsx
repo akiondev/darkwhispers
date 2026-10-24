@@ -3,7 +3,7 @@ import { Check, Copy } from 'lucide-react';
 import type { Job } from '../shared/types.js';
 import { analysisExpiresAt, analysisLink } from '../shared/share.js';
 
-export default function ShareLink({ job }: { job: Job }) {
+export default function ShareLink({ job }: { job: Pick<Job, 'id' | 'createdAt'> }) {
   const link = analysisLink(window.location.origin, job.id);
   const input = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
@@ -48,7 +48,8 @@ export default function ShareLink({ job }: { job: Job }) {
         <time dateTime={expires.toISOString()}>
           {expires.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
         </time>{' '}
-        (seven days after analysis creation). Links are not listed publicly.
+        (seven days after analysis creation). Completed public reports may appear in the recent-log
+        list.
       </p>
     </div>
   );

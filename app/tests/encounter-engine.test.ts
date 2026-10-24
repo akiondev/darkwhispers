@@ -127,6 +127,7 @@ test('Tempest ignores periodic ticks, misses, other sources and dead-only exposu
   ]);
   const events = [
     e('begincast', 1000, 1287072),
+    e('cast', 1500, 1287072),
     e('damage', 2000, 1287083, 1, { tick: true }),
     e('damage', 3000, 1287083, 1, { missType: 'immune' }),
     e('damage', 4000, 1287083, 3),
@@ -143,11 +144,47 @@ test('Tempest ignores periodic ticks, misses, other sources and dead-only exposu
   const r = (id: number) => metrics.get(id)!.mechanics!.find((r) => r.name === 'Tempest')!;
   assert.equal(r(1).failures, 0);
   assert.equal(r(1).opportunities, 1);
+  assert.equal(r(1).scoreEligible, true);
   assert.equal(r(2).opportunities, 0);
   assert.equal(r(3).failures, 1);
+  assert.equal(r(3).opportunities, 1, 'Repeated direct hits collapse to one failed cast window');
+  assert.equal(r(3).scoreEligible, true);
   evaluateEncounter(report, fight, metrics, [e('damage', 2000, 1287083)], new Map(), abilities);
   assert.equal(r(1).unknown, 1);
+  assert.equal(r(1).scoreEligible, false);
   assert.equal(r(2).opportunities, 0);
+});
+
+test('Tempest needs a completed cast from the same creature instance before awarding clean checks', () => {
+  const { report, fight, metrics } = fixture();
+  const abilities = new Map([
+    [1287072, 'Tempest'],
+    [1287083, 'Tempest'],
+  ]);
+  const row = (id: number) => metrics.get(id)!.mechanics!.find((r) => r.name === 'Tempest')!;
+  evaluateEncounter(report, fight, metrics, [e('begincast', 1000, 1287072)], new Map(), abilities);
+  assert.equal(
+    row(1).opportunities,
+    0,
+    'An interrupted start does not establish successful avoidance',
+  );
+  assert.equal(row(1).scoreEligible, false);
+  evaluateEncounter(
+    report,
+    fight,
+    metrics,
+    [
+      e('begincast', 1000, 1287072, 1, { sourceInstance: 1 }),
+      e('cast', 1500, 1287072, 1, { sourceInstance: 1 }),
+      e('damage', 2000, 1287083, 3, { sourceInstance: 2 }),
+    ],
+    new Map(),
+    abilities,
+  );
+  assert.equal(row(1).opportunities, 1);
+  assert.equal(row(1).failures, 0);
+  assert.equal(row(3).unknown, 1, 'Different creature instances cannot share a cast denominator');
+  assert.equal(row(3).scoreEligible, false);
 });
 test('required Mutilate and Feast do not penalise non-soakers, but repeated vulnerable soaks are separate checks', () => {
   for (const [boss, name, hit, auraName, aura] of [
@@ -175,6 +212,103 @@ test('required Mutilate and Feast do not penalise non-soakers, but repeated vuln
     assert.equal(r.failures, 1);
     assert.equal(metrics.get(3)!.mechanicFailures, 0);
     assert.equal(metrics.get(3)!.mechanicOpportunities, 0);
+  }
+});
+
+test('Living Venom uses completed Toxic Droplets batches, including delayed return contact', () => {
+  const { report, fight, metrics } = fixture(3445, 4);
+  const abilities = new Map([
+    [1284434, 'Toxic Droplets'],
+    [1284209, 'Living Venom'],
+  ]);
+  evaluateEncounter(
+    report,
+    fight,
+    metrics,
+    [
+      e('begincast', 1000, 1284434),
+      e('cast', 2000, 1284434),
+      e('damage', 21000, 1284209, 3),
+      e('damage', 21500, 1284209, 3),
+    ],
+    new Map(),
+    abilities,
+  );
+  const row = (id: number) => metrics.get(id)!.mechanics!.find((r) => r.name === 'Living Venom')!;
+  assert.equal(row(1).opportunities, 1);
+  assert.equal(row(1).failures, 0);
+  assert.equal(row(3).opportunities, 1);
+  assert.equal(row(3).failures, 1);
+  assert.equal(row(3).scoreEligible, true);
+  evaluateEncounter(report, fight, metrics, [e('damage', 21000, 1284209, 3)], new Map(), abilities);
+  assert.equal(
+    row(1).opportunities,
+    0,
+    'A contact without a parent batch cannot reward others with clean avoidance',
+  );
+  assert.equal(row(3).scoreEligible, false);
+});
+
+test('Kith Devastation checks exclude the explicit tank target for every tank class and collapse physical/shadow components', () => {
+  for (const profile of TANK_PROFILES) {
+    const { report, fight, metrics } = fixture(3513, 4);
+    report.players[0] = { ...report.players[0], class: profile.class, spec: profile.spec };
+    fight.playerSpecs[1] = profile.spec;
+    const abilities = new Map([
+      [1304930, 'Dark Devastation'],
+      [1304946, 'Dark Devastation'],
+      [1304947, 'Dark Devastation'],
+    ]);
+    evaluateEncounter(
+      report,
+      fight,
+      metrics,
+      [
+        e('begincast', 1000, 1304930, 2),
+        e('cast', 2000, 1304930, 1),
+        e('damage', 2200, 1304946, 1),
+        e('damage', 2200, 1304947, 1),
+        e('damage', 2200, 1304946, 3),
+        e('damage', 2200, 1304947, 3),
+      ],
+      new Map(),
+      abilities,
+    );
+    const row = (id: number) =>
+      metrics.get(id)!.mechanics!.find((r) => r.name === 'Dark Devastation splash')!;
+    assert.equal(
+      row(1).opportunities,
+      0,
+      `${profile.class}: completed cast target has required contact`,
+    );
+    assert.equal(row(1).failures, 0);
+    assert.equal(row(1).unknown, 0);
+    assert.equal(row(2).opportunities, 1, 'The unmarked tank has an avoidance opportunity');
+    assert.equal(row(2).failures, 0);
+    assert.equal(row(3).opportunities, 1);
+    assert.equal(row(3).failures, 1, 'Two damage components represent one impact');
+    assert.equal(row(3).scoreEligible, true);
+  }
+});
+
+test('Kith Devastation never invents a required tank target or treats a child spell as a parent cast', () => {
+  const { report, fight, metrics } = fixture(3513, 4);
+  const abilities = new Map([
+    [1304930, 'Dark Devastation'],
+    [1304946, 'Dark Devastation'],
+    [1304947, 'Dark Devastation'],
+  ]);
+  for (const event of [
+    e('cast', 2000, 1304930, 1, { targetID: undefined }),
+    e('cast', 2000, 1304930, 3),
+    e('cast', 2000, 1304946, 1),
+  ]) {
+    evaluateEncounter(report, fight, metrics, [event], new Map(), abilities);
+    for (const metric of metrics.values()) {
+      const row = metric.mechanics!.find((r) => r.name === 'Dark Devastation splash')!;
+      assert.equal(row.opportunities, 0);
+      assert.equal(row.scoreEligible, false);
+    }
   }
 });
 test('ordinary Gravebound fragment damage is success-compatible; only lethal expiry fails, and cutoffs/deaths censor resolution', () => {

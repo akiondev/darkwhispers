@@ -1,4 +1,4 @@
-import type { Category, PlayerBossScore, RankedPlayer } from './types.js';
+import type { Category, PlayerBossScore, LegacyRankedPlayer as RankedPlayer } from './types.js';
 
 export const CATEGORY_NAMES: Record<Category, string> = {
   mechanics: 'Mechanics',

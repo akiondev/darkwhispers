@@ -1,7 +1,7 @@
 /** Original log-review rules. Spell identifiers are factual references, not copied addon code.
  * Sources and evidence limits are carried into every player/pull review.
  */
-export const ENCOUNTER_RULE_VERSION = 'midnight-s2/2026-10-23.1';
+export const ENCOUNTER_RULE_VERSION = 'midnight-s2/comparable-casts-v2';
 export const RAID_DIFFICULTIES = [1, 3, 4, 5, 17] as const;
 export type RuleKind =
   | 'avoid'
@@ -27,6 +27,9 @@ export type MechanicRule = {
   failure?: string[];
   vulnerabilityIds?: number[];
   hitIds?: number[];
+  castIds?: number[];
+  /** Only a completed cast explicitly targeting a tank establishes this check. */
+  excludeTankCastTarget?: boolean;
   lethalFailure?: boolean;
 };
 type Entry = { id: number; name: string; slug: string; rules: MechanicRule[] };
@@ -134,6 +137,10 @@ export const ENCOUNTERS: Entry[] = [
     rules: [
       r('Living Venom', 'avoid', 'Avoid the outgoing and returning lines.', {
         difficulties: [4, 5],
+        casts: ['Toxic Droplets'],
+        castIds: [1284434],
+        hitIds: [1284209],
+        duration: 30000,
       }),
       r('Blood Venom', 'ground', 'Avoid the pool; necessary marked-player DoT is separate.'),
       r(
@@ -194,6 +201,7 @@ export const ENCOUNTERS: Entry[] = [
         'Plague Wave',
         'avoid',
         'Avoid the cross-shaped waves. A hit proves contact, not who aimed the wave.',
+        { casts: ['Plague Froth'] },
       ),
       r('Umbral Ejection', 'avoid', 'Avoid the shadow add death impacts.'),
       r(
@@ -736,6 +744,19 @@ export const ENCOUNTERS: Entry[] = [
     slug: 'the-unbinding-of-kithix/kithix',
     rules: [
       r('Twisted Appendage', 'avoid', 'Avoid the tentacle paths.'),
+      r(
+        'Dark Devastation splash',
+        'avoid',
+        'Avoid the impact around the explicitly marked tank. The marked tank has no avoidance check; both damage components count as one contact.',
+        {
+          hits: ['Dark Devastation'],
+          casts: ['Dark Devastation'],
+          castIds: [1304930],
+          hitIds: [1304946, 1304947],
+          excludeTankCastTarget: true,
+          duration: 10000,
+        },
+      ),
       r('Voidscar', 'ground', 'Avoid scars; tank placement and fragment soaks are separate jobs.', {
         difficulties: [4, 5],
       }),

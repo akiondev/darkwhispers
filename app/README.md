@@ -1,6 +1,6 @@
-# DarkWhispers App · prototype 0.6.0
+# DarkWhispers App · prototype 0.7.0
 
-Evidence-first Warcraft Logs raid analysis. React 19 + TypeScript, Vite 8, Fastify 5, PostgreSQL 16 and pg-boss. API and analysis worker are separate processes. No paid services or AI-generated player grades.
+A concise Warcraft Logs raid review app. React 19, TypeScript, Vite 8, Fastify 5, PostgreSQL 16 and pg-boss. The API and analysis worker run separately. No paid services or generated player grades.
 
 ## Run locally
 
@@ -10,60 +10,63 @@ Node 22.12+ is required.
 npm ci
 npm run build
 npm start
-# Another terminal:
+# In another terminal:
 npm run dev
 ```
 
-Visit http://127.0.0.1:8878. Without PostgreSQL configuration, local development uses a disposable in-memory store and inline worker. The explicitly labelled synthetic demo requires no credentials. No real log is substituted with demo data.
+Open http://127.0.0.1:8878. Without PostgreSQL configuration, development uses a disposable in-memory store and an inline worker. The clearly labelled synthetic demo requires no credentials and never replaces a real log.
 
-To import public Warcraft Logs reports, set `WCL_CLIENT_ID` and `WCL_CLIENT_SECRET` **only on the backend**. Obtain them through the Warcraft Logs API client settings. Client Credentials uses `/oauth/token` and `/api/v2/client`; it does not require a callback or user login. Never prefix secrets with VITE_, include them in a public bundle, commit them, or paste them into a report URL.
+Live reports require `WCL_CLIENT_ID` and `WCL_CLIENT_SECRET` **on the backend only**. Client Credentials uses WCL's `/oauth/token` and `/api/v2/client` endpoints; no callback or user login is required. Never prefix credentials with `VITE_`, commit them, place them in report URLs or include them in public bundles.
 
-## Share an analysis
+## Read the raid, then the score
 
-Every analysis has its own opaque UUID link, `/?analysis=<id>`. Refreshes resume the same job; readers do not enqueue work or call WCL. Completed snapshots are immutable. Links expire after seven days. Anyone possessing a link can read its report/player data. The front page lists minimal metadata for recent completed **public live reports only**, deduplicated by report; private, unlisted and synthetic analyses are excluded. The clipboard button falls back to a selected URL for manual copying.
+The main view is a compact set of separate **DPS → Healers → Tanks** standings. Players have an inspectable 0–100 execution score, mechanic results, time alive, raw DPS/HPS and pull counts. A character who changes role receives distinct role results.
 
-## Universal role scoring
+The [execution model](docs/execution-model.md) replaces the older multi-factor role index. Its only scoring inputs are verified mechanic outcomes (70% base weight) and recorded time alive (30%). The result is capped by the percentage of the pull actually spent alive. There are no neutral midpoint points, historical-parse weights, activity estimates or class-defensive weights.
 
-The live engine ranks every completed raid encounter and difficulty, with no single-boss allowlist. Midnight Season 2 coverage includes all ten The Venomous Abyss bosses, including Kith'ix and Nymrissa Wavecaller, on LFR, Normal, Heroic and Mythic. All six tank classes, mixed roles and short attendance receive a provisional role index and raid/role position.
+Raw output, intake, preparation and observed consumable use remain visible facts outside the score. Tank autoattacks and mandatory tank contacts are not generic failures. Missing or incomplete mechanic exposure cannot manufacture a pass, and zero opportunities cannot manufacture 100. A short reason replaces unavailable scores instead of displaying weighted Unknown categories.
 
-Read the [complete researched methodology](docs/universal-role-model.md) for fixed role weights, formulas, missing-evidence bounds, sample limits, tank interpretation and validation. Factors combine survival, ten-second role-context action continuity, historical class/spec kill output, class-aware tank response under melee exposure, and verified applicable mechanics. Wipes do not have kill percentiles. Missing another actor's benchmark never discards a valid player's benchmark. Required intake, overheal, raw self-heal size and unassigned utility counts do not manufacture points or errors.
+Every eligible pull is calculated first, then combined within boss/difficulty/role contexts. Attended bosses receive equal weight in the whole-report overview. At each aggregation, all attended contexts still contribute their recorded availability ceiling, even if they have no mechanic score; dying before the first check cannot disappear from the final cap. Unplayed bosses add neither zero nor 50; attendance and scored-pull counts remain visible. Full recorded encounter duration is used consistently rather than guessing the raid leader's wipe call.
 
-Unknown and undersampled weight is explicitly held at neutral 50. Those points are not observed good performance and are never silently handed to survival. Every result displays measured points, neutral points, measured weight and a lower/upper missing-evidence range. The index is the midpoint; the range is not a statistical confidence interval or a guarantee about all unmodelled skill. Fixed weights are transparent design choices, not scientifically calibrated probabilities. Overlapping ranges do not establish that one player is better.
+This is an **execution score**, not proof of total skill or responsibility for a wipe. Exactly zero output/casts/utility is unranked, but one cast does not establish meaningful participation. DPS/HPS must remain prominent and the app must not market two inputs as an AFK-proof overall raider grade. Exact method details are available on demand, rather than repeated throughout the player panel.
 
-Difficulty and role contexts are evaluated separately. Difficulties within a boss and selected bosses within a report receive equal weight. Unattended bosses remain explicitly unknown midpoint weight and bounds, never zeroes. All attended pulls contribute; short attendance is disclosed rather than excluded. Optional sustained terminal 50% raid-mortality cutoffs apply consistently to survival, activity, tank response and applicable mechanics on all raid wipes. Feign Death is excluded, battle resurrections count, kills retain full duration, and raw full-pull damage/healing/deaths stay visible. This comparison policy does not infer a voice wipe call.
+The [S2 encounter inventory](docs/midnight-s2-rules.md) remains the source of verified mechanic identities and context. Its older 0.6 scoring/weight descriptions are historical; the execution model above defines current scoring. New event variants fail closed rather than becoming guessed player mistakes.
 
-The [Midnight S2 rule inventory and validation limits](docs/midnight-s2-rules.md) cover all ten bosses and difficulty gating. Player/pull reviews separate verified contacts and resolutions, tank swaps, required soaks, successful utility, shared raid incidents and context-only mechanics. Each row links to its timeline and reference. Gravebound fragment damage and required tank/channel hits are not automatic mistakes. Missing positional/assignment evidence stays explicit. Role standings are separate, ordered DPS, healers, tanks, then mixed/unknown; there is no cross-role ordinal comparison.
+## Saved links and recent reports
 
-Colour bands remain 100 gold-orange for complete evidence, 99 pink, 90-98 purple, 70-89 blue, 50-69 green, 30-49 yellow and 0-29 grey. Partial live indices retain ~ and never receive the complete-perfect badge. Each player opens with the reason for the result and expandable factor/pull evidence. Older shared snapshots stay immutable and offer an explicit Update analysis action creating a new result/link.
+Each analysis has an opaque `/?analysis=<uuid>` link. Refreshes resume the same job; readers retrieve the stored result without enqueuing work or calling WCL. Completed snapshots are immutable and expire after seven days. Updating the scoring model requires explicit reanalysis and creates a new result/link.
 
-Real acceptance uses 6fjJxRFC21YHdTXB (22 Heroic/Mythic pulls, including 18 Mythic Sszorak wipes) and LfhZ47qyPY8FRQH6 (13 Heroic pulls across all ten bosses). Both are checked as whole reports, bosses, individual pulls, kills/wipes and comparison-window selections. Synthetic cases exercise every S2 boss ID, LFR/Normal/Heroic/Mythic and all six tank classes; they are not live LFR/Normal validation. The clearly labelled demo remains a synthetic earlier scoring fixture, never substituted for a real report.
+Anyone possessing a share link can read its report/player data. The front page shows only minimal metadata for completed **public live reports**, deduplicated by report. Demo, private and unlisted results are excluded. Clipboard fallback supports manually copying the selected link.
 
 ## Performance and integrity
 
-Report actors are fetched once; ability master data once when uncached pulls exist. Two pulls run concurrently, with a hard limit of three upstream requests per process. OAuth refresh is single-flight. Completed pulls are committed independently and reused across different boss/mode selections. Cache keys include report revision, fight boundaries and a separate ingestion/rule version. UI-only and score-aggregation releases reuse compatible downloaded facts. Metadata is refreshed after five minutes; rankings are snapshots, not live combat monitoring.
+Report metadata and ability identities are fetched once as needed. Two pulls can import concurrently, with at most three upstream requests per process. OAuth refresh is single-flight. Each completed pull is committed independently and reused across boss/mode selections. Versioned cache keys include report revision and fight boundaries; incompatible ingestion changes invalidate facts, while UI-only changes reuse them.
 
-The submitted pull IDs are fixed when analysis starts, so new uploads cannot silently expand a queued analysis. Expired metadata is refreshed automatically; unavailable selected pulls produce an explicit error. Queue admission is serialized within the application's own database and capped at 12 pending/running analyses. An expired two-hour job returns a terminal error rather than polling forever. Temporary status-request failures retry with bounded backoff, then offer resumption of the same job without creating another analysis. A chart-loading failure leaves standings and the pull list usable. Unknown specialization names never imply a damage role or a scored output percentile.
+Queries use fixed WCL origins, bounded retries, timeouts and budget-aware backoff. Event pagination follows `nextPageTimestamp`, including empty pages. Non-advancing cursors, invalid totals/events, partial GraphQL responses and incomplete imports stop the analysis. A user-supplied report URL never becomes an arbitrary upstream request.
 
-Client rate limits distinguish visitors behind Cloudflare. `CF-Connecting-IP` is accepted only when the peer identified by Caddy's sanitized forwarding chain is in Cloudflare's published IPv4/IPv6 ranges. Untrusted direct-origin headers cannot choose a different limit key. The range snapshot is documented in `server/client-ip.ts`; unknown future proxy ranges fall back to the proxy IP rather than trusting arbitrary headers.
+The chosen pull IDs are frozen before enqueueing. Queue admission is serialized in this app's database and capped at twelve active jobs; expired jobs fail explicitly. Progress cannot move backwards when parallel imports complete. Recent analyses use a small indexed table and the same seven-day expiry as their share snapshots. The compact interface has no chart-library dependency.
 
-Events are processed through one server-filtered timeline per pull (deaths, resurrections, interrupts, dispels/steals, debuff applications and known defensive spell IDs), including role-context player casts and tank-response evidence, rather than five independent event streams. Together with the batched metric tables, an uncached wipe normally needs two GraphQL requests before pagination, excluding report-level master data. This is a structural request-count reduction, not a measured live latency claim. Optional kill percentiles add one request on kills.
+Rate limiting distinguishes trusted Cloudflare forwarding from direct-origin headers; see `server/client-ip.ts`. Client credentials, raw audits and caches stay out of Git and public artifacts.
 
-Pages request 10,000 events, following `nextPageTimestamp` even for empty pages. Non-advancing cursors, malformed events/totals, missing pages or partial GraphQL errors stop analysis. Optional unavailable output percentiles are disclosed. Debuff applications are aggregated per actor/ability; result payloads contain supporting player evidence once, without a second raw metric copy per pull. The chart is loaded only after analysis and uses only the ECharts bar components. Requests use fixed Warcraft Logs origins, bounded retries, timeouts and budget-aware backoff. No supplied report URL is fetched directly. Parallel progress updates cannot move the displayed completed-pull count backwards.
+## Validate and deploy
 
-`npm test` includes a 150-pull / 20-player / 90,000-event synthetic engine benchmark. This measures computation only, not real API latency; do not use it as a live-import speed claim. Results depend on hardware and workload. `npm run check`, `npm test`, `npm run build`, `npm audit --audit-level=moderate` are the focused validation steps.
+```sh
+npm run check
+npm test
+npm run build
+npm audit --audit-level=moderate
+# With an isolated test database URL:
+npm run test:postgres
+```
 
-## Production
+Synthetic benchmarks measure engine computation, not network latency. Real acceptance uses `6fjJxRFC21YHdTXB` and `LfhZ47qyPY8FRQH6`, covering whole reports, selected bosses/pulls and kills/wipes. Synthetic class/difficulty fixtures do not constitute live LFR/Normal validation.
 
-Build, test, audit, package and attest via `.github/workflows/app.yml`. The app has its own database, unprivileged OS user, environment file and systemd API/worker units; it does not install addons, change the launcher or access other applications' databases. Caddy serves static assets and proxies `/api/*` and `/healthz` to loopback port 3210. CSP restricts scripts and API access to this origin; charts require inline styles. Authentication secrets never enter frontend artifacts.
+Build, validate, package and attest through `.github/workflows/app.yml`. `deploy/provision.py` manages only this app's database, unprivileged user, API/worker units and domain configuration, preserving other VPS services. The backend listens on loopback port 3210 behind Caddy HTTPS. Secrets live in the root-owned `/etc/darkwhispers-app.env`, never the served assets. The app does not install addons or update the launcher.
 
-`deploy/provision.py` creates only DarkWhispers app resources. It preserves existing services, snapshots their state, checks port availability and records the old domain configuration. Site activation is a separate step after both services and the database-backed demo job pass. Rollback: restore the saved `/etc/caddy/darkwhispers.caddy` and reload Caddy; stop the two new app units if necessary. Existing addon/launcher artifacts are retained but not exposed by the new root.
+Open source and GitHub attestations make the implementation and build origin auditable; they do not guarantee freedom from bugs.
 
-API credentials are configured in `/etc/darkwhispers-app.env` (root-owned, not public). After adding both keys, restart only `darkwhispers-app-api` and `darkwhispers-app-worker`. Verify the real acceptance report and supported mappings before describing live boss rankings as complete.
-
-## References
+## API references
 
 - [Warcraft Logs OAuth and API](https://www.warcraftlogs.com/api/docs)
 - [Report schema and pagination](https://www.warcraftlogs.com/v2-api-docs/warcraft/report.doc.html)
-- [API budget fields](https://www.warcraftlogs.com/v2-api-docs/warcraft/ratelimitdata.doc.html)
-
-The code is public and auditable. GitHub attestations prove build origin and artifact integrity, not freedom from bugs or malicious code.
+- [Combatant information](https://www.warcraftlogs.com/scripting-api-docs/warcraft/interfaces/RpgLogs.CombatantInfoEvent.html)

@@ -130,6 +130,38 @@ export function demoData(): { report: Report; pulls: PullData[] } {
           defensiveSpells: [{ id: 990100, name: 'Training defensive', count: defensiveCount }],
           mechanicFailures: failures,
           mechanicOpportunities: opportunities,
+          mechanics: [
+            {
+              ruleId: 'demo-hazard/v1',
+              name: 'Synthetic training hazard',
+              kind: 'avoid',
+              weight: 1,
+              scoreEligible: true,
+              opportunities,
+              failures,
+              unknown: 0,
+              observed: failures,
+              detail:
+                'Labelled synthetic opportunity data; this is not a real boss spell or live rule.',
+              source: 'https://www.warcraftlogs.com/help/pins',
+              abilityIds: [990000 + bossIndex],
+              events: evidence
+                .filter((e) => e.kind === 'mechanic')
+                .map((e) => ({
+                  timestamp: e.timestamp,
+                  outcome: 'failed' as const,
+                  detail: e.description,
+                  url: null,
+                })),
+            },
+          ],
+          facts: {
+            snapshot: false,
+            activeAtPull: [],
+            consumables: [],
+            casts: 20,
+            lifeEvents: dies ? [{ timestamp: fight.endTime - deadMs, type: 'death' as const }] : [],
+          },
           utilitySuccesses: Math.max(
             0,
             3 - (index > 15 ? 1 : 0) - (index % 6 === pullIndex ? 1 : 0),

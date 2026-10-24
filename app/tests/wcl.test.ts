@@ -213,11 +213,11 @@ test('invalid event records are rejected before aggregation, not silently counte
     assert.equal(called, false);
   }
 });
-test('one filtered event stream produces survival, defenses, utility and unscored observations', async () => {
+test('one shared full-pull event stream records survival, preparation, casts and utility without invented mechanic scores', async () => {
   const { report } = demoData();
   report.source = 'warcraftlogs';
   report.code = '6fjJxRFC21YHdTXB';
-  const fight = report.fights[0];
+  const fight = { ...report.fights[0], kill: true };
   let eventScans = 0,
     tableScans = 0;
   class FixtureClient extends WclClient {
@@ -232,9 +232,15 @@ test('one filtered event stream produces survival, defenses, utility and unscore
     override async events(...args: Parameters<WclClient['events']>) {
       eventScans++;
       assert.equal(args[2], 'All');
-      assert.ok(args[4]!.includes('ability.id = 22812'));
-      assert.ok(args[4]!.includes('type = "applydebuff"'));
+      assert.ok(args[4]!.includes('(type = "cast" and source.type = "player")'));
+      assert.ok(args[4]!.includes('type = "combatantinfo"'));
+      assert.ok(
+        !args[4]!.includes('ability.id = 22812'),
+        'All player casts share one stream across classes',
+      );
+      assert.equal(args[5]?.includeResources, false);
       args[3]([
+        { type: 'combatantinfo', sourceID: 7, timestamp: 0, auras: [{ ability: 1235111 }] },
         { type: 'death', targetID: 7, timestamp: 10000, feign: true },
         { type: 'death', targetID: 7, timestamp: 20000 },
         { type: 'applydebuff', targetID: 7, timestamp: 21000, abilityGameID: 999 },
@@ -249,12 +255,18 @@ test('one filtered event stream produces survival, defenses, utility and unscore
         { type: 'cast', sourceID: 7, timestamp: 60000, abilityGameID: 22812 },
       ]);
     }
+    override async killPercentiles(): Promise<never> {
+      throw new Error('Kill-only output percentiles must not be requested');
+    }
   }
   const result = await ingestPull(
     new FixtureClient('c', 's'),
     report,
     fight,
-    new Map([[22812, 'Barkskin']]),
+    new Map([
+      [22812, 'Barkskin'],
+      [1235111, 'Flask of the Shattered Sun'],
+    ]),
     async () => {},
   );
   const metric = result.metrics.find((m) => m.actorId === 7)!;
@@ -269,10 +281,21 @@ test('one filtered event stream produces survival, defenses, utility and unscore
   assert.equal(metric.interrupts, 1);
   assert.equal(metric.dispels, 2);
   assert.equal(metric.mechanicFailures, null);
-  const auras = metric.evidence.filter((e) => e.kind === 'mechanic-observed');
-  assert.equal(auras.length, 1);
-  assert.ok(auras[0].description.includes('2 time(s)'));
-  assert.ok(auras[0].url?.includes('fight=1'));
+  assert.equal(metric.mechanicOpportunities, null);
+  assert.equal(metric.outputPercentile, null);
+  assert.equal(metric.facts?.snapshot, true);
+  assert.equal(metric.facts?.activeAtPull[0].category, 'flask');
+  assert.equal(metric.facts?.casts, 2);
+  assert.deepEqual(metric.facts?.lifeEvents, [
+    { type: 'death', timestamp: 20000 },
+    { type: 'resurrect', timestamp: 40000 },
+  ]);
+  assert.equal(metric.activity, undefined);
+  assert.equal(metric.tank, undefined);
+  assert.equal(metric.evaluated, undefined);
+  assert.equal(result.evaluation, undefined);
+  assert.equal(result.wipeTailMs, null);
+  assert.ok(metric.evidence.find((e) => e.kind === 'death')?.url?.includes('fight=1'));
 });
 test('malformed metric totals fail the import instead of appearing as zero output', async () => {
   class InvalidClient extends WclClient {
@@ -288,7 +311,7 @@ test('malformed metric totals fail the import instead of appearing as zero outpu
   );
 });
 
-test('required first Ravage is unknown, while a new hit with verified prior vulnerability creates a swap review', async () => {
+test('required Ravage hits and a vulnerable swap review remain context, not tank score penalties', async () => {
   const { report } = demoData();
   const fight = { ...report.fights[0], encounterId: 3420 };
   class Client extends WclClient {
@@ -300,12 +323,13 @@ test('required first Ravage is unknown, while a new hit with verified prior vuln
       };
     }
     async events(...args: Parameters<WclClient['events']>) {
+      assert.ok(args[4]?.includes('source.disposition = "enemy"'));
+      assert.ok(args[4]?.includes('type = "damage"'));
       assert.ok(
-        args[4]?.includes('((type = "damage" and ability.id = 1277101) or ability.id = 1277105)'),
-        'Use WCL hit classification for Ravage; serialized damage also includes misses/immunities',
+        args[4]?.includes('ability.id = 1277105'),
+        'Vulnerability snapshots remain available for contextual review',
       );
-      assert.ok(args[4]?.includes('ability.id = 56222'));
-      assert.ok(!args[4]?.includes('ability.id = 3716'), 'Pet Torment is not a class taunt cast');
+      assert.ok(args[4]?.includes('(type = "cast" and source.type = "player")'));
       assert.ok(
         !args[4]?.includes('type = "taunt"'),
         'Taunts are recorded as casts, not a taunt event type',
@@ -347,8 +371,6 @@ test('required first Ravage is unknown, while a new hit with verified prior vuln
     ]),
     async () => {},
   );
-  assert.equal(p.metrics[0].ravageHits, 2);
-  assert.equal(p.metrics[0].ravageVulnerableHits, 1);
   assert.equal(p.metrics[0].taunts, 1);
   assert.equal(p.metrics[2].healing, 100);
   assert.equal(p.metrics[2].overhealing, 20);
@@ -356,12 +378,20 @@ test('required first Ravage is unknown, while a new hit with verified prior vuln
   assert.equal(p.metrics[1].deaths, 1, 'An unlabelled environmental death is still real');
   assert.equal(
     p.metrics[0].mechanicFailures,
-    1,
-    'The first required hit is not failed; only the second strike with observed prior vulnerability fails the swap check',
+    0,
+    'Assigned tank hits cannot be scored against a common role-wide exposure denominator',
   );
   const duty = p.metrics[0].mechanics!.find((r) => r.name === 'Ravage')!;
+  assert.equal(
+    duty.failures,
+    1,
+    'The observed vulnerable follow-up remains available for human review',
+  );
   assert.equal(duty.unknown, 1);
   assert.equal(duty.opportunities, 1);
+  assert.equal(duty.scoreEligible, false);
+  assert.equal(p.metrics[0].mechanicOpportunities, 0);
+  assert.ok(p.metrics[0].evidence.some((e) => e.kind === 'mechanic-observed'));
 });
 test('unranked percentile placeholders are missing values, and pet ownership is bounded', () => {
   assert.equal(parsePercentile('-'), null);

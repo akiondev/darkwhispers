@@ -51,6 +51,7 @@ export type Evidence = {
   url: string | null;
 };
 export type Metric = {
+  facts?: PlayerFacts;
   mechanics?: MechanicResult[];
   activity?: ActivityFacts;
   actorId: number;
@@ -92,6 +93,8 @@ export type ActivityFacts = {
   eligibleWindows: number;
 };
 export type MechanicResult = {
+  scoreEligible?: boolean;
+  excludedReason?: string;
   ruleId: string;
   name: string;
   kind: string;
@@ -235,7 +238,7 @@ export type PlayerBossScore = {
   provisional?: boolean;
   tankReview?: TankReview;
 };
-export type RankedPlayer = Player & {
+export type LegacyRankedPlayer = Player & {
   pullReviews?: PlayerPullReview[];
   assessment?: RoleAssessment;
   rank: number | null;
@@ -310,7 +313,7 @@ export type Finding = {
   actorId?: number;
   evidence?: Evidence[];
 };
-export type Analysis = {
+export type LegacyAnalysis = {
   mechanicCatalogue?: Record<
     string,
     Pick<MechanicResult, 'ruleId' | 'name' | 'kind' | 'weight' | 'detail' | 'source' | 'abilityIds'>
@@ -319,7 +322,7 @@ export type Analysis = {
   generatedAt: string;
   report: Report;
   selection: Selection;
-  players: RankedPlayer[];
+  players: LegacyRankedPlayer[];
   pulls: Omit<PullData, 'metrics'>[];
   findings: Finding[];
   warnings: string[];
@@ -339,6 +342,124 @@ export type Analysis = {
     rules: string[];
     limitations: string[];
   };
+};
+export type PlayerFacts = {
+  snapshot: boolean;
+  activeAtPull: {
+    id: number;
+    name: string;
+    category: 'flask' | 'food' | 'combat-potion' | 'other';
+  }[];
+  consumables: {
+    id: number;
+    name: string;
+    kind: 'healthstone' | 'healing-potion' | 'combat-potion';
+    uses: number;
+  }[];
+  enchantsObserved?: { slot: number; itemId: number; enchantId: number }[];
+  gemsObserved?: { slot: number; itemId: number; gemId: number }[];
+  lifeEvents: { timestamp: number; type: 'death' | 'resurrect' }[];
+  casts: number;
+};
+export type ExecutionAssessment = {
+  version: string;
+  score: number | null;
+  mechanicsScore: number | null;
+  alivePercent: number;
+  baseScore: number | null;
+  capped: boolean;
+  passedChecks: number;
+  failedChecks: number;
+  checkedMechanics: number;
+  scoredPulls: number;
+  totalPulls: number;
+  reasons: string[];
+};
+export type ExecutionMechanic = {
+  ruleId: string;
+  name: string;
+  kind: string;
+  scored: boolean;
+  exclusion?: string;
+  passed: number;
+  failed: number;
+  opportunities: number;
+  observed: number;
+  detail: string;
+  source: string;
+  breakdown?: MechanicResult['breakdown'];
+  events: MechanicResult['events'];
+};
+export type ExecutionPullReview = {
+  fightId: number;
+  role: Role;
+  execution: ExecutionAssessment;
+  aliveMs: number;
+  durationMs: number;
+  deaths: number;
+  damage: number;
+  healing: number;
+  damageTaken: number;
+  mechanics: ExecutionMechanic[];
+  facts: PlayerFacts;
+};
+export type ExecutionBossScore = {
+  encounterId: number;
+  name: string;
+  difficulty: number;
+  score: number | null;
+  pulls: number;
+  execution: ExecutionAssessment;
+};
+export type RankedPlayer = Player & {
+  rowKey: string;
+  rank: number | null;
+  roleRank: number | null;
+  rolePeers: number;
+  score: number | null;
+  provisional: boolean;
+  execution: ExecutionAssessment;
+  pulls: number;
+  bosses: number;
+  scoredPulls: number;
+  durationMs: number;
+  aliveMs: number;
+  deaths: number;
+  damage: number;
+  healing: number;
+  damageTaken: number;
+  interrupts: number;
+  dispels: number;
+  defensives: number;
+  mechanicFailures: number;
+  mechanicOpportunities: number;
+  perBoss: ExecutionBossScore[];
+  pullReviews: ExecutionPullReview[];
+  evidence: Evidence[];
+  notes: string[];
+};
+export type Analysis = {
+  version: string;
+  generatedAt: string;
+  model: { id: string; name: string; mechanicsWeight: 70; survivalWeight: 30; cappedByAlive: true };
+  report: Report;
+  selection: Selection;
+  players: RankedPlayer[];
+  pulls: Omit<PullData, 'metrics'>[];
+  findings: Finding[];
+  warnings: string[];
+  summary: {
+    pulls: number;
+    kills: number;
+    wipes: number;
+    bosses: number;
+    players: number;
+    rankedEntries: number;
+    scoredPlayers: number;
+    durationMs: number;
+    complete: boolean;
+  };
+  methodology: { formula: string; aggregation: string; limitations: string[] };
 };
 export type Job = {
   id: string;

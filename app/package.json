@@ -1,6 +1,6 @@
 {
   "name": "darkwhispers-app",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,11 +14,10 @@
     "start": "node dist/server/server/main.js",
     "worker": "node dist/server/server/worker.js",
     "test:postgres": "node --import tsx --test tests/postgres.test.ts",
-    "test": "node --import tsx --test tests/analysis.test.ts tests/api.test.ts tests/wcl.test.ts tests/mechanics.test.ts tests/tanks.test.ts tests/role-model.test.ts tests/encounter-engine.test.ts"
+    "test": "node --import tsx --test tests/analysis.test.ts tests/api.test.ts tests/wcl.test.ts tests/mechanics.test.ts tests/tanks.test.ts tests/role-model.test.ts tests/encounter-engine.test.ts tests/facts.test.ts"
   },
   "dependencies": {
     "@fastify/rate-limit": "10.3.0",
-    "echarts": "6.1.0",
     "fastify": "5.12.7",
     "lucide-react": "0.577.0",
     "pg": "8.23.1",

@@ -14,7 +14,9 @@ export type EncounterEvent = {
   type: string;
   timestamp: number;
   sourceID?: number;
+  sourceInstance?: number;
   targetID?: number;
+  targetInstance?: number;
   abilityGameID?: number;
   extraAbilityGameID?: number;
   tick?: boolean;
@@ -37,6 +39,12 @@ const auraApply = new Set([
 const auraRemove = new Set(['removedebuff', 'removebuff']);
 const isHit = (e: EncounterEvent) =>
   e.type === 'damage' && !e.missType && ![0, 7, 8, 14].includes(e.hitType ?? -1);
+const sourceKey = (e: EncounterEvent) => `${e.sourceID}:${e.sourceInstance ?? 0}`;
+const sameCaster = (a: EncounterEvent, b: EncounterEvent) =>
+  typeof a.sourceID === 'number' &&
+  Number.isFinite(a.sourceID) &&
+  a.sourceID === b.sourceID &&
+  sourceKey(a) === sourceKey(b);
 /** Match exact live names only, within a verified encounter. Unknown spell IDs fail closed. */
 function idsFor(abilities: Map<number, string>, names: string[], exact?: number[]) {
   const wanted = new Set(names.map(normaliseSpell));
@@ -116,7 +124,7 @@ export function evaluateEncounter(
     (r) => !r.difficulties || r.difficulties.includes(fight.difficulty),
   )) {
     const hits = idsFor(abilities, rule.hits, rule.hitIds),
-      casts = idsFor(abilities, rule.casts);
+      casts = idsFor(abilities, rule.casts, rule.castIds);
     const aura = idsFor(abilities, [rule.aura ?? rule.name], rule.vulnerabilityIds);
     const failures = idsFor(abilities, rule.failure ?? []);
     const allIds = new Set([...hits, ...casts, ...aura, ...failures]);
@@ -126,18 +134,37 @@ export function evaluateEncounter(
     const contacts = hostile.filter((e) => hits.has(e.abilityGameID ?? 0) && isHit(e));
     const starts = hostile.filter((e) => casts.has(e.abilityGameID ?? 0) && e.type === 'begincast');
     const finishes = hostile.filter((e) => casts.has(e.abilityGameID ?? 0) && e.type === 'cast');
-    const waves = [
-      ...starts,
-      ...finishes.filter(
-        (e) =>
-          !starts.some(
-            (s) =>
-              s.sourceID === e.sourceID &&
-              e.timestamp >= s.timestamp &&
-              e.timestamp - s.timestamp < 10000,
-          ),
-      ),
-    ].sort((a, b) => a.timestamp - b.timestamp);
+    const startedSources = new Set(starts.map(sourceKey));
+    // An attempted cast is not a completed opportunity. In particular, do not
+    // reward a boss death/interrupt during the cast as a successful dodge.
+    const waves = starts
+      .flatMap((start, index) => {
+        const next =
+          starts.slice(index + 1).find((e) => sameCaster(e, start))?.timestamp ?? fight.endTime;
+        const finish = finishes.find(
+          (e) =>
+            sameCaster(e, start) &&
+            e.timestamp >= start.timestamp &&
+            e.timestamp < next &&
+            e.timestamp - start.timestamp <= Math.max(20000, rule.duration ?? 12000),
+        );
+        return finish
+          ? [{ ...start, targetID: finish.targetID, activationTime: finish.timestamp }]
+          : [];
+      })
+      .concat(
+        finishes
+          .filter((e) => !startedSources.has(sourceKey(e)) && typeof e.sourceID === 'number')
+          .map((e) => ({ ...e, targetID: e.targetID, activationTime: e.timestamp })),
+      )
+      .filter(
+        (wave) =>
+          !rule.excludeTankCastTarget ||
+          (typeof wave.targetID === 'number' &&
+            metrics.has(wave.targetID) &&
+            roles.get(wave.targetID) === 'tank'),
+      )
+      .sort((a, b) => a.timestamp - b.timestamp);
     for (const m of metrics.values()) {
       const result: MechanicResult = {
         ruleId: `${entry.id}/${rule.id}`,
@@ -152,6 +179,7 @@ export function evaluateEncounter(
         source: ruleSource(entry),
         abilityIds: [...allIds],
         events: [],
+        scoreEligible: false,
       };
       const log = (
         e: EncounterEvent,
@@ -164,18 +192,6 @@ export function evaluateEncounter(
             timestamp: e.timestamp,
             outcome,
             detail,
-            url: evidenceUrl(report, fight.id, m.actorId, e.timestamp, 'damage-taken'),
-          });
-        if (outcome === 'failed')
-          m.evidence.push({
-            fightId: fight.id,
-            timestamp: e.timestamp,
-            abilityId: e.abilityGameID,
-            ability: rule.name,
-            kind: 'mechanic',
-            description: detail,
-            confidence: 'observed',
-            ruleId: result.ruleId,
             url: evidenceUrl(report, fight.id, m.actorId, e.timestamp, 'damage-taken'),
           });
       };
@@ -223,27 +239,29 @@ export function evaluateEncounter(
             end = Math.min(
               fight.endTime,
               wave.timestamp + max,
-              waves.slice(i + 1).find((w) => w.sourceID === wave.sourceID)?.timestamp ?? Infinity,
+              waves.slice(i + 1).find((w) => sameCaster(w, wave))?.timestamp ?? Infinity,
             );
-          if (!alive(m.actorId, wave.timestamp, end)) continue;
+          if (rule.excludeTankCastTarget && wave.targetID === m.actorId) {
+            // Mandatory marked-tank contact is never an avoidance failure.
+            for (const e of direct)
+              if (e.timestamp >= wave.activationTime && e.timestamp < end && sameCaster(e, wave))
+                matched.add(e);
+            continue;
+          }
+          if (!alive(m.actorId, wave.activationTime, end)) continue;
           const hit = direct.find(
-            (e) =>
-              e.sourceID === wave.sourceID && e.timestamp >= wave.timestamp && e.timestamp < end,
+            (e) => sameCaster(e, wave) && e.timestamp >= wave.activationTime && e.timestamp < end,
           );
           result.opportunities++;
           if (hit) {
             result.failures++;
             for (const e of direct)
-              if (
-                e.timestamp >= wave.timestamp &&
-                e.timestamp < end &&
-                e.sourceID === wave.sourceID
-              )
+              if (e.timestamp >= wave.activationTime && e.timestamp < end && sameCaster(e, wave))
                 matched.add(e);
             log(
               hit,
               'failed',
-              'Direct contact in an observed cast window. One failure per window; periodic ticks are excluded. Movement cause is not assigned.',
+              'Direct contact after an observed completed cast. One failed check per window; periodic ticks are excluded.',
             );
           }
         }
@@ -298,7 +316,7 @@ export function evaluateEncounter(
           const requiredSoak = ['Ravenous Feast', 'Guillotine', 'Mutilate'].includes(rule.name);
           let wave: EncounterEvent | undefined;
           for (let i = waves.length - 1; i >= 0; i--)
-            if (waves[i].sourceID === e.sourceID && waves[i].timestamp <= e.timestamp) {
+            if (sameCaster(waves[i], e) && waves[i].timestamp <= e.timestamp) {
               wave = waves[i];
               break;
             }
@@ -423,9 +441,30 @@ export function evaluateEncounter(
         const e = observed.find((e) => !utility.includes(e));
         if (e) log(e, 'observed', rule.detail);
       }
+      result.scoreEligible =
+        rule.kind === 'avoid' && rule.weight > 0 && waves.length > 0 && result.unknown === 0;
+      if (!result.scoreEligible)
+        result.excludedReason =
+          rule.kind === 'avoid'
+            ? 'No complete cast/contact denominator is available for this check.'
+            : 'Recorded context only; no common role-wide opportunity is established.';
+      for (const e of result.events.filter((e) => e.outcome === 'failed'))
+        m.evidence.push({
+          fightId: fight.id,
+          timestamp: e.timestamp,
+          ability: rule.name,
+          abilityId: result.abilityIds.find((id) => abilities.get(id) === rule.name),
+          kind: result.scoreEligible ? 'mechanic' : 'mechanic-observed',
+          description: result.scoreEligible ? e.detail : `Observation only. ${e.detail}`,
+          confidence: 'observed',
+          ruleId: result.ruleId,
+          url: e.url,
+        });
       m.mechanics!.push(result);
-      m.mechanicFailures! += result.failures;
-      m.mechanicOpportunities! += result.opportunities;
+      if (result.scoreEligible) {
+        m.mechanicFailures! += result.failures;
+        m.mechanicOpportunities! += result.opportunities;
+      }
     }
   }
   // New/renamed mechanics remain visible even before a new adapter is released.
@@ -466,12 +505,14 @@ export function evaluateEncounter(
             url: evidenceUrl(report, fight.id, m.actorId, list[0].timestamp, 'damage-taken'),
           },
         ],
+        scoreEligible: false,
+        excludedReason: 'Unclassified ability; no scored personal outcome.',
       });
   }
   return {
     rule: ENCOUNTER_RULE_VERSION,
     warnings: [
-      'Mechanic review separates verified contact/duty checks, required soaks, shared raid incidents and unobservable assignments. Context-only or unclassified rows never silently become personal mistakes. Complete positional/causal coverage is not claimed.',
+      'Only completed common-opportunity mechanic checks are scored. Assigned duties, raw intake and incomplete denominators remain observations.',
     ],
   };
 }
