@@ -8,7 +8,7 @@ import type {
   Role,
 } from './types.js';
 
-export const COMPOSITE_VERSION = 'composite/v2';
+export const COMPOSITE_VERSION = 'composite/v3';
 export const COMPOSITE_KEYS: CompositeKey[] = ['mechanics', 'output', 'survival'];
 export const COMPOSITE_WEIGHTS: Record<Exclude<Role, 'unknown'>, Record<CompositeKey, number>> = {
   dps: { mechanics: 0.5, output: 0.3, survival: 0.2 },

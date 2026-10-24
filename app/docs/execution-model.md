@@ -1,6 +1,6 @@
-# Measured raid score · 0.12.0
+# Measured raid score · 0.13.0
 
-Model: composite/v2. One 0–100 score summarises recorded contribution and verified mechanic completion, rather than an inferred interval of complete player skill.
+Model: composite/v3. One 0–100 score summarises recorded contribution and verified mechanic completion, rather than an inferred interval of complete player skill.
 
 ## Three components
 
@@ -36,9 +36,13 @@ Feign Death is excluded. Verified successful Reincarnation supplies self-return 
 
 ## Aggregation and UI
 
-Calculate each pull using its common scope, then average by full attended duration within each role. Aggregate component points and effective weights identically; their sum equals total. Mixed scope is explained. Essential invalid data is never silently omitted to raise a total.
+Calculate each pull using its common scope, then average the verified scored pulls by their full durations within each role. Aggregate component points and effective weights over those exact same scored pulls; their sum equals total. A pull with inconsistent essential data is explicitly excluded for that player, never assigned zero or perfect credit. If no verified scored pulls remain, no score is fabricated. Mixed scope and exclusions are visible.
 
-Normal rows show one number, no intervals or Preliminary label. Separate DPS/healer/tank lists. Role changes yield separate scores. Partial attendance retains score and pull count, without claiming equal full-selection exposure. Equal displayed scores tie; only an actual 100 gets the perfect-score badge.
+Normal rows show one number, no intervals or Preliminary label. Separate DPS/healer/tank lists. Role changes yield separate scores. Every row shows scored/selected pulls with separate role-change, absence and excluded-data reasons. Attendance never multiplies the score: a score on a smaller subset is a description of that subset, not proof of better full-report performance.
+
+Comparable standings require scored fight IDs to match the entire selected fight-ID set, not merely its count. Partial rows retain a score without an equal-exposure place. **Compare same pulls** submits the player's exact scored fight IDs for a new server-side calculation, preserving boss/difficulty/mode constraints; it does not filter precomputed aggregate ranks. Return to the original selection is available. Other players' valid pulls are never silently removed from the original analysis. Equal displayed scores tie; only an actual 100 gets the perfect-score badge.
+
+Death counts and observed evidence include every attended pull, including excluded ones. Unreliable dead-time intervals are never shown as exact or as zero. Score arithmetic refers to the verified score subset; factual participation and death evidence refer to the labelled attended subset.
 
 Details show three contributions, successful/failed/not-completed counts, accurate death data and WCL evidence links. Profile links use verified identity. Flask, food, potions, healthstones, enchants, gems, defensives and utility remain facts outside scoring.
 

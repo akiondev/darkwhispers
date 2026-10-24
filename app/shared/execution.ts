@@ -67,11 +67,14 @@ function assessment(
   scoredPulls: number,
   issues: string[] = [],
   composite?: CompositeAssessment,
+  lifeComplete = true,
 ): ExecutionAssessment {
   const alivePercent = scoreSurvival(aliveMs, durationMs);
   const score = issues.length || !composite?.complete ? null : composite.score;
   return {
     version: EXECUTION_MODEL_VERSION,
+    lifeComplete,
+    scoredDurationMs: score === null ? 0 : durationMs,
     composite,
     score,
     baseScore: score,
@@ -100,10 +103,12 @@ function assessment(
             ),
           ]
         : [
-            `${time(durationMs - aliveMs)} dead of ${time(durationMs)} recorded encounter time · ${deaths} deaths.`,
+            lifeComplete
+              ? `${time(durationMs - aliveMs)} dead of ${time(durationMs)} recorded encounter time · ${deaths} deaths.`
+              : `${deaths} recorded deaths. Exact total dead time is unavailable because a life timeline is incomplete.`,
             composite?.scope === 'output-survival'
               ? 'Score uses output and survival. No common verified mechanic checks were available for this role; the same scope applies to every role participant in each pull.'
-              : 'Score combines verified mechanic completion, report-relative output and recorded survival. All selected kills and wipes are included.',
+              : 'Score combines verified mechanic completion, report-relative output and recorded survival from scored pulls.',
           ],
   };
 }
@@ -115,19 +120,33 @@ export function combineExecutions(
     throw Error('No composite measurements to combine.');
   const duration = sum(values.map((v) => v.weightMs ?? 0));
   const alive = sum(values.map((v) => (v.alivePercent * (v.weightMs ?? 0)) / 100));
+  const scored = values.filter((v) => v.score !== null && v.composite!.complete);
+  const scoredDuration = sum(scored.map((v) => v.scoredDurationMs ?? v.weightMs ?? 0));
+  const issues = [...new Set(values.filter((v) => v.score === null).flatMap((v) => v.reasons))];
   const result = assessment(
     alive,
     duration,
     sum(values.map((v) => v.deaths ?? 0)),
     sum(values.map((v) => v.totalPulls)),
     sum(values.map((v) => v.scoredPulls)),
-    [...new Set(values.filter((v) => v.score === null).flatMap((v) => v.reasons))],
-    combineComposites(values.map((v) => ({ composite: v.composite!, durationMs: v.weightMs! }))),
+    scored.length ? [] : issues,
+    combineComposites(
+      (scored.length ? scored : values).map((v) => ({
+        composite: v.composite!,
+        durationMs: scored.length ? (v.scoredDurationMs ?? v.weightMs!) : v.weightMs!,
+      })),
+    ),
+    values.every((v) => v.lifeComplete !== false),
   );
-  result.passedChecks = sum(values.map((v) => v.passedChecks));
-  result.failedChecks = sum(values.map((v) => v.failedChecks));
-  result.checkedMechanics = sum(values.map((v) => v.checkedMechanics));
-  result.missedWhileDead = sum(values.map((v) => v.missedWhileDead ?? 0));
+  result.scoredDurationMs = scoredDuration;
+  if (result.score !== null && result.scoredPulls < result.totalPulls)
+    result.reasons.unshift(
+      `${result.scoredPulls}/${result.totalPulls} attended pulls scored; excluded pulls add no points or score weight. All recorded deaths remain visible.`,
+    );
+  result.passedChecks = sum(scored.map((v) => v.passedChecks));
+  result.failedChecks = sum(scored.map((v) => v.failedChecks));
+  result.checkedMechanics = sum(scored.map((v) => v.checkedMechanics));
+  result.missedWhileDead = sum(scored.map((v) => v.missedWhileDead ?? 0));
   return result;
 }
 function validatePull(pull: PullData, fight: Fight) {
@@ -214,8 +233,6 @@ export function analyzeExecution(
       reviews: ExecutionPullReview[];
     }
   >();
-  const rolesByFight = new Map<number, Set<Role>>();
-  const hasPeerComparison = new Set<string>();
   for (const p of pulls) {
     const f = fightMap.get(p.fight.id)!;
     validatePull(p, f);
@@ -237,13 +254,10 @@ export function analyzeExecution(
     const allowedByRole = new Map(
       [...peersByRole].map(([role, peers]) => [role, mechanicRulesForPeers(peers)]),
     );
-    const roles = new Set<Role>(peersByRole.keys());
-    rolesByFight.set(f.id, roles);
     for (const m of p.metrics) {
       const player = metadata.get(m.actorId);
       if (!player) throw Error('A participating player is missing metadata.');
       const role = roleFor(player, f);
-      roles.add(role);
       const key = `${player.id}:${role}`;
       const row = rows.get(key) ?? { player, role, pulls: [], metrics: [], reviews: [] };
       rows.set(key, row);
@@ -269,7 +283,6 @@ export function analyzeExecution(
       const mechanical = mechanicsComponent(m, allowedRules);
       const mechanicsAvailable = activity && !issues.length;
       const peerMetrics = peersByRole.get(role)!;
-      if (peerMetrics.length > 1) hasPeerComparison.add(key);
       const component = scoreComposite(
         role,
         {
@@ -300,6 +313,7 @@ export function analyzeExecution(
         component.complete && !reasons.length ? 1 : 0,
         reasons,
         component,
+        m.life?.complete !== false,
       );
       execution.passedChecks = mechanicsAvailable ? mechanical.passed : 0;
       execution.failedChecks = mechanicsAvailable ? mechanical.failed : 0;
@@ -309,6 +323,7 @@ export function analyzeExecution(
       row.metrics.push(m);
       row.reviews.push({
         fightId: f.id,
+        lifeComplete: m.life?.complete !== false,
         window: assessmentWindow(report, f, selection),
         role,
         execution,
@@ -341,7 +356,7 @@ export function analyzeExecution(
     }
   }
   const players: RankedPlayer[] = [];
-  const fullAttendance = new Set<string>();
+  const fullSelection = new Set<string>();
   for (const [rowKey, row] of rows) {
     const { player, role, metrics, reviews } = row;
     const ownSum = (
@@ -357,16 +372,29 @@ export function analyzeExecution(
     ) => sum(metrics.map((m) => m[key]));
     const durationMs = sum(reviews.map((r) => r.durationMs));
     const execution = combineExecutions(reviews.map((r) => r.execution));
-    const expected = pulls.filter((p) => rolesByFight.get(p.fight.id)!.has(role)).length;
-    if (reviews.length === expected) fullAttendance.add(rowKey);
+    const scoredFightIds = reviews.filter((r) => r.execution.score !== null).map((r) => r.fightId);
+    const scoredIds = new Set(scoredFightIds);
+    const sameSelection =
+      scoredIds.size === selectedIds.size && [...selectedIds].every((id) => scoredIds.has(id));
+    const otherRolePulls = pulls.filter(
+      (p) => p.fight.friendlyPlayers.includes(player.id) && roleFor(player, p.fight) !== role,
+    ).length;
+    const excludedPulls = reviews.length - scoredFightIds.length;
+    if (sameSelection) fullSelection.add(rowKey);
+    const rankingStatus: RankedPlayer['rankingStatus'] =
+      execution.score === null
+        ? 'no-score'
+        : !sameSelection
+          ? excludedPulls > 0
+            ? 'excluded-pulls'
+            : 'partial-selection'
+          : 'ranked';
     const rankingReason =
       execution.score === null
         ? execution.reasons.join(' ')
-        : reviews.length < expected
-          ? 'Partial role attendance; compare the listed pulls before judging this score.'
-          : !hasPeerComparison.has(rowKey)
-            ? 'Only one participant in this role in the attended pulls; no comparative rank is assigned.'
-            : undefined;
+        : !sameSelection
+          ? `${scoredFightIds.length}/${chosen.length} selected pulls scored in this role${excludedPulls ? `; ${excludedPulls} attended ${excludedPulls === 1 ? 'pull excluded' : 'pulls excluded'} from score` : ''}. Compare the same actual pulls for a comparable rank.`
+          : undefined;
     const perBoss: ExecutionBossScore[] = [];
     const contexts = new Map<string, ExecutionPullReview[]>();
     for (const r of reviews) {
@@ -418,7 +446,18 @@ export function analyzeExecution(
       rank: null,
       roleRank: null,
       rolePeers: 0,
+      rankingStatus,
       rankingReason,
+      attendance: {
+        selectedPulls: chosen.length,
+        attendedPulls: reviews.length,
+        scoredPulls: scoredFightIds.length,
+        otherRolePulls,
+        absentPulls: chosen.length - reviews.length - otherRolePulls,
+        excludedPulls,
+        scoredFightIds,
+      },
+      lifeComplete: reviews.every((r) => r.lifeComplete !== false),
       score: execution.score,
       provisional: false,
       execution,
@@ -447,13 +486,21 @@ export function analyzeExecution(
   players.sort(
     (a, b) =>
       order[a.role] - order[b.role] ||
-      Number(fullAttendance.has(b.rowKey)) - Number(fullAttendance.has(a.rowKey)) ||
+      Number(fullSelection.has(b.rowKey)) - Number(fullSelection.has(a.rowKey)) ||
       (b.score ?? -1) - (a.score ?? -1) ||
       a.name.localeCompare(b.name) ||
       a.id - b.id,
   );
   for (const role of ['dps', 'healer', 'tank', 'unknown'] as Role[]) {
     const ranked = players.filter((p) => p.role === role && p.score !== null && !p.rankingReason);
+    if (ranked.length < 2) {
+      for (const p of ranked) {
+        p.rankingStatus = 'no-peers';
+        p.rankingReason =
+          'No other player in this role has a verified score for all the same selected pulls; no comparative rank is assigned.';
+      }
+      continue;
+    }
     let previous = -1,
       rank = 0;
     ranked.forEach((p, i) => {
@@ -500,7 +547,7 @@ export function analyzeExecution(
       formula:
         'DPS: 50% mechanics + 30% output + 20% survival. Healer: 50/20/30. Tank: 60/10/30. Output is report-relative contribution, not a global parse.',
       aggregation:
-        'Calculate each pull using the same verified mechanic rules for everyone in that role, then average by full attended duration. If no common mechanic rule is available, everyone in that role uses output/survival weights: DPS 60/40, healer 40/60, tank 25/75. No wipe cutoff or fixed death penalties.',
+        'Calculate each verified pull using the same mechanic rules for everyone in that role, then average by the full duration of scored pulls. Excluded pulls add no points or score weight; their recorded deaths remain visible. If no common mechanic rule is available, everyone in that role uses output/survival weights: DPS 60/40, healer 40/60, tank 25/75. No wipe cutoff or fixed death penalties.',
       limitations: [
         'This is a transparent composite of measured contribution and reviewed mechanics, not proof of total player skill or who caused a wipe.',
         'All deaths during the encounter are included, including intentional wipe deaths. Voice calls cannot be inferred.',
@@ -509,7 +556,8 @@ export function analyzeExecution(
         'Mechanic completion credits verified successes out of valid opportunities. Checks while dead earn no completion credit but are not labelled mechanic failures. Death therefore affects availability, output and completion by explicit policy.',
         'A questionable rule is excluded for the entire role in the affected pull, not selectively for one player. Other verified pulls retain their checks. Output/survival fallback measures a narrower scope, which remains visible in the breakdown.',
         'Tank intake and unassigned utility never receive generic penalties. Preparation, healthstone, potion, defensive and enchant observations are context outside the score.',
-        'Partial role attendance is labelled. Inconsistent life events or no recorded participation cannot earn an assumed perfect score.',
+        'Score describes verified pulls in this role, not attendance. Rank requires the same actual selected pulls and at least two comparable players. Role changes, absence and excluded pulls are shown separately.',
+        'Inconsistent life events or no recorded participation exclude only the affected player-pull from score. All recorded deaths are retained; incomplete life timelines must not be presented as exact dead time.',
       ],
     },
   };

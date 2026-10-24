@@ -75,7 +75,7 @@ test('verified mechanics alter composite points without altering the survival me
   }
   pull.metrics[2].mechanics![1].unknown = 1;
   const a = analyze(report, [pull], selection);
-  assert.equal(a.model.id, 'composite/v2');
+  assert.equal(a.model.id, 'composite/v3');
   assert.equal(a.model.deathPenalty, 0);
   assert.ok(a.players.every((p) => p.execution.alivePercent === 80));
   for (const p of a.players.filter((p) => p.role === 'dps')) {
@@ -264,7 +264,8 @@ test('partial attendance keeps a visible score without a misleading full-selecti
   const partial = a.players.find((p) => p.id === 3)!;
   assert.equal(partial.score, 100);
   assert.equal(partial.roleRank, null);
-  assert.match(partial.rankingReason!, /Partial/);
+  assert.match(partial.rankingReason!, /1\/2 selected pulls/);
+  assert.equal(partial.rankingStatus, 'partial-selection');
   assert.equal(a.players.find((p) => p.id === 4)!.roleRank, 1);
 });
 
@@ -303,7 +304,7 @@ test('identical survival is measured equally but contributes the approved role-s
   assert.equal(a.players.find((p) => p.role === 'dps')!.rolePeers, 2);
 });
 
-test('unverified life timelines never become perfect scores or silently disappear from aggregates', () => {
+test('unverified life timelines are explicitly excluded while verified pulls retain their measured score', () => {
   const { report, pull, fight } = fixture();
   const m = pull.metrics[0];
   m.life = summarizeLife(fight, [{ type: 'resurrect', timestamp: 60000 }]);
@@ -315,9 +316,12 @@ test('unverified life timelines never become perfect scores or silently disappea
   other.metrics[0].aliveMs = other.metrics[0].life.aliveMs;
   report.fights = [fight, other.fight];
   const p = analyze(report, [pull, other], selection).players.find((p) => p.id === 1)!;
-  assert.equal(p.score, null);
+  assert.equal(p.score, 100);
   assert.equal(p.rank, null);
-  assert.ok(p.rankingReason);
+  assert.equal(p.rankingStatus, 'excluded-pulls');
+  assert.equal(p.attendance!.scoredPulls, 1);
+  assert.equal(p.attendance!.excludedPulls, 1);
+  assert.equal(p.lifeComplete, false);
   assert.equal(p.pullReviews.length, 2);
   assert.equal(p.pullReviews.find((r) => r.fightId === fight.id)!.execution.score, null);
   assert.equal(p.pullReviews.find((r) => r.fightId === other.fight.id)!.execution.score, 100);

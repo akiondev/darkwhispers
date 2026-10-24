@@ -5,7 +5,8 @@ import { analyze } from '../shared/analysis.js';
 import { demoData } from '../shared/demo.js';
 import { parseReportCode, selectFights } from '../shared/report-url.js';
 import { scoreBand, scoreLabel } from '../shared/score.js';
-import { aliveTime } from '../shared/life.js';
+import { aliveTime, summarizeLife } from '../shared/life.js';
+import { combineExecutions } from '../shared/execution.js';
 import { roleFromSpec, summarizeSpecs } from '../shared/players.js';
 import { fixture as baseFixture, selection, check } from './execution-fixtures.js';
 
@@ -56,8 +57,8 @@ test('the labelled demo uses the composite model without pretending to be a real
   assert.equal(result.report.source, 'demo');
   assert.equal(result.players.length, 20);
   assert.ok(result.warnings.some((w) => /synthetic|demo/i.test(w)));
-  assert.equal(result.model.id, 'composite/v2');
-  assert.ok(result.players.every((p) => p.execution.version === 'composite/v2'));
+  assert.equal(result.model.id, 'composite/v3');
+  assert.ok(result.players.every((p) => p.execution.version === 'composite/v3'));
   assert.ok(result.players.every((p) => p.evidence.every((e) => e.url === null)));
   assert.ok(
     result.pulls.every((p) => !('metrics' in p)),
@@ -198,9 +199,169 @@ test('actual per-pull roles produce independent rows for a character who changes
   assert.equal(damage.execution.composite!.components.output.weight, 0.3);
   assert.equal(healing.execution.composite!.components.output.weight, 0.2);
   assert.notEqual(damage.score, healing.score);
+  for (const row of rows) {
+    assert.equal(row.attendance!.selectedPulls, 2);
+    assert.equal(row.attendance!.attendedPulls, 1);
+    assert.equal(row.attendance!.otherRolePulls, 1);
+    assert.equal(row.attendance!.absentPulls, 0);
+    assert.equal(row.attendance!.excludedPulls, 0);
+    assert.equal(row.rankingStatus, 'partial-selection');
+    assert.equal(row.roleRank, null);
+  }
   const result = analyze(report, [pull, other], selection);
   assert.equal(result.summary.players, 4, 'A role switch does not invent another character');
   assert.equal(result.summary.rankedEntries, 5, 'The actual role rows are reported separately');
+});
+
+test('one unverified life timeline excludes only that pull from score while retaining every recorded death', () => {
+  const { report, pull } = fixture({ duration: 100000, roles: ['dps', 'dps'] });
+  const bad = structuredClone(pull);
+  bad.fight = { ...bad.fight, id: 2, startTime: 200000, endTime: 400000 };
+  for (const m of bad.metrics) m.aliveMs = 200000;
+  const events = [
+    { type: 'death' as const, timestamp: 225000 },
+    { type: 'death' as const, timestamp: 268000 },
+  ];
+  const broken = bad.metrics[0];
+  broken.life = summarizeLife(bad.fight, events, [232000]);
+  broken.aliveMs = broken.life.aliveMs;
+  broken.deaths = broken.life.deaths;
+  broken.facts!.lifeEvents = events;
+  broken.evidence = events.map((event) => ({
+    fightId: 2,
+    timestamp: event.timestamp,
+    kind: 'death',
+    ability: 'Synthetic death',
+    description: 'Synthetic recorded death',
+    confidence: 'observed',
+    url: null,
+  }));
+  const final = structuredClone(pull);
+  final.fight = { ...final.fight, id: 3, startTime: 500000, endTime: 800000 };
+  for (const m of final.metrics) m.aliveMs = 300000;
+  final.metrics[0].damage = final.metrics[1].damage / 2;
+  final.metrics[0].mechanics = [check(10, 4)];
+  final.metrics[0].life = summarizeLife(final.fight, [{ type: 'death', timestamp: 740000 }]);
+  final.metrics[0].aliveMs = final.metrics[0].life.aliveMs;
+  final.metrics[0].deaths = 1;
+  final.metrics[0].facts!.lifeEvents = [{ type: 'death', timestamp: 740000 }];
+  report.fights = [pull.fight, bad.fight, final.fight];
+  const result = analyze(report, [pull, bad, final], selection);
+  const player = result.players.find((p) => p.id === 1)!;
+  const verified = analyze(report, [pull, bad, final], { ...selection, fightIds: [1, 3] });
+  const reference = verified.players.find((p) => p.id === 1)!;
+  assert.equal(player.score, reference.score);
+  assert.deepEqual(player.execution.composite, reference.execution.composite);
+  assert.equal(player.execution.scoredDurationMs, 400000);
+  assert.equal(player.durationMs, 600000);
+  assert.equal(player.deaths, 3);
+  assert.equal(player.evidence.filter((e) => e.kind === 'death').length, 2);
+  assert.equal(player.lifeComplete, false);
+  assert.equal(player.execution.lifeComplete, false);
+  assert.equal(player.aliveMs, pull.metrics[0].aliveMs + broken.aliveMs + final.metrics[0].aliveMs);
+  assert.deepEqual(player.attendance, {
+    selectedPulls: 3,
+    attendedPulls: 3,
+    scoredPulls: 2,
+    otherRolePulls: 0,
+    absentPulls: 0,
+    excludedPulls: 1,
+    scoredFightIds: [1, 3],
+  });
+  assert.equal(player.rankingStatus, 'excluded-pulls');
+  assert.equal(player.roleRank, null);
+  const review = player.pullReviews.find((p) => p.fightId === 2)!;
+  assert.equal(review.deaths, 2);
+  assert.equal(review.lifeComplete, false);
+  assert.equal(review.execution.score, null);
+  assert.deepEqual(review.facts.lifeEvents, events);
+  assert.deepEqual(review.deadIntervals, broken.life.intervals);
+  assert.ok(review.lifeIssues!.length > 0);
+  assert.equal(reference.rankingStatus, 'ranked');
+  assert.equal(reference.lifeComplete, true);
+  assert.equal(reference.deaths, 1);
+  assert.equal(player.perBoss[0].score, reference.perBoss[0].score);
+  assert.equal(
+    result.players.find((p) => p.id === 2)!.attendance!.scoredPulls,
+    3,
+    'One player data issue must not erase valid facts for others',
+  );
+  const firstGroup = combineExecutions(player.pullReviews.slice(0, 2).map((p) => p.execution));
+  const regrouped = combineExecutions([firstGroup, player.pullReviews[2].execution]);
+  assert.equal(
+    regrouped.score,
+    player.score,
+    'Verified duration is preserved through nested grouping',
+  );
+  assert.equal(regrouped.deaths, player.deaths);
+  assert.equal(regrouped.scoredDurationMs, player.execution.scoredDurationMs);
+});
+
+test('an all-invalid selection has no replacement score and still retains known deaths', () => {
+  const { report, pull } = fixture({ roles: ['dps', 'dps'] });
+  const m = pull.metrics[0];
+  m.life = summarizeLife(pull.fight, [
+    { type: 'death', timestamp: 20000 },
+    { type: 'death', timestamp: 90000 },
+  ]);
+  m.aliveMs = m.life.aliveMs;
+  m.deaths = m.life.deaths;
+  const player = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
+  assert.equal(player.score, null);
+  assert.equal(player.execution.scoredDurationMs, 0);
+  assert.equal(player.attendance!.scoredPulls, 0);
+  assert.equal(player.attendance!.excludedPulls, 1);
+  assert.deepEqual(player.attendance!.scoredFightIds, []);
+  assert.equal(player.rankingStatus, 'no-score');
+  assert.equal(player.deaths, 2);
+  assert.equal(player.lifeComplete, false);
+});
+
+test('equal pull counts on different actual pulls do not earn comparable ranks', () => {
+  const { report, pull } = fixture({ roles: ['dps', 'dps', 'dps'] });
+  const other = structuredClone(pull);
+  other.fight = { ...other.fight, id: 2 };
+  pull.fight.friendlyPlayers = [1, 3];
+  pull.metrics = pull.metrics.filter((m) => m.actorId !== 2);
+  other.fight.friendlyPlayers = [2, 3];
+  other.metrics = other.metrics.filter((m) => m.actorId !== 1);
+  report.fights = [pull.fight, other.fight];
+  const result = analyze(report, [pull, other], selection);
+  const first = result.players.find((p) => p.id === 1)!;
+  const second = result.players.find((p) => p.id === 2)!;
+  assert.deepEqual(first.attendance!.scoredFightIds, [1]);
+  assert.deepEqual(second.attendance!.scoredFightIds, [2]);
+  assert.equal(first.score, 100, 'No attendance multiplier');
+  assert.equal(second.score, 100);
+  assert.equal(first.attendance!.absentPulls, 1);
+  assert.equal(first.attendance!.otherRolePulls, 0);
+  assert.equal(first.roleRank, null);
+  assert.equal(second.roleRank, null);
+  assert.equal(result.players.find((p) => p.id === 3)!.rankingStatus, 'no-peers');
+  const same = analyze(report, [pull, other], {
+    ...selection,
+    fightIds: first.attendance!.scoredFightIds,
+  });
+  assert.deepEqual(
+    same.players.map((p) => p.id),
+    [1, 3],
+  );
+  assert.ok(same.players.every((p) => p.roleRank === 1 && p.rolePeers === 2));
+  assert.ok(same.players.every((p) => p.attendance!.selectedPulls === 1));
+});
+
+test('a measured zero score remains a scored pull and is not dropped as missing data', () => {
+  const { report, pull } = fixture({ roles: ['dps', 'dps'] });
+  const m = pull.metrics[0];
+  m.damage = 0;
+  m.aliveMs = 0;
+  m.deaths = 1;
+  m.mechanics = [check(10, 10)];
+  const player = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
+  assert.equal(player.score, 0);
+  assert.equal(player.attendance!.scoredPulls, 1);
+  assert.equal(player.execution.scoredDurationMs, 300000);
+  assert.equal(player.roleRank, 2);
 });
 
 test('unknown specialization does not invent a damage role', () => {

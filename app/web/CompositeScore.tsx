@@ -31,9 +31,11 @@ export function ScoreBreakdown({ assessment }: { assessment: ExecutionAssessment
           const explanation =
             key === 'mechanics' && assessment.checkedMechanics > 0
               ? `${assessment.passedChecks} completed, ${assessment.failedChecks} failed.${assessment.missedWhileDead ? ` ${assessment.missedWhileDead} not completed while dead; these are not mechanic failures.` : ''}`
-              : key === 'survival' && complete
-                ? `${points(assessment.alivePercent)}% of full recorded time alive. ${assessment.deaths ?? 0} recorded deaths; resurrections do not erase earlier dead time.`
-                : component.reason;
+              : key === 'survival' && complete && assessment.scoredPulls < assessment.totalPulls
+                ? `Survival points use ${assessment.scoredPulls}/${assessment.totalPulls} verified attended pulls. Recorded deaths from excluded pulls remain visible below.`
+                : key === 'survival' && complete
+                  ? `${points(assessment.alivePercent)}% of full recorded time alive. ${assessment.deaths ?? 0} recorded deaths; resurrections do not erase earlier dead time.`
+                  : component.reason;
           return (
             <div className={`component-card component-${key}`} key={key}>
               <span>{componentNames[key]}</span>
@@ -78,8 +80,8 @@ export function ScoreBreakdown({ assessment }: { assessment: ExecutionAssessment
       {composite.scope === 'mixed' && (
         <p className="small muted">
           Each pull is scored first, then its points are weighted by full encounter duration. Some
-          pulls use output and survival only, so the maximum weights above are averages too.
-          Recorded time alive remains the actual full-timeline percentage.
+          pulls use output and survival only, so the maximum weights above are averages too. Only
+          scored pulls contribute points; recorded death counts also include excluded pulls.
         </p>
       )}
       {assessment.score === null && (

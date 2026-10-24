@@ -2468,3 +2468,75 @@ footer a {
     gap: 4px;
   }
 }
+.comparison-banner,
+.player-attendance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(118, 77, 111, 0.1);
+}
+.comparison-banner {
+  margin-bottom: 22px;
+}
+.comparison-banner span,
+.player-attendance > div {
+  min-width: 0;
+}
+.comparison-banner strong,
+.player-attendance strong,
+.player-attendance span {
+  display: block;
+}
+.comparison-banner strong {
+  margin-bottom: 4px;
+}
+.comparison-banner a,
+.player-attendance button {
+  flex-shrink: 0;
+}
+.player-attendance {
+  margin: 18px 0 10px;
+}
+.player-attendance span,
+.player-attendance p,
+.excluded-pulls p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.player-attendance span {
+  margin-top: 4px;
+}
+.player-attendance p {
+  margin: 6px 0 0;
+}
+.excluded-pulls {
+  margin: 14px 0;
+  padding: 12px 16px;
+  border-left: 2px solid #c395a5;
+  background: rgba(118, 77, 111, 0.08);
+}
+.excluded-pulls summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.excluded-pulls > div {
+  margin-top: 14px;
+}
+.execution-stats .stat-unavailable {
+  font-size: clamp(15px, 3vw, 24px);
+}
+@media (max-width: 600px) {
+  .comparison-banner,
+  .player-attendance {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .comparison-banner a {
+    font-size: 13px;
+  }
+}

@@ -32,9 +32,11 @@ import RecentAnalyses from './RecentAnalyses.js';
 import CompactPlayerDetails from './CompactPlayerDetails.js';
 import { CompositeScore, points } from './CompositeScore.js';
 import { duration, RoleIcon } from './presentation.js';
+import { attendanceLabel, lifeComplete, pullAttendance, samePullSelection } from './attendance.js';
 
 type SavedAnalysis = Analysis | LegacyAnalysis;
 type SavedJob = Omit<Job, 'result'> & { result?: SavedAnalysis };
+type Comparison = { name: string; role: Role; pulls: number; originalId: string };
 const defaults: Selection = {
   encounterId: null,
   difficulty: null,
@@ -47,7 +49,7 @@ const roleName = (role: Role) =>
   ({ dps: 'DPS', healer: 'Healers', tank: 'Tanks', unknown: 'Role not recorded' })[role];
 const formatOutput = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 export const currentModel = (analysis: SavedAnalysis): analysis is Analysis =>
-  'model' in analysis && analysis.model?.id === 'composite/v2';
+  'model' in analysis && analysis.model?.id === 'composite/v3';
 async function api<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -165,7 +167,8 @@ export default function App() {
     [method, setMethod] = useState(false),
     [pullPicker, setPullPicker] = useState(false),
     [query, setQuery] = useState(''),
-    [role, setRole] = useState('all');
+    [role, setRole] = useState('all'),
+    [comparison, setComparison] = useState<Comparison | null>(null);
   const request = useRef<AbortController | null>(null),
     resultRef = useRef<HTMLElement>(null);
   function applyJob(next: SavedJob) {
@@ -207,7 +210,9 @@ export default function App() {
       setMethod(false);
       setShare(false);
       setQuery('');
-      setRole('all');
+      const restoredComparison = window.history.state?.comparison as Comparison | undefined;
+      setComparison(restoredComparison ?? null);
+      setRole(restoredComparison?.role ?? 'all');
       setPullPicker(false);
       setPollPaused(false);
       setSelection(defaults);
@@ -279,6 +284,7 @@ export default function App() {
     ) ?? [];
   const change = (patch: Partial<Selection>) => {
     clearAnalysisLocation();
+    setComparison(null);
     setSelection((s) => ({ ...s, ...patch }));
     setAnalysis(null);
     setJob(null);
@@ -301,6 +307,7 @@ export default function App() {
     setMethod(false);
     setQuery('');
     setRole('all');
+    setComparison(null);
     setPullPicker(false);
     try {
       const next = demo
@@ -317,7 +324,7 @@ export default function App() {
       if (!controller.signal.aborted) setBusy(false);
     }
   }
-  async function start() {
+  async function start(override?: Selection, nextComparison: Comparison | null = null) {
     if (!report || busy) return;
     request.current?.abort();
     const controller = new AbortController();
@@ -329,8 +336,18 @@ export default function App() {
     setPlayer(null);
     setMethod(false);
     setPollPaused(false);
-    const { wipeStops: _legacyStops, ...automatic } = selection;
-    const frozen = { ...automatic, excludeWipeTail: false, fightIds: chosen.map((f) => f.id) };
+    setComparison(nextComparison);
+    if (nextComparison) {
+      setRole(nextComparison.role);
+      setQuery('');
+    }
+    const { wipeStops: _legacyStops, ...automatic } = override ?? selection;
+    const frozen = {
+      ...automatic,
+      excludeWipeTail: false,
+      fightIds: selectFights(report, automatic).map((f) => f.id),
+    };
+    setSelection(frozen);
     try {
       const created = await api<{ id: string; status: Job['status'] }>(
         '/api/analyses',
@@ -338,7 +355,20 @@ export default function App() {
         controller.signal,
       );
       if (controller.signal.aborted) return;
-      window.history.pushState(null, '', analysisLink(window.location.origin, created.id));
+      window.history.pushState(
+        { comparison: nextComparison },
+        '',
+        analysisLink(window.location.origin, created.id),
+      );
+      if (created.status === 'complete' || created.status === 'failed') {
+        const completed = await api<SavedJob>(
+          `/api/analyses/${created.id}`,
+          undefined,
+          controller.signal,
+        );
+        if (!controller.signal.aborted) applyJob(completed);
+        return;
+      }
       setJob({
         id: created.id,
         status: created.status,
@@ -355,6 +385,17 @@ export default function App() {
         setError(e instanceof Error ? e.message : 'Analysis could not start.');
       }
     }
+  }
+  function comparePlayerPulls(target: RankedPlayer) {
+    if (!fresh || !job || busy) return;
+    const next = samePullSelection(target, fresh);
+    if (!next) return;
+    void start(next, {
+      name: target.name,
+      role: target.role,
+      pulls: next.fightIds!.length,
+      originalId: job.id,
+    });
   }
   return (
     <>
@@ -468,6 +509,18 @@ export default function App() {
         )}
         {report && (
           <section className="panel selection-panel">
+            {comparison && (
+              <div className="comparison-banner" role="status">
+                <span>
+                  <strong>Same-pull comparison</strong>
+                  {comparison.pulls} scored pulls for {comparison.name} ·{' '}
+                  {roleName(comparison.role)}
+                </span>
+                <a href={analysisLink(window.location.origin, comparison.originalId)}>
+                  Back to original analysis
+                </a>
+              </div>
+            )}
             <div className="section-heading">
               <div>
                 <p className="eyebrow">
@@ -738,8 +791,8 @@ export default function App() {
                   ))}
                 </div>
                 <p className="ranking-benchmark">
-                  Output compares contributions within the same role and pull. It is not a global
-                  parse or a spec/gear-adjusted rating.
+                  Placements compare the same role across every selected pull. Scores with fewer
+                  pulls remain visible; open a player to compare the same pulls.
                 </p>
                 <div className="table-scroll">
                   <table>
@@ -755,99 +808,105 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {shown.map((p, index) => (
-                        <Fragment key={p.rowKey}>
-                          {(index === 0 || shown[index - 1].role !== p.role) && (
-                            <tr className="role-group">
-                              <th colSpan={7}>
-                                <RoleIcon role={p.role} />
-                                {roleName(p.role)}
-                                <small>Compared within this role</small>
-                              </th>
-                            </tr>
-                          )}
-                          <tr onClick={() => setPlayer(p)}>
-                            <td className="rank">{p.roleRank ?? '—'}</td>
-                            <td>
-                              <button
-                                className="player-button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPlayer(p);
-                                }}
-                              >
-                                <span className={`class-dot class-${p.class.toLowerCase()}`} />
-                                <span>
-                                  {p.name}
-                                  <small>
-                                    {p.spec} {p.class}
-                                    <span className="mobile-pulls"> · {p.pulls} pulls</span>
-                                    {fresh.players.some(
-                                      (other) => other.id === p.id && other.role !== p.role,
-                                    ) && (
-                                      <span className="role-split-badge">Separate role score</span>
-                                    )}
-                                    {p.rankingReason && (
-                                      <span className="cell-sub" title={p.rankingReason}>
-                                        {p.score === null
-                                          ? 'Data needs review'
-                                          : 'Partial selection · unranked'}
+                      {shown.map((p, index) => {
+                        const attendance = pullAttendance(p, fresh);
+                        const completeLife = p.lifeComplete ?? p.pullReviews.every(lifeComplete);
+                        return (
+                          <Fragment key={p.rowKey}>
+                            {(index === 0 || shown[index - 1].role !== p.role) && (
+                              <tr className="role-group">
+                                <th colSpan={7}>
+                                  <RoleIcon role={p.role} />
+                                  {roleName(p.role)}
+                                  <small>Compared within this role</small>
+                                </th>
+                              </tr>
+                            )}
+                            <tr onClick={() => setPlayer(p)}>
+                              <td className="rank" title={p.rankingReason}>
+                                {p.roleRank ?? '—'}
+                              </td>
+                              <td>
+                                <button
+                                  className="player-button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPlayer(p);
+                                  }}
+                                >
+                                  <span className={`class-dot class-${p.class.toLowerCase()}`} />
+                                  <span>
+                                    {p.name}
+                                    <small>
+                                      {p.spec} {p.class}
+                                      <span className="mobile-pulls">
+                                        {' '}
+                                        · {attendance.scoredPulls}/{attendance.selectedPulls} scored
+                                        pulls
                                       </span>
-                                    )}
-                                  </small>
-                                </span>
-                              </button>
-                            </td>
-                            <td>
-                              <CompositeScore assessment={p.execution} />
-                            </td>
-                            <td className="mechanic-column">
-                              <strong>
-                                {p.execution.mechanicsScore === null
-                                  ? '—'
-                                  : `${points(p.execution.mechanicsScore)}%`}
-                              </strong>
-                              <small className="cell-sub">
-                                {p.execution.checkedMechanics
-                                  ? `${p.execution.passedChecks}/${p.execution.checkedMechanics} completed`
-                                  : 'Not included'}
-                              </small>
-                            </td>
-                            <td className="output-column">
-                              <strong>
-                                {formatOutput.format(
-                                  (p.role === 'healer' ? p.healing : p.damage) /
-                                    Math.max(1, p.durationMs / 1000),
-                                )}
-                              </strong>
-                              <small className="cell-sub">
-                                {p.role === 'healer' ? 'HPS' : 'DPS'}
-                              </small>
-                            </td>
-                            <td
-                              className="dead-column"
-                              title={
-                                p.pullReviews.some((r) => r.lifeIssues?.length)
-                                  ? 'Incomplete life timeline; open player details.'
-                                  : `${((p.durationMs - p.aliveMs) / 1000).toFixed(3)} recorded seconds dead`
-                              }
-                            >
-                              {p.pullReviews.some((r) => r.lifeIssues?.length)
-                                ? '—'
-                                : p.durationMs - p.aliveMs > 0 && p.durationMs - p.aliveMs < 1000
-                                  ? '< 1s'
-                                  : duration(Math.max(0, p.durationMs - p.aliveMs))}
-                              <small className="cell-sub">
-                                {p.deaths} {p.deaths === 1 ? 'death' : 'deaths'}
-                              </small>
-                            </td>
-                            <td className="detail-column">
-                              {p.pulls}
-                              <small className="cell-sub">in this role</small>
-                            </td>
-                          </tr>
-                        </Fragment>
-                      ))}
+                                      <span className="cell-sub" title={p.rankingReason}>
+                                        {attendanceLabel(p, fresh)}
+                                      </span>
+                                    </small>
+                                  </span>
+                                </button>
+                              </td>
+                              <td>
+                                <CompositeScore assessment={p.execution} />
+                              </td>
+                              <td className="mechanic-column">
+                                <strong>
+                                  {p.execution.mechanicsScore === null
+                                    ? '—'
+                                    : `${points(p.execution.mechanicsScore)}%`}
+                                </strong>
+                                <small className="cell-sub">
+                                  {p.execution.checkedMechanics
+                                    ? `${p.execution.passedChecks}/${p.execution.checkedMechanics} completed`
+                                    : 'Not included'}
+                                </small>
+                              </td>
+                              <td
+                                className="output-column"
+                                title="Recorded output across all attended pulls. Score points use only scored pulls."
+                              >
+                                <strong>
+                                  {formatOutput.format(
+                                    (p.role === 'healer' ? p.healing : p.damage) /
+                                      Math.max(1, p.durationMs / 1000),
+                                  )}
+                                </strong>
+                                <small className="cell-sub">
+                                  {p.role === 'healer' ? 'HPS' : 'DPS'}
+                                </small>
+                              </td>
+                              <td
+                                className="dead-column"
+                                title={
+                                  !completeLife
+                                    ? 'Incomplete life timeline; open player details.'
+                                    : `${((p.durationMs - p.aliveMs) / 1000).toFixed(3)} recorded seconds dead`
+                                }
+                              >
+                                {!completeLife
+                                  ? 'Incomplete'
+                                  : p.durationMs - p.aliveMs > 0 && p.durationMs - p.aliveMs < 1000
+                                    ? '< 1s'
+                                    : duration(Math.max(0, p.durationMs - p.aliveMs))}
+                                <small className="cell-sub">
+                                  {p.deaths} {p.deaths === 1 ? 'death' : 'deaths'}
+                                </small>
+                              </td>
+                              <td className="detail-column">
+                                <strong>
+                                  {attendance.scoredPulls}/{attendance.selectedPulls}
+                                </strong>
+                                <small className="cell-sub">scored in this role</small>
+                              </td>
+                            </tr>
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                   {!shown.length && <p className="empty">No players match this filter.</p>}
@@ -912,6 +971,8 @@ export default function App() {
             player={player}
             analysis={fresh}
             onPlayerChange={setPlayer}
+            onCompare={comparePlayerPulls}
+            comparing={busy}
           />
         </Modal>
       )}
@@ -958,7 +1019,9 @@ export default function App() {
             <p>
               DPS, healers and tanks have separate lists. Changing role creates a separate score; a
               different specialization in the same role stays in that role’s score. Attendance is
-              shown so different selections can be reviewed in context.
+              shown as scored pulls out of selected pulls. Scores use verified pulls without an
+              attendance penalty. A numbered placement requires the same exact selected pulls;
+              Compare same pulls recalculates everyone on that player's verified selection.
             </p>
             <p>
               <b>100 requires full points in every measured component.</b> It is not a guarantee of

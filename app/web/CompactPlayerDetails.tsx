@@ -5,6 +5,7 @@ import { characterLinks } from '../shared/profile-links.js';
 import { difficultyName, evidenceUrl } from '../shared/report-url.js';
 import { duration, RoleIcon } from './presentation.js';
 import { CompositeScore, ScoreBreakdown } from './CompositeScore.js';
+import { attendanceLabel, lifeComplete, pullAttendance } from './attendance.js';
 
 const output = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const numeric = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
@@ -22,10 +23,14 @@ export default function CompactPlayerDetails({
   player,
   analysis,
   onPlayerChange,
+  onCompare,
+  comparing = false,
 }: {
   player: RankedPlayer;
   analysis: Analysis;
   onPlayerChange: (player: RankedPlayer) => void;
+  onCompare: (player: RankedPlayer) => void;
+  comparing?: boolean;
 }) {
   const [pullId, setPullId] = useState('all');
   const [eventLimit, setEventLimit] = useState(8);
@@ -33,6 +38,8 @@ export default function CompactPlayerDetails({
   const selected = reviews.find((r) => String(r.fightId) === pullId);
   const rows = selected ? [selected] : reviews;
   const assessment = selected?.execution ?? player.execution;
+  const attendance = pullAttendance(player, analysis);
+  const excluded = reviews.filter((r) => r.execution.score === null);
   const totals = rows.reduce(
     (n, r) => ({
       duration: n.duration + r.durationMs,
@@ -60,8 +67,12 @@ export default function CompactPlayerDetails({
     },
   );
   const deadMs = Math.max(0, totals.duration - totals.alive);
-  const issues = [...new Set(rows.flatMap((r) => r.lifeIssues ?? []))];
-  const lifeReliable = issues.length === 0;
+  const lifeReliable = rows.every(lifeComplete);
+  const verifiedLifeRows = rows.filter(lifeComplete);
+  const verifiedDeadMs = verifiedLifeRows.reduce(
+    (n, r) => n + Math.max(0, r.durationMs - r.aliveMs),
+    0,
+  );
   const profiles = characterLinks(player, analysis.report);
   const profileMessage =
     analysis.report.source === 'demo'
@@ -90,7 +101,7 @@ export default function CompactPlayerDetails({
               return {
                 event: e,
                 fight,
-                deadMs: interval ? interval.end - interval.start : null,
+                deadMs: interval && lifeComplete(r) ? interval.end - interval.start : null,
                 evidence,
                 url:
                   evidence?.url ??
@@ -104,9 +115,9 @@ export default function CompactPlayerDetails({
   const observations = player.evidence.filter(
     (e) => e.kind !== 'death' && (pullId === 'all' || String(e.fightId) === pullId),
   );
-  const scoredMechanics = rows.flatMap((r) =>
-    r.mechanics.filter((m) => m.scored).map((m) => ({ ...m, fightId: r.fightId })),
-  );
+  const scoredMechanics = rows
+    .filter((r) => r.execution.score !== null)
+    .flatMap((r) => r.mechanics.filter((m) => m.scored).map((m) => ({ ...m, fightId: r.fightId })));
   const mechanicFailures = scoredMechanics
     .flatMap((m) =>
       m.events
@@ -147,6 +158,61 @@ export default function CompactPlayerDetails({
           <CompositeScore assessment={assessment} />
         </div>
       </div>
+      <section className="player-attendance" aria-label="Pull coverage">
+        <div>
+          <strong>
+            {attendance.scoredPulls}/{attendance.selectedPulls} selected pulls scored
+          </strong>
+          <span>{attendanceLabel(player, analysis)}</span>
+          <p>
+            {attendance.attendedPulls} attended as {roleLabel(player.role)}
+            {attendance.otherRolePulls > 0 && ` · ${attendance.otherRolePulls} in another role`}
+            {attendance.absentPulls > 0 && ` · ${attendance.absentPulls} not attended`}.
+            {attendance.excludedPulls > 0 &&
+              ' Excluded pulls still retain their recorded deaths and observations.'}
+          </p>
+        </div>
+        <button
+          className="secondary"
+          disabled={comparing || !attendance.scoredPulls}
+          onClick={() => onCompare(player)}
+          title="Recalculate the same selected pulls for every player. Placements require all these pulls in the same role."
+        >
+          Compare same pulls
+        </button>
+      </section>
+      {player.rankingReason && <p className="ranking-note">{player.rankingReason}</p>}
+      {excluded.length > 0 && (
+        <details className="excluded-pulls">
+          <summary>
+            {excluded.length} {excluded.length === 1 ? 'pull excluded' : 'pulls excluded'} from
+            score
+          </summary>
+          {excluded.map((r) => {
+            const fight = analysis.pulls.find((p) => p.fight.id === r.fightId)!.fight;
+            const link =
+              analysis.report.source === 'demo'
+                ? null
+                : `https://www.warcraftlogs.com/reports/${analysis.report.code}?fight=${r.fightId}&type=deaths&source=${player.id}`;
+            return (
+              <div key={r.fightId}>
+                <button className="text-button" onClick={() => select(String(r.fightId))}>
+                  Pull #{r.fightId} · {fight.name}
+                </button>
+                <p>
+                  {r.execution.reasons.join(' ') ||
+                    'The recorded data is insufficient to calculate this pull.'}
+                </p>
+                {link && (
+                  <a className="evidence-link" href={link} target="_blank" rel="noreferrer">
+                    View in Warcraft Logs <ExternalLink size={12} />
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </details>
+      )}
       <div className="profile-links" aria-label="Character profiles">
         {(
           [
@@ -211,6 +277,7 @@ export default function CompactPlayerDetails({
             return (
               <option key={f.id} value={f.id}>
                 #{f.id} · {f.name} · {difficultyName(f.difficulty)} · {f.kill ? 'Kill' : 'Wipe'}
+                {r.execution.score === null ? ' · Excluded from score' : ''}
               </option>
             );
           })}
@@ -235,8 +302,9 @@ export default function CompactPlayerDetails({
         </div>
         {!scoredMechanics.length ? (
           <p className="small muted">
-            No comparable mechanic checks are scored for this selection. The score uses output and
-            survival instead.
+            {assessment.score === null
+              ? 'This pull cannot be scored from the available data. Recorded facts remain visible below.'
+              : 'No comparable mechanic checks are scored for this selection. The score uses output and survival instead.'}
           </p>
         ) : !mechanicFailures.length ? (
           <p className="small muted">
@@ -304,8 +372,13 @@ export default function CompactPlayerDetails({
           </p>
         ) : (
           <p>
-            <strong>Life timeline needs review.</strong> Some recorded events do not establish a
-            complete alive/dead sequence.
+            <strong>
+              {totals.deaths} recorded {totals.deaths === 1 ? 'death' : 'deaths'}.
+            </strong>{' '}
+            Total dead time is incomplete because a recorded life timeline cannot be fully
+            reconstructed.
+            {verifiedLifeRows.length > 0 &&
+              ` ${time(verifiedDeadMs)} dead is verified across ${verifiedLifeRows.length}/${rows.length} pulls.`}
           </p>
         )}
         <p className="small muted">
@@ -314,22 +387,18 @@ export default function CompactPlayerDetails({
           responsibility.
         </p>
       </div>
-      {player.rankingReason && <p className="ranking-note">{player.rankingReason}</p>}
-      {issues.length > 0 && (
-        <div className="notice error">
-          <div>
-            <strong>Incomplete life evidence</strong>
-            {issues.map((issue) => (
-              <p key={issue}>{issue}</p>
-            ))}
-          </div>
-        </div>
-      )}
       <div className="execution-stats survival-stats">
         <div>
           <span>Time dead</span>
-          <strong title={`${(deadMs / 1000).toFixed(3)} seconds`}>
-            {lifeReliable ? time(deadMs) : '—'}
+          <strong
+            className={!lifeReliable ? 'stat-unavailable' : undefined}
+            title={
+              lifeReliable
+                ? `${(deadMs / 1000).toFixed(3)} seconds`
+                : 'Exact total dead time cannot be verified.'
+            }
+          >
+            {lifeReliable ? time(deadMs) : 'Incomplete'}
           </strong>
           <small>
             {lifeReliable
@@ -374,7 +443,9 @@ export default function CompactPlayerDetails({
                 <small>
                   {time(event.timestamp - fight.startTime)} into pull ·{' '}
                   {fight.kill ? 'Kill' : 'Wipe'}
-                  {intervalMs !== null ? ` · ${time(intervalMs)} dead` : ''}
+                  {intervalMs !== null
+                    ? ` · ${time(intervalMs)} dead`
+                    : ' · Dead duration unverified'}
                 </small>
                 {evidence?.abilityId && evidence.ability && (
                   <small>Recorded killing ability: {evidence.ability}</small>

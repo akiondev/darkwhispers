@@ -1,4 +1,4 @@
-# DarkWhispers App · 0.12.0
+# DarkWhispers App · 0.13.0
 
 A compact Warcraft Logs raid review app using React, TypeScript, Vite, Fastify, PostgreSQL 16 and pg-boss. API and worker are isolated services. No paid services or generated grades.
 
@@ -14,7 +14,9 @@ One numeric 0-100 score combines verified mechanic completion, recorded DPS/HPS 
 
 Scope is shared by the same-role group in each pull. Unsupported rules are excluded for everyone in that group; without mechanics use output/survival (DPS 60/40, healer 40/60, tank 25/75). Valid pulls do not become preliminary because another pull lacks a mechanic check or food snapshot. Preparation and item use stay outside the score.
 
-DPS, healer and tank have separate standings. Role changes produce separate rows. Full death/resurrection intervals remain unchanged. Only genuinely invalid life data, absent contribution or essential import errors prevent a score. Details show component arithmetic, scope and WCL evidence links. Output is report-relative, not spec-normalized global ranking.
+DPS, healer and tank have separate standings. Role changes produce separate rows. Scores use verified pulls, weighted by their full durations; an invalid pull is explicitly excluded from that player's score, not assigned zero or perfect credit. Every row shows scored/selected pulls, distinguishing role changes, absence and excluded data. A comparable place requires the exact same full selection. **Compare same pulls** creates a fresh analysis on the player's verified fight IDs using cached facts, with a return to the original selection.
+
+Full death/resurrection facts remain unchanged, including deaths in excluded pulls. Inconsistent life events keep the affected dead-time measurement unavailable; other verified pulls can still earn a score. Details show component arithmetic, scope and WCL evidence links. Output is report-relative, not spec-normalized global ranking.
 
 ## New reports and compatibility
 

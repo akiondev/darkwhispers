@@ -401,6 +401,10 @@ export type PlayerFacts = {
   casts: number;
 };
 export type ExecutionAssessment = {
+  /** False means raw life intervals are retained for review, not exact dead-time statistics. */
+  lifeComplete?: boolean;
+  /** Only verified scored pulls contribute to composite weighting. */
+  scoredDurationMs?: number;
   composite?: CompositeAssessment;
   scoreBasis?:
     | 'composite'
@@ -460,6 +464,7 @@ export type ExecutionMechanic = {
   events: MechanicResult['events'];
 };
 export type ExecutionPullReview = {
+  lifeComplete?: boolean;
   deadIntervals?: { start: number; end: number }[];
   firstDeath?: boolean;
   resurrections?: number;
@@ -486,6 +491,18 @@ export type ExecutionBossScore = {
   execution: ExecutionAssessment;
 };
 export type RankedPlayer = Player & {
+  lifeComplete?: boolean;
+  attendance?: {
+    selectedPulls: number;
+    /** Pulls attended in this row's role. Other-role attendance is separate. */
+    attendedPulls: number;
+    scoredPulls: number;
+    otherRolePulls: number;
+    absentPulls: number;
+    excludedPulls: number;
+    scoredFightIds: number[];
+  };
+  rankingStatus?: 'ranked' | 'partial-selection' | 'excluded-pulls' | 'no-score' | 'no-peers';
   firstDeaths?: number;
   resurrections?: number;
   roles?: Role[];
