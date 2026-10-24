@@ -36,6 +36,7 @@ function fixture(boss = 3420, difficulty = 5, role: Role = 'tank') {
     playerSpecs: Object.fromEntries(report.players.map((p) => [p.id, p.spec])),
   };
   report.fights = [fight];
+  report.wipeCalls = {};
   const metrics = new Map(report.players.map((p) => [p.id, baseMetric(p.id, 120000)]));
   return { report, fight, metrics };
 }
@@ -145,7 +146,8 @@ test('Tempest ignores periodic ticks, misses, other sources and dead-only exposu
   assert.equal(r(1).failures, 0);
   assert.equal(r(1).opportunities, 1);
   assert.equal(r(1).scoreEligible, true);
-  assert.equal(r(2).opportunities, 0);
+  assert.equal(r(2).opportunities, 1);
+  assert.equal(r(2).missedWhileDead, 1);
   assert.equal(r(3).failures, 1);
   assert.equal(r(3).opportunities, 1, 'Repeated direct hits collapse to one failed cast window');
   assert.equal(r(3).scoreEligible, true);

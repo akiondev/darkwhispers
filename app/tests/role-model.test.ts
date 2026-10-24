@@ -1,312 +1,229 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyze } from '../shared/analysis.js';
-import { scoreExecution, EXECUTION_MODEL_VERSION } from '../shared/execution.js';
+import { scoreExecution } from '../shared/execution.js';
+import { assessmentWindow, validateWipeStops } from '../shared/windows.js';
+import { evaluateEncounter } from '../server/encounter-engine.js';
 import { TANK_PROFILES } from '../shared/tanks.js';
 import { fixture, selection, check } from './execution-fixtures.js';
+const close = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
 
-const close = (actual: number, expected: number) =>
-  assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
-
-test('the declared 70/30 base and alive-time cap reproduce the published examples exactly', () => {
-  for (const [mechanics, alive, expected, capped] of [
-    [100, 100, 100, false],
-    [100, 20, 20, true],
-    [100, (100 * 290) / 300, (100 * 290) / 300, true],
-    [100, 90, 90, true],
-    [60, 80, 66, false],
-  ] as const) {
-    const result = scoreExecution(mechanics, alive);
-    close(result.baseScore, 0.7 * mechanics + 0.3 * alive);
-    close(result.score, expected);
-    assert.equal(result.capped, capped);
+test('multiplicative execution and persistent death costs reproduce declared examples', () => {
+  for (const [m, a, d, expected] of [
+    [100, 100, 0, 100],
+    [100, 98, 1, 93],
+    [100, 80, 1, 75],
+    [0, 100, 0, 0],
+    [90, 80, 1, 67],
+    [100, 20, 1, 15],
+  ]) {
+    close(scoreExecution(m, a, d).score, expected);
   }
+  assert.equal(scoreExecution(80, 80).score, 64);
+  assert.ok(scoreExecution(90, 80).score > scoreExecution(80, 80).score);
 });
-
-test('the simple formula is bounded, monotone and never exceeds recorded time alive', () => {
-  for (let alive = 0; alive <= 100; alive++) {
-    let previous = -1;
-    for (let mechanics = 0; mechanics <= 100; mechanics++) {
-      const value = scoreExecution(mechanics, alive).score;
-      assert.ok(value >= 0 && value <= 100 && value <= alive + 1e-8);
-      assert.ok(value + 1e-8 >= previous);
-      previous = value;
-    }
-  }
-  for (let mechanics = 0; mechanics <= 100; mechanics++) {
-    let previous = -1;
-    for (let alive = 0; alive <= 100; alive++) {
-      const value = scoreExecution(mechanics, alive).score;
-      assert.ok(value + 1e-8 >= previous);
-      previous = value;
-    }
-  }
-  close(scoreExecution(80, 80).score, 80);
-  close(scoreExecution(100, 50).score, scoreExecution(60, 50).score);
-});
-
-test('invalid numeric inputs cannot become a displayed score or replacement points', () => {
-  for (const value of [NaN, Infinity, -Infinity, -0.1, 100.1]) {
-    assert.throws(() => scoreExecution(value, 100));
-    assert.throws(() => scoreExecution(100, value));
-  }
-});
-
-test('ties share a within-role position without creating a global ranking', () => {
-  const { report, pull } = fixture({ roles: ['dps', 'dps', 'dps', 'tank'] });
-  pull.metrics[2].mechanics = [check(10, 1)];
-  const rows = analyze(report, [pull], selection).players;
-  assert.deepEqual(
-    rows.filter((p) => p.role === 'dps').map((p) => p.roleRank),
-    [1, 1, 3],
-  );
-  assert.equal(rows.find((p) => p.role === 'tank')!.roleRank, 1);
-});
-
-test('mechanic success is counted from checked opportunities, not the retired sample/severity weighting', () => {
-  const { report, pull } = fixture();
-  for (const m of pull.metrics) {
-    m.mechanics = [
-      check(10, 0, { ruleId: 'hazard-A', weight: 1 }),
-      check(1, 1, { ruleId: 'hazard-B', weight: 100 }),
-    ];
-    m.mechanicOpportunities = 11;
-    m.mechanicFailures = 1;
-  }
-  const result = analyze(report, [pull], selection);
-  assert.equal(result.model.mechanicsWeight, 70);
-  assert.equal(result.model.survivalWeight, 30);
-  assert.equal(result.model.cappedByAlive, true);
-  for (const p of result.players) {
-    close(p.execution.mechanicsScore!, (100 * 10) / 11);
-    close(p.score!, 0.7 * ((100 * 10) / 11) + 30);
-    assert.equal(p.execution.checkedMechanics, 11);
-    assert.equal(p.execution.passedChecks, 10);
-    assert.equal(p.execution.failedChecks, 1);
-    assert.equal(p.execution.version, EXECUTION_MODEL_VERSION);
-    assert.ok(!('factors' in p.execution));
-    assert.ok(!('neutralPoints' in p.execution));
-  }
-});
-
-test('an incomplete rule is omitted for the whole comparable role cohort, not selectively replaced for one person', () => {
-  const { report, pull } = fixture({ roles: ['dps', 'dps', 'tank'] });
-  for (const m of pull.metrics)
-    m.mechanics = [check(10, 0, { ruleId: 'common' }), check(4, 4, { ruleId: 'uncertain' })];
-  pull.metrics[0].mechanics![1].unknown = 1;
-  const result = analyze(report, [pull], selection);
-  for (const p of result.players.filter((p) => p.role === 'dps')) {
-    assert.equal(p.score, 100);
-    assert.equal(p.execution.checkedMechanics, 10);
-    const excluded = p.pullReviews[0].mechanics.find((m) => m.ruleId === 'uncertain')!;
-    assert.equal(excluded.scored, false);
-    assert.ok(excluded.exclusion);
-  }
-  const tank = result.players.find((p) => p.role === 'tank')!;
-  assert.equal(tank.execution.checkedMechanics, 14);
-  close(tank.score!, 80);
-});
-
-test('context, required contacts and failure-only exposure cannot become personal scoring errors', () => {
-  const { report, pull } = fixture({ roles: ['tank', 'dps'] });
-  for (const m of pull.metrics)
-    m.mechanics = [
-      check(10, 0),
-      check(50, 50, { ruleId: 'required-soak', kind: 'soak', weight: 0, scoreEligible: false }),
-      check(50, 50, {
-        ruleId: 'unmeasured-floor',
-        kind: 'ground',
-        scoreEligible: false,
-        unknown: 1,
-      }),
-    ];
-  const result = analyze(report, [pull], selection);
-  assert.ok(result.players.every((p) => p.score === 100 && p.execution.checkedMechanics === 10));
-  assert.ok(
-    result.players.every((p) =>
-      p.pullReviews[0].mechanics
-        .filter((m) => m.ruleId !== 'synthetic-common-check/v1')
-        .every((m) => !m.scored),
-    ),
-  );
-});
-
-test('no observed mechanic opportunities is not a fabricated perfect score or midpoint', () => {
-  const { report, pull } = fixture();
-  for (const m of pull.metrics) {
-    m.mechanics = [check(0, 0)];
-    m.mechanicFailures = 0;
-    m.mechanicOpportunities = 0;
-  }
-  const result = analyze(report, [pull], selection);
-  for (const p of result.players) {
-    assert.equal(p.score, null);
-    assert.equal(p.execution.mechanicsScore, null);
-    assert.equal(p.scoredPulls, 0);
-    assert.equal(p.rank, null);
-    assert.ok(p.execution.reasons.length);
-  }
-  assert.equal(
-    result.players.length,
-    report.players.length,
-    'Unscored participants remain visible',
-  );
-});
-
-test('an early death cannot turn a single clean early check into a high final score', () => {
-  const { report, pull } = fixture({ roles: ['dps', 'dps'] });
-  pull.metrics[0].aliveMs = 15000;
-  pull.metrics[0].deaths = 1;
-  pull.metrics[0].mechanics = [check(1, 0)];
-  pull.metrics[1].mechanics = [check(10, 1)];
-  const result = analyze(report, [pull], selection),
-    early = result.players.find((p) => p.id === 1)!,
-    active = result.players.find((p) => p.id === 2)!;
-  assert.equal(early.score, 5);
-  assert.equal(early.execution.capped, true);
-  assert.ok(active.score! > early.score!);
-});
-
-test('recorded time lost, not an arbitrary count of deaths, determines the availability deduction', () => {
-  const { report, pull } = fixture({ roles: ['dps', 'dps'] });
-  pull.metrics[0].aliveMs = pull.metrics[1].aliveMs = 270000;
-  pull.metrics[0].deaths = 1;
-  pull.metrics[1].deaths = 3;
-  const rows = analyze(report, [pull], selection).players;
-  assert.ok(rows.every((p) => p.score === 90));
-  assert.deepEqual(rows.map((p) => p.deaths).sort(), [1, 3]);
-});
-
-test('dying before every mechanic on another pull cannot disappear from the aggregate availability cap', () => {
-  const { report, pull } = fixture({ roles: ['dps'] });
-  const deadBeforeCheck = structuredClone(pull);
-  deadBeforeCheck.fight.id = 2;
-  deadBeforeCheck.metrics[0].aliveMs = 30000;
-  deadBeforeCheck.metrics[0].deaths = 1;
-  deadBeforeCheck.metrics[0].mechanics = [check(0, 0)];
-  report.fights = [pull.fight, deadBeforeCheck.fight];
-  const player = analyze(report, [pull, deadBeforeCheck], selection).players[0];
-  assert.equal(player.pullReviews[1].execution.score, null);
-  assert.equal(player.scoredPulls, 1);
-  assert.equal(player.pulls, 2);
-  close(player.execution.alivePercent, 55);
-  close(player.score!, 55);
-});
-
-test('an attended no-check boss still contributes observed availability to the whole-report cap', () => {
-  const { report, pull } = fixture({ roles: ['dps'] });
-  const ungradedBoss = structuredClone(pull);
-  ungradedBoss.fight = {
-    ...ungradedBoss.fight,
-    id: 2,
-    encounterId: 3513,
-    name: 'Ungraded synthetic boss',
-  };
-  ungradedBoss.metrics[0].aliveMs = 30000;
-  ungradedBoss.metrics[0].deaths = 1;
-  ungradedBoss.metrics[0].mechanics = [check(0, 0)];
-  report.fights = [pull.fight, ungradedBoss.fight];
-  const player = analyze(report, [pull, ungradedBoss], selection).players[0];
-  assert.equal(player.perBoss.find((b) => b.encounterId === 3513)!.score, null);
-  assert.equal(player.bosses, 2);
-  close(player.execution.alivePercent, 55);
-  close(player.score!, 55);
-});
-
-test('full duration is used on every boss/difficulty and every tank class, without historical-percentile or class-defensive requirements', () => {
-  const bosses = [3513, 3470, 3445, 3455, 3497, 3420, 3421, 3429, 3492, 3379];
-  for (const boss of bosses)
-    for (const difficulty of [1, 3, 4, 5])
-      for (const profile of TANK_PROFILES) {
-        const { report, pull } = fixture({ boss, difficulty, roles: ['tank', 'dps'] });
-        report.players[0] = { ...report.players[0], class: profile.class, spec: profile.spec };
-        pull.fight.playerSpecs![1] = profile.spec;
-        pull.metrics[0].aliveMs = 270000;
-        pull.metrics[0].damageTaken = 1e15;
-        pull.metrics[0].outputPercentile = null;
-        const player = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
-        assert.equal(player.role, 'tank');
-        assert.equal(player.score, 90);
-        assert.equal(player.execution.alivePercent, 90);
-        assert.equal(player.perBoss[0].difficulty, difficulty);
+test('score is bounded, monotone and death never helps with a fixed opportunity denominator', () => {
+  for (let m = 0; m <= 100; m++)
+    for (let a = 0; a <= 100; a++)
+      for (const d of [0, 1, 2]) {
+        const s = scoreExecution(m, a, d).score;
+        assert.ok(s >= 0 && s <= a && s <= m);
+        if (m < 100) assert.ok(scoreExecution(m + 1, a, d).score >= s);
+        if (a < 100) assert.ok(scoreExecution(m, a + 1, d).score >= s);
+        assert.ok(scoreExecution(m, a, d + 1).score <= s);
       }
+  for (const v of [NaN, Infinity, -1, 101]) assert.throws(() => scoreExecution(v, 100));
+  for (const v of [-1, 0.5, NaN, Infinity]) assert.throws(() => scoreExecution(100, 100, v));
 });
-
-test('each attended boss has equal weight regardless of its pull count', () => {
+test('equal family budgets prevent frequent easy checks from diluting another family', () => {
   const { report, pull } = fixture();
-  const repeat = structuredClone(pull),
-    other = structuredClone(pull);
-  repeat.fight.id = 2;
-  for (const m of repeat.metrics) m.mechanics = [check(10, 10)];
-  other.fight = { ...other.fight, id: 3, encounterId: 3513, name: 'Other synthetic boss' };
-  for (const m of other.metrics) m.mechanics = [check(10, 10)];
-  report.fights = [pull.fight, repeat.fight, other.fight];
-  const result = analyze(report, [pull, repeat, other], selection);
-  for (const p of result.players) {
-    close(p.score!, 47.5);
-    assert.equal(p.perBoss.length, 2);
+  for (const m of pull.metrics)
+    m.mechanics = [
+      check(100, 0, { ruleId: 'easy' }),
+      check(1, 1, { ruleId: 'other', weight: 999 }),
+    ];
+  const a = analyze(report, [pull], selection);
+  assert.equal(a.model.deathPenalty, 5);
+  assert.ok(a.players.every((p) => p.score === 50 && p.execution.mechanicsScore === 50));
+});
+test('ambiguous peer evidence withholds the whole role/pull grade rather than boosting clean leftovers', () => {
+  const { report, pull } = fixture();
+  for (const m of pull.metrics)
+    m.mechanics = [check(10, 0, { ruleId: 'clean' }), check(4, 4, { ruleId: 'uncertain' })];
+  pull.metrics[2].mechanics![1].unknown = 1;
+  const a = analyze(report, [pull], selection);
+  assert.ok(a.players.filter((p) => p.role === 'dps').every((p) => p.score === null));
+  assert.equal(a.players.find((p) => p.role === 'tank')!.score, 50);
+});
+test('resurrection restores availability without erasing the death deduction', () => {
+  const { report, pull } = fixture();
+  const m = pull.metrics[0];
+  m.deaths = 1;
+  m.aliveMs = 294000;
+  m.facts!.lifeEvents = [
+    { type: 'death', timestamp: 11000 },
+    { type: 'resurrect', timestamp: 17000, combatRes: true, abilityId: 20484 },
+  ];
+  const p = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
+  assert.equal(p.score, 93);
+  assert.equal(p.execution.deathPenalty, 5);
+  assert.equal(p.pullReviews[0].facts.lifeEvents[1].combatRes, true);
+});
+test('actual encounter opportunities remain uncredited during death, including a late partial window', () => {
+  function result(dead: boolean) {
+    const { report, pull, fight } = fixture({ boss: 3470 });
+    const m = pull.metrics[2];
+    const times = [
+      ...Array.from({ length: 10 }, (_, i) => fight.startTime + 5000 + i * 25000),
+      fight.startTime + 281000,
+    ];
+    const events: any[] = times.map((timestamp) => ({
+      type: 'cast',
+      timestamp,
+      sourceID: 999,
+      sourceInstance: 1,
+      abilityGameID: 990001,
+    }));
+    const life = new Map();
+    if (dead) {
+      m.aliveMs = 297000;
+      m.deaths = 1;
+      life.set(m.actorId, [{ type: 'death', timestamp: fight.startTime + 297000 }]);
+    } else
+      events.push({
+        type: 'damage',
+        timestamp: fight.startTime + 297500,
+        sourceID: 999,
+        sourceInstance: 1,
+        targetID: m.actorId,
+        abilityGameID: 990001,
+        amount: 10,
+      });
+    evaluateEncounter(
+      report,
+      fight,
+      new Map(pull.metrics.map((m) => [m.actorId, m])),
+      events,
+      life,
+      new Map([[990001, 'Soul Transfer']]),
+    );
+    return analyze(report, [pull], selection).players.find((p) => p.id === m.actorId)!;
   }
+  const dead = result(true),
+    alive = result(false);
+  assert.equal(dead.mechanicOpportunities, 11);
+  assert.equal(alive.mechanicOpportunities, 11);
+  assert.equal(dead.execution.missedWhileDead, 1);
+  assert.equal(dead.mechanicFailures, 0);
+  close(dead.score!, 85);
+  close(alive.score!, (100 * 10) / 11);
+  assert.ok(dead.score! < alive.score!);
 });
-
-test('difficulty contexts are calculated separately and receive equal weight inside an attended boss', () => {
-  const { report, pull } = fixture();
-  const repeat = structuredClone(pull),
-    normal = structuredClone(pull);
-  repeat.fight.id = 2;
-  normal.fight = { ...normal.fight, id: 3, difficulty: 3 };
-  for (const m of normal.metrics) m.mechanics = [check(10, 10)];
-  report.fights = [pull.fight, repeat.fight, normal.fight];
-  const result = analyze(report, [pull, repeat, normal], selection);
-  for (const p of result.players) {
-    close(p.score!, 65);
-    assert.equal(p.perBoss.length, 2);
-  }
-});
-
-test('zero recorded contribution is unranked rather than promoted by passive survival', () => {
-  const { report, pull } = fixture();
-  const inactive = pull.metrics[3];
-  inactive.damage = 0;
-  inactive.healing = 0;
-  inactive.interrupts = 0;
-  inactive.dispels = 0;
-  inactive.facts!.casts = 0;
-  const player = analyze(report, [pull], selection).players.find((p) => p.id === 4)!;
-  assert.equal(player.score, null);
-  assert.equal(player.rank, null);
-  assert.ok(player.execution.reasons.length);
-  assert.equal(player.aliveMs, 300000, 'Still preserve the observed full survival fact');
-});
-
-test('one active clean pull cannot hide a fully alive zero-contribution pull inside the aggregate', () => {
-  const { report, pull } = fixture({ roles: ['dps'] });
-  const inactivePull = structuredClone(pull);
-  inactivePull.fight.id = 2;
-  const inactive = inactivePull.metrics[0];
-  inactive.damage = 0;
-  inactive.healing = 0;
-  inactive.interrupts = 0;
-  inactive.dispels = 0;
-  inactive.facts!.casts = 0;
-  report.fights = [pull.fight, inactivePull.fight];
-
-  const player = analyze(report, [pull, inactivePull], selection).players[0];
-  assert.equal(player.pullReviews[0].execution.score, 100);
-  assert.equal(player.pullReviews[1].execution.score, null);
-  assert.equal(
-    player.pullReviews[1].execution.checkedMechanics,
-    10,
-    'The exclusion is absent contribution, not missing mechanic evidence',
+test('pending windows at the shared assessment end grant neither passes nor failures', () => {
+  const { report, pull, fight } = fixture({ boss: 3470 });
+  evaluateEncounter(
+    report,
+    fight,
+    new Map(pull.metrics.map((m) => [m.actorId, m])),
+    [
+      { type: 'cast', timestamp: fight.endTime - 2000, sourceID: 999, abilityGameID: 990001 },
+      {
+        type: 'damage',
+        timestamp: fight.endTime - 1000,
+        sourceID: 999,
+        targetID: 3,
+        abilityGameID: 990001,
+        amount: 5,
+      },
+    ],
+    new Map(),
+    new Map([[990001, 'Anguished Echoes']]),
   );
-  assert.equal(player.execution.alivePercent, 100);
-  assert.equal(player.scoredPulls, 1);
-  assert.equal(player.pulls, 2);
-  assert.equal(player.execution.score, null);
-  assert.equal(player.score, null);
-  assert.equal(player.roleRank, null);
   assert.ok(
-    player.execution.reasons.some((reason) =>
-      /No recorded combat contribution in 1 attended pull/.test(reason),
+    pull.metrics.every(
+      (m) => m.mechanics!.find((r) => r.name === 'Anguished Echoes')!.opportunities === 0,
     ),
   );
+  assert.ok(analyze(report, [pull], selection).players.every((p) => p.score === null));
+});
+test('unconfirmed wipes retain all role rows and statistics but carry no grade', () => {
+  const { report, pull } = fixture();
+  pull.fight.kill = false;
+  const a = analyze(report, [pull], selection);
+  assert.equal(a.players.length, 4);
+  assert.ok(a.players.every((p) => p.score === null && p.damage > 0));
+  assert.ok(a.players.every((p) => /wipe call/i.test(p.pullReviews[0].execution.reasons[0])));
+});
+test('manual stops are shared, explicit and strictly bounded; mismatched cached windows are rejected', () => {
+  const { report, pull, fight } = fixture();
+  fight.kill = false;
+  report.wipeCalls = { [fight.id]: fight.startTime + 100000 };
+  assert.equal(assessmentWindow(report, fight, selection).source, 'logged');
+  const manual = { ...selection, wipeStops: { [fight.id]: 50000 } };
+  assert.deepEqual(assessmentWindow(report, fight, manual), {
+    endTime: fight.startTime + 50000,
+    source: 'manual',
+    confirmed: true,
+  });
+  assert.throws(() => analyze(report, [pull], manual), /window/);
+  for (const wipeStops of [{ '1': 0 }, { '1': 300001 }, { '999': 1 }, { bad: 1 }] as Record<
+    string,
+    number
+  >[])
+    assert.throws(() => validateWipeStops(report, { ...selection, wipeStops }));
+  fight.kill = true;
+  assert.throws(() => validateWipeStops(report, manual));
+});
+test('pull duration weighting stops a ten-second clean pull equalling five minutes of mistakes', () => {
+  const { report, pull } = fixture();
+  const short = structuredClone(pull);
+  short.fight = { ...short.fight, id: 2, endTime: short.fight.startTime + 10000 };
+  for (const m of short.metrics) {
+    m.aliveMs = 10000;
+    m.mechanics = [check(1, 0)];
+  }
+  for (const m of pull.metrics) m.mechanics = [check(100, 60)];
+  report.fights = [short.fight, pull.fight];
+  const a = analyze(report, [short, pull], selection);
+  close(a.players[0].score!, (100 * 10000 + 40 * 300000) / 310000);
+});
+test('partial attendance keeps a visible score without a misleading ordinal rank', () => {
+  const { report, pull } = fixture();
+  const other = structuredClone(pull);
+  other.fight = { ...other.fight, id: 2 };
+  other.fight.friendlyPlayers = other.fight.friendlyPlayers.filter((id) => id !== 3);
+  other.metrics = other.metrics.filter((m) => m.actorId !== 3);
+  report.fights = [pull.fight, other.fight];
+  const a = analyze(report, [pull, other], selection);
+  const partial = a.players.find((p) => p.id === 3)!;
+  assert.equal(partial.score, 100);
+  assert.equal(partial.roleRank, null);
+  assert.match(partial.rankingReason!, /Partial/);
+  assert.equal(a.players.find((p) => p.id === 4)!.roleRank, 1);
+});
+test('all six tank classes use identical mechanics, availability and death rules', () => {
+  for (const profile of TANK_PROFILES) {
+    const { report, pull } = fixture();
+    report.players[0].class = profile.class;
+    report.players[0].spec = profile.spec;
+    pull.fight.playerSpecs![1] = profile.spec;
+    pull.metrics[0].mechanics = [check(10, 2)];
+    pull.metrics[0].deaths = 1;
+    pull.metrics[0].aliveMs = 240000;
+    const tank = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
+    close(tank.score!, 59);
+    assert.equal(tank.role, 'tank');
+  }
+});
+test('zero contribution remains ungraded instead of passive perfection', () => {
+  const { report, pull } = fixture();
+  const m = pull.metrics[0];
+  m.damage = 0;
+  m.healing = 0;
+  m.interrupts = 0;
+  m.dispels = 0;
+  m.facts!.casts = 0;
+  const p = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
+  assert.equal(p.score, null);
+  assert.equal(p.roleRank, null);
 });

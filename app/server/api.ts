@@ -9,8 +9,13 @@ import { QueueFullError } from './store.js';
 import { ApiError, WclClient } from './wcl.js';
 import { VERSION } from '../shared/version.js';
 import { clientAddress } from './client-ip.js';
+import { validateWipeStops } from '../shared/windows.js';
 const selectionSchema = z
   .object({
+    wipeStops: z
+      .record(z.string().regex(/^[1-9]\d*$/), z.number().int().positive())
+      .refine((v) => Object.keys(v).length <= 150)
+      .optional(),
     encounterId: z.number().int().positive().nullable().default(null),
     difficulty: z.number().int().positive().nullable().default(null),
     mode: z.enum(['all', 'wipes', 'kills']).default('all'),
@@ -177,6 +182,15 @@ export async function createApi(
       if (!report) {
         report = await client.report(input.reportCode);
         await store.putReport(report);
+      }
+      try {
+        validateWipeStops(report, selection);
+      } catch (error) {
+        throw new ApiError(
+          'INVALID_WIPE_STOP',
+          error instanceof Error ? error.message : 'Invalid manual wipe stop.',
+          422,
+        );
       }
       const selected = selectFights(report, selection);
       if (selection.fightIds && new Set(selection.fightIds).size !== selected.length)

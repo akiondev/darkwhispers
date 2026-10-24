@@ -14,6 +14,10 @@ test('live-compatible report metadata uses fight specs without an unbounded play
   const client = new WclClient('c', 's', async (input, init) => {
     if (String(input).includes('/oauth/')) return response({ access_token: 'T', expires_in: 3600 });
     const query = JSON.parse(String(init?.body)).query;
+    if (query.startsWith('query WipeCalls'))
+      return response({
+        data: { reportData: { report: { events: { data: [], nextPageTimestamp: null } } } },
+      });
     assert.ok(!query.includes('playerDetails'));
     return response({
       data: {
@@ -81,6 +85,7 @@ test('synthetic future-zone reports import raw facts and all roles without inven
       assert.ok(operation);
       operations.add(operation);
       const payloads: Record<string, unknown> = {
+        WipeCalls: { events: { data: [], nextPageTimestamp: null } },
         Report: {
           code,
           title: 'Synthetic future-zone compatibility fixture; not live raid data',
@@ -165,7 +170,13 @@ test('synthetic future-zone reports import raw facts and all roles without inven
     assert.equal(result.report.source, 'warcraftlogs');
     assert.equal(result.report.zone, 'Synthetic Uncatalogued Future Raid');
     assert.equal(result.pulls[0].fight.encounterId, 990001);
-    assert.deepEqual([...operations].sort(), ['Abilities', 'Events', 'Report', 'Tables']);
+    assert.deepEqual([...operations].sort(), [
+      'Abilities',
+      'Events',
+      'Report',
+      'Tables',
+      'WipeCalls',
+    ]);
     assert.deepEqual(result.players.map((p) => p.role).sort(), ['dps', 'healer', 'tank']);
     const tank = result.players.find((p) => p.id === 21)!;
     const healer = result.players.find((p) => p.id === 22)!;
@@ -414,7 +425,7 @@ test('one shared full-pull event stream records survival, preparation, casts and
   assert.equal(metric.tank, undefined);
   assert.equal(metric.evaluated, undefined);
   assert.equal(result.evaluation, undefined);
-  assert.equal(result.wipeTailMs, null);
+  assert.equal(result.wipeTailMs, 0);
   assert.ok(metric.evidence.find((e) => e.kind === 'death')?.url?.includes('fight=1'));
 });
 test('malformed metric totals fail the import instead of appearing as zero output', async () => {

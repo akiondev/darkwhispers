@@ -1,7 +1,22 @@
 /** Original log-review rules. Spell identifiers are factual references, not copied addon code.
  * Sources and evidence limits are carried into every player/pull review.
  */
-export const ENCOUNTER_RULE_VERSION = 'midnight-s2/comparable-casts-v2';
+export const ENCOUNTER_RULE_VERSION = 'midnight-s2/fixed-families-v3';
+/** Reviewed cast/contact families. Unreviewed observations cannot silently enter the grade. */
+export const SCORING_FAMILIES = new Set([
+  '3470/soul-transfer',
+  '3429/axegrinder',
+  '3492/caustic-waves',
+  '3420/tempest',
+  '3513/dark-devastation-splash',
+  '3445/living-venom',
+  '3497/evil-eyes',
+  '3497/shell-spin',
+  '3421/vile-flood',
+  '3421/sanguine-storm',
+  '3421/stir-the-depths-waves',
+  '3379/swirling-whirlpools',
+]);
 export const RAID_DIFFICULTIES = [1, 3, 4, 5, 17] as const;
 export type RuleKind =
   | 'avoid'

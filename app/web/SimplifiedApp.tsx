@@ -30,6 +30,8 @@ import { analysisLink, sharedAnalysisId } from '../shared/share.js';
 import ShareLink from './ShareLink.js';
 import RecentAnalyses from './RecentAnalyses.js';
 import CompactPlayerDetails from './CompactPlayerDetails.js';
+import WipeStopEditor from './WipeStopEditor.js';
+import { windowLabel } from '../shared/windows.js';
 import { duration, RoleIcon, Score } from './presentation.js';
 
 type SavedAnalysis = Analysis | LegacyAnalysis;
@@ -46,7 +48,7 @@ const roleName = (role: Role) =>
   ({ dps: 'DPS', healer: 'Healers', tank: 'Tanks', unknown: 'Role not recorded' })[role];
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 export const currentModel = (analysis: SavedAnalysis): analysis is Analysis =>
-  'model' in analysis && !!analysis.model;
+  'model' in analysis && analysis.model?.id === 'execution/v2';
 async function api<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -130,7 +132,7 @@ function LegacyResults({ analysis }: { analysis: LegacyAnalysis }) {
           </thead>
           <tbody>
             {analysis.players.map((p) => (
-              <tr key={p.id}>
+              <tr key={`${p.id}:${p.role}`}>
                 <td>
                   {p.name}
                   <small>
@@ -279,6 +281,7 @@ export default function App() {
       .sort(
         (a, b) =>
           roles.indexOf(a.role) - roles.indexOf(b.role) ||
+          Number(!!a.rankingReason) - Number(!!b.rankingReason) ||
           (b.score ?? -1) - (a.score ?? -1) ||
           a.name.localeCompare(b.name),
       ) ?? [];
@@ -597,29 +600,51 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+                <p className="small muted">
+                  Wipes need a logged call or a shared manual stop (m:ss). Manual stops apply to
+                  everyone and are saved with the analysis.
+                </p>
                 {selectFights(report, { ...selection, fightIds: null }).map((f) => (
-                  <label key={f.id}>
-                    <input
-                      type="checkbox"
-                      disabled={busy}
-                      checked={selection.fightIds === null || selection.fightIds.includes(f.id)}
-                      onChange={(e) => {
-                        const ids = new Set(
-                          selection.fightIds ??
-                            selectFights(report, { ...selection, fightIds: null }).map((p) => p.id),
-                        );
-                        if (e.target.checked) ids.add(f.id);
-                        else ids.delete(f.id);
-                        change({ fightIds: [...ids] });
-                      }}
-                    />
-                    <span>
-                      #{f.id} · {f.name}
-                    </span>
-                    <span className={f.kill ? 'kill' : 'muted'}>
-                      {f.kill ? 'Kill' : 'Wipe'} · {duration(f.endTime - f.startTime)}
-                    </span>
-                  </label>
+                  <div className="pull-config" key={f.id}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        disabled={busy}
+                        checked={selection.fightIds === null || selection.fightIds.includes(f.id)}
+                        onChange={(e) => {
+                          const ids = new Set(
+                            selection.fightIds ??
+                              selectFights(report, { ...selection, fightIds: null }).map(
+                                (p) => p.id,
+                              ),
+                          );
+                          if (e.target.checked) ids.add(f.id);
+                          else ids.delete(f.id);
+                          change({ fightIds: [...ids] });
+                        }}
+                      />
+                      <span>
+                        #{f.id} · {f.name}
+                      </span>
+                      <span className={f.kill ? 'kill' : 'muted'}>
+                        {f.kill ? 'Kill' : 'Wipe'} · {duration(f.endTime - f.startTime)}
+                      </span>
+                    </label>
+                    {!f.kill && report.source !== 'demo' && (
+                      <WipeStopEditor
+                        fight={f}
+                        value={selection.wipeStops?.[String(f.id)]}
+                        logged={report.wipeCalls?.[f.id]}
+                        disabled={busy}
+                        onChange={(value) => {
+                          const stops = { ...selection.wipeStops };
+                          if (value === undefined) delete stops[String(f.id)];
+                          else stops[String(f.id)] = value;
+                          change({ wipeStops: stops });
+                        }}
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
             )}
@@ -688,11 +713,36 @@ export default function App() {
             </div>
             {fresh ? (
               <section className="panel ranking" aria-label="Separate role rankings">
+                {fresh.pulls.some((p) => p.window?.source === 'unconfirmed') && (
+                  <div className="notice">
+                    <div>
+                      <strong>
+                        {fresh.pulls.filter((p) => p.window?.source === 'unconfirmed').length} wipes
+                        need a shared stop time
+                      </strong>
+                      <p>
+                        Statistics are available. These wipes carry no score until a logged or
+                        manual stop is available.
+                      </p>
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          setPullPicker(true);
+                          document
+                            .querySelector('.selection-panel')
+                            ?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                      >
+                        Set wipe times
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="section-heading">
                   <div>
                     <h3>Player standings</h3>
                     <p className="ranking-caption">
-                      Execution score · mechanics 70%, time alive 30% · output shown separately
+                      Mechanics × time alive · −5 per death, retained after resurrection
                     </p>
                   </div>
                   <div className="table-controls">
@@ -739,7 +789,7 @@ export default function App() {
                               <th colSpan={7}>
                                 <RoleIcon role={p.role} />
                                 {roleName(p.role)}
-                                <small>Rank within this role</small>
+                                <small>Rank within the same complete role selection</small>
                               </th>
                             </tr>
                           )}
@@ -759,6 +809,9 @@ export default function App() {
                                   <small>
                                     {p.spec} {p.class}
                                     <span className="mobile-pulls"> · {p.pulls} pulls</span>
+                                    {p.rankingReason && p.score !== null && (
+                                      <span className="cell-sub">Partial selection · unranked</span>
+                                    )}
                                   </small>
                                 </span>
                               </button>
@@ -775,9 +828,11 @@ export default function App() {
                                   <small
                                     className={p.execution.failedChecks ? 'failed-text' : 'muted'}
                                   >
-                                    {p.execution.failedChecks
+                                    {p.execution.failedChecks || p.execution.missedWhileDead
                                       ? `${p.execution.failedChecks} failed`
                                       : 'passed'}
+                                    {(p.execution.missedWhileDead ?? 0) > 0 &&
+                                      ` · ${p.execution.missedWhileDead} dead`}
                                   </small>
                                 </>
                               ) : (
@@ -835,6 +890,11 @@ export default function App() {
                     <span>{duration(p.fight.endTime - p.fight.startTime)}</span>
                     <span className={p.fight.kill ? 'kill' : 'muted'}>
                       {p.fight.kill ? 'Kill' : 'Wipe'}
+                      {p.window && (
+                        <small>
+                          {windowLabel(p.window)} · {duration(p.window.endTime - p.fight.startTime)}
+                        </small>
+                      )}
                     </span>
                   </div>
                 ))}
@@ -869,20 +929,26 @@ export default function App() {
         <Modal title="How scoring works" onClose={() => setMethod(false)}>
           <div className="method-simple">
             <p>
-              <strong>Mechanic execution 70% · Time alive 30%</strong>
+              <strong>Mechanics × time alive · five points per death</strong>
             </p>
             <p>
-              Score = the lower of <b>0.70 × mechanics + 0.30 × time alive</b> and <b>time alive</b>
-              . Each value uses a 0–100 scale.
+              Score = max(0, <b>mechanics × time alive / 100 − 5 × deaths</b>). Mechanics and time
+              alive use a 0–100 scale.
             </p>
             <p>
-              The alive-time cap prevents an early death from earning a high score by missing later
-              mechanics. Death-to-resurrection intervals count once. There is no extra fixed death
-              penalty.
+              Each verified mechanic family has an equal budget. Applicable checks remain in the
+              denominator while dead and cannot earn a pass. The five-point death deduction remains
+              after battle resurrection; accepting a resurrection adds no extra penalty.
             </p>
             <p>
-              Each pull is calculated separately, then averaged by boss and difficulty. Only
-              attended pulls contribute. Rankings stay separate for DPS, healers and tanks.
+              Wipes stop at the logged call or an explicitly manual shared time. Without a stop they
+              show statistics only. Pending checks and all later events are excluded for everyone.
+            </p>
+            <p>
+              Pull scores are weighted by assessed duration within each boss/difficulty, then bosses
+              and difficulty contexts have equal weight. Ordinal ranks require the same complete
+              role selection. DPS, healers and tanks stay separate; partial results remain visible
+              without a misleading rank.
             </p>
             <p>
               Raw DPS/HPS, damage taken, preparation and item usage do not add or deduct score

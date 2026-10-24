@@ -214,7 +214,7 @@ test('all tank classes use the same mechanics-and-alive formula while legacy def
     pull.metrics[0].mechanics = [check(10, 2)];
     const before = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
     assert.equal(before.role, 'tank');
-    assert.equal(before.score, 86);
+    assert.equal(before.score, 80);
     const m = pull.metrics[0];
     m.damage = 1e14;
     m.damageTaken = 1e14;

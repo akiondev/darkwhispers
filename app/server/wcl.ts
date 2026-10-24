@@ -254,7 +254,7 @@ export class WclClient {
         role: 'unknown' as const,
       })),
     );
-    return {
+    const result: Report = {
       code: text(raw.code),
       title: text(raw.title, 'Warcraft Logs report'),
       startTime: finite(raw.startTime),
@@ -276,11 +276,56 @@ export class WclClient {
           ]
         : [],
     };
+    result.wipeCalls = await this.wipeCalls(code, fights);
+    return result;
+  }
+  async wipeCalls(code: string, fights: Fight[]): Promise<Record<number, number>> {
+    const result: Record<number, number> = {};
+    if (!fights.some((f) => !f.kill)) return result;
+    let start = Math.min(...fights.map((f) => f.startTime));
+    const end = Math.max(...fights.map((f) => f.endTime));
+    for (let page = 0; page < 10; page++) {
+      const data = await this.query(
+        `query WipeCalls($code:String!,$ids:[Int],$start:Float,$end:Float,$filter:String){reportData{report(code:$code){events(fightIDs:$ids,startTime:$start,endTime:$end,dataType:All,filterExpression:$filter,limit:10000,useActorIDs:true,useAbilityIDs:true){data nextPageTimestamp}}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
+        { code, ids: fights.map((f) => f.id), start, end, filter: 'type = "wipecalled"' },
+      );
+      const events = object(object(object(data.reportData).report).events);
+      if (!Array.isArray(events.data))
+        throw new ApiError(
+          'WCL_MISSING_WIPE_CALLS',
+          'Wipe-call data was unavailable. No wipe boundary was guessed.',
+        );
+      for (const event of events.data) {
+        if (
+          event.type !== 'wipecalled' ||
+          typeof event.timestamp !== 'number' ||
+          !Number.isFinite(event.timestamp)
+        )
+          throw new ApiError(
+            'WCL_INVALID_WIPE_CALLS',
+            'Warcraft Logs returned invalid wipe-call data.',
+          );
+        const fight = fights.find(
+          (f) => !f.kill && event.timestamp > f.startTime && event.timestamp < f.endTime,
+        );
+        if (fight) result[fight.id] = Math.min(result[fight.id] ?? Infinity, event.timestamp);
+      }
+      const next = events.nextPageTimestamp;
+      if (next === undefined || next === null) return result;
+      if (typeof next !== 'number' || !Number.isFinite(next) || next <= start)
+        throw new ApiError('WCL_PAGINATION_FAILED', 'The wipe-call cursor did not advance.');
+      start = next;
+    }
+    throw new ApiError(
+      'REPORT_TOO_LARGE',
+      'The report exceeds the bounded wipe-call timeline.',
+      422,
+    );
   }
   async tables(code: string, fight: Fight): Promise<Dict> {
     const data = await this.query(
-      `query Tables($code:String!,$ids:[Int]){reportData{report(code:$code){damage:table(dataType:DamageDone,fightIDs:$ids) healing:table(dataType:Healing,fightIDs:$ids) taken:table(dataType:DamageTaken,fightIDs:$ids)}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
-      { code, ids: [fight.id] },
+      `query Tables($code:String!,$ids:[Int],$start:Float,$end:Float){reportData{report(code:$code){damage:table(dataType:DamageDone,fightIDs:$ids,startTime:$start,endTime:$end) healing:table(dataType:Healing,fightIDs:$ids,startTime:$start,endTime:$end) taken:table(dataType:DamageTaken,fightIDs:$ids,startTime:$start,endTime:$end)}} rateLimitData{limitPerHour pointsSpentThisHour pointsResetIn}}`,
+      { code, ids: [fight.id], start: fight.startTime, end: fight.endTime },
     );
     return object(object(data.reportData).report);
   }

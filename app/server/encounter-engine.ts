@@ -4,6 +4,7 @@ import {
   encounterFor,
   normaliseSpell,
   RAID_DIFFICULTIES,
+  SCORING_FAMILIES,
   ruleSource,
   type MechanicRule,
 } from '../shared/encounters.js';
@@ -114,6 +115,8 @@ export function evaluateEncounter(
       .sort((a, b) => a.timestamp - b.timestamp || Number(isHit(b)) - Number(isHit(a)));
   const alive = (id: number, start: number, end: number) =>
     intervals.get(id)?.some(([a, b]) => Math.max(a, start) < Math.min(b, end)) ?? false;
+  const aliveThroughout = (id: number, start: number, end: number) =>
+    intervals.get(id)?.some(([a, b]) => a <= start && b >= end) ?? false;
   for (const m of metrics.values()) {
     m.mechanics = [];
     m.mechanicFailures = 0;
@@ -173,6 +176,7 @@ export function evaluateEncounter(
         weight: rule.weight,
         opportunities: 0,
         failures: 0,
+        missedWhileDead: 0,
         unknown: 0,
         observed: 0,
         detail: rule.detail,
@@ -180,6 +184,7 @@ export function evaluateEncounter(
         abilityIds: [...allIds],
         events: [],
         scoreEligible: false,
+        requiredForScore: SCORING_FAMILIES.has(`${entry.id}/${rule.id}`),
       };
       const log = (
         e: EncounterEvent,
@@ -236,11 +241,20 @@ export function evaluateEncounter(
         const matched = new Set<EncounterEvent>();
         for (let i = 0; i < waves.length; i++) {
           const wave = waves[i],
-            end = Math.min(
-              fight.endTime,
-              wave.timestamp + max,
-              waves.slice(i + 1).find((w) => sameCaster(w, wave))?.timestamp ?? Infinity,
-            );
+            naturalEnd = Math.max(
+              wave.activationTime + 1,
+              Math.min(
+                wave.timestamp + max,
+                waves.slice(i + 1).find((w) => sameCaster(w, wave))?.timestamp ?? Infinity,
+              ),
+            ),
+            end = Math.min(fight.endTime, naturalEnd);
+          if (naturalEnd > fight.endTime) {
+            for (const e of direct)
+              if (e.timestamp >= wave.activationTime && e.timestamp < end && sameCaster(e, wave))
+                matched.add(e);
+            continue; // Same censored window for everyone: no clean passes or partial failures.
+          }
           if (rule.excludeTankCastTarget && wave.targetID === m.actorId) {
             // Mandatory marked-tank contact is never an avoidance failure.
             for (const e of direct)
@@ -248,7 +262,6 @@ export function evaluateEncounter(
                 matched.add(e);
             continue;
           }
-          if (!alive(m.actorId, wave.activationTime, end)) continue;
           const hit = direct.find(
             (e) => sameCaster(e, wave) && e.timestamp >= wave.activationTime && e.timestamp < end,
           );
@@ -262,6 +275,13 @@ export function evaluateEncounter(
               hit,
               'failed',
               'Direct contact after an observed completed cast. One failed check per window; periodic ticks are excluded.',
+            );
+          } else if (!aliveThroughout(m.actorId, wave.activationTime, end)) {
+            result.missedWhileDead!++;
+            log(
+              { ...wave, timestamp: wave.activationTime },
+              'missed-dead',
+              'Not credited: dead during this applicable check window. This is unavailable participation, not a proven mechanic error.',
             );
           }
         }

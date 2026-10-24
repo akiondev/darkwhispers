@@ -1,64 +1,50 @@
-# Execution score · 0.7.0
+# Execution score · 0.8.0
 
-The score measures recorded mechanic execution and time alive. It is **not** a complete assessment of player skill, class balance, damage contribution, raid assignments or responsibility for a wipe. DPS, HPS, intake, preparation and observed item usage are visible facts alongside the score.
+This is an execution-and-availability score, not proof of overall class skill, raid contribution, AFK status or fault for a wipe. DPS/HPS, intake, preparation and observed item usage remain visible outside the score. DPS, healers and tanks have separate standings.
 
-## Two inputs, one declared formula
+## Per-pull formula
 
-For each eligible player/pull, let:
-
-- `M = 100 × passed verified mechanic opportunities / verified opportunities`.
-- `A = 100 × recorded time alive / actual pull duration`.
-
-Then:
+- M: mean success percentage across the reviewed mechanic families that had applicable, completed check windows. Each family has equal budget, regardless of cast frequency or legacy severity weights.
+- A: recorded time alive / the shared assessed duration, expressed as a percentage.
+- D: deduplicated real deaths before the assessment stop.
 
 ```text
-base = 0.70 × M + 0.30 × A
-score = min(base, A)
+base = M * A / 100
+score = max(0, base - 5 * D)
 ```
 
-Mechanics has 70% of the base weight. Time alive caps the result so an early death cannot avoid later checks and earn a high score. The cap is explicit: when it binds, improving mechanics alone does not increase the final score. The weights and cap are transparent design policies, not facts supplied by Warcraft Logs.
+The five-point death cost is a declared policy, not a value supplied by Warcraft Logs. It is deliberately additional to lost availability and uncredited checks. It persists after battle resurrection or self-resurrection. Accepting a resurrection has no separate penalty; the caster receives none. The multiplicative base is naturally bounded by both M and A and has no former 70/30 plateau.
 
-Examples with clean observed mechanics in a 300-second pull:
+With M=100: full survival and no deaths gives100; A=98 with one death gives93; A=80 with one death gives75. Clamping at zero prevents negative scores. Zero mechanic success cannot earn survival-only points.
 
-| Recorded presence | Score |
-| --- | ---: |
-| Alive throughout | 100 |
-| Dies after 60 seconds and stays dead | 20 |
-| Dies at 290 seconds | 96.7 |
-| Dead for 30 seconds, then resurrected | 90 |
+## Opportunities and data integrity
 
-With `M = 60` and `A = 80`, base and final score are 66. A recorded death does not also receive a flat deduction. Multiple dead intervals are merged and battle resurrections credit only time actually alive. Feign Death must not become lost presence.
+The fixed SCORING_FAMILIES catalogue in shared/encounters.ts declares reviewed cast/contact families. Other tracked mechanics remain observations until a reviewed model change. Required tank contacts, assignment-dependent soaks/interrupts/dispels and unverified floor exposure are not generic errors.
 
-## What qualifies as a mechanic check
+A completed applicable check remains in the player's denominator while dead. A missing hit earns a pass only when the player is alive throughout the declared check window. A recorded direct contact is one failed check, collapsing ticks/components. No contact while dead or partially absent is marked 'not credited while dead', not a proven mechanic failure. The planned applicability and observed cast schedule do not disappear with death.
 
-Only controls with a verified opportunity denominator are scored. Cast-linked checks collapse damage ticks/projectile components into their defined incident. A missing hit is a pass only when the player had an observed, applicable opportunity. No observed opportunities does not mean perfect mechanics.
+Unfinished windows at the assessment end contribute neither passes nor failures for anyone. The same caster/instance and verified parent cast are required. A creature attempt without completion cannot manufacture success.
 
-The same declared rule set applies to the comparable role cohort on a pull. Incomplete exposure or aura state cannot manufacture clean checks for one player while another receives a penalty. Required tank contacts, autoattacks, assigned soaks, unassigned utility, failure-only ground exposure without a reliable denominator, and context-only observations do not become generic personal mistakes.
+If a required active family has incomplete linkage for a role peer, the whole role/pull grade is unavailable. Removing an uncertain family must not promote everyone to100. No observed applicable checks gives no grade, never neutral points or free perfection. Positive contribution is required; one action is not proof of meaningful participation, and this model does not claim reliable AFK detection.
 
-Unsupported or incomplete checks are omitted, not assigned 50 points. A pull without comparable mechanics has no combined execution score; it remains visible with raw facts and a short reason. Missing actor metrics or incomplete imports stop the analysis rather than becoming zero output, perfect survival or replacement points.
+## Wipe boundaries
 
-## Roles and aggregation
+Kills use encounter end. Wipes require either a recorded WCL wipecalled event or an explicit manual stop, shared by all actors. Manual offsets are integer milliseconds from pull start, positive and no later than encounter end; kill overrides and unknown fight IDs are rejected. Earliest valid logged call wins unless explicitly overridden manually. Calls outside a wipe are ignored.
 
-Standings are separate, ordered **DPS → Healers → Tanks**. A character who changes role has a separate result for each actual role, with a stable actor-and-role identity. There is no global cross-role ordinal rank.
+Without a confirmed stop, a wipe retains factual statistics but no mechanic or execution grade. Discord voice calls and an arbitrary count of deaths are never guessed. All events at or after the stop are excluded, including deaths, resurrection, casts and item uses. Table queries use the same start/end bounds. Pending mechanic windows are censored for everyone. Manual provenance is visible and frozen in the immutable analysis selection.
 
-Calculate each eligible pull first. Average scored pulls within a boss/difficulty/role context, average difficulty contexts within a boss, and give attended bosses equal weight in the whole-report view. At **every level**, cap that score by average observed availability from **all attended child contexts**, including those with no mechanic score. Thus dying before the first check on many pulls cannot disappear from the denominator and leave one clean 100 as the whole result. If every child is unscored, the aggregate remains unscored; observed availability does not invent mechanic success.
+API wipe-call errors are not interpreted as absent calls. Pagination is validated even across empty pages. Versioned pull cache keys contain report revision, fight boundaries, ingestion version, assessment source and assessment end, so manual reanalysis cannot reuse incompatible full-pull facts.
 
-Unattended bosses add neither zero nor 50. Show attended and actually scored pull counts; different attendance is not equally strong evidence. The overview is an aggregation of pull/context results, not a fresh calculation from one global success ratio. Its displayed availability ceiling follows the same equal-pull/difficulty/boss aggregation; raw alive milliseconds remain a separate factual total.
+## Aggregation and comparison
 
-Use the full recorded encounter duration consistently. Inferred raid-collapse or spell-specific enrage cutoffs do not silently change survival or the mechanic denominator. A raw `excludeWipeTail` flag on an older saved selection must not reactivate the retired inference in the new score.
+Pull scores are weighted by assessed duration within each boss/difficulty. Difficulty contexts and attended bosses then receive equal weight. Aggregate fields are summaries, not inputs to a fresh global formula. Unscored pulls supply no replacement points. Scored/attended counts stay visible; raw statistics also include unscored pulls.
 
-## Facts outside the score
+Ordinal ranks require participation and a complete grade in the same role's scoreable selected pulls. Partial attendance/evidence retains a visible partial score but no misleading ordinal rank against a different selection. A character who changes role has separate stable actor-and-role rows. There is no cross-role rank or implied comparison with the worldwide player population.
 
-Raw DPS/HPS and damage taken are visible as context. More damage or healing is not automatically better class/spec play, and tank intake is not an avoidance failure. Historical kill percentiles, activity-window estimates, class-specific defensive-response estimates and missing-evidence midpoint weights are excluded from the new score.
+## Recorded life events and verification
 
-Preparation/item facts are conservative observations: active buffs at pull when a valid snapshot exists, observed potion/healthstone use and available gear information. A missing snapshot is not proof of a missing flask. A potion active at pull is not automatically proof of a precisely timed pre-pot. No use of a healing item does not prove it was owned, available or needed. Enchant completeness requires validated slot, item and class rules; there is no invented universal "fully enchanted" grade.
+Death/resurrection observations are deduplicated and Feign Death is excluded. A real death that includes an earlier death-save field is still a death. Source and ability metadata are retained where supplied; only recognized ID/name pairs are labelled combat resurrection. Missing ability metadata is unclassified, not proof of a shared charge being spent. Life interval semantics must remain consistent with the actual v2 response; a spell cast alone is never treated as a return to life.
 
-The WCL [combatant-info definition](https://www.warcraftlogs.com/scripting-api-docs/warcraft/interfaces/RpgLogs.CombatantInfoEvent.html) documents gear and active starting auras. Its typed scripting properties must still be mapped to the actual v2 JSON. WCL [confirms rankings are only available for kills](https://forums.combatlogforums.com/t/no-rankings-on-mythic-one-armed-bandit-through-v2-api-why/16239), so the core score does not depend on them.
+References: [WCL death events](https://www.warcraftlogs.com/scripting-api-docs/warcraft/interfaces/RpgLogs.DeathEvent.html), [resurrection events](https://de.warcraftlogs.com/scripting-api-docs/warcraft/interfaces/RpgLogs.ResurrectEvent.html), [wipe-call events](https://es.classic.warcraftlogs.com/scripting-api-docs/warcraft/interfaces/RpgLogs.WipeCalledEvent.html), [Wipefest's recorded-call workflow](https://www.archon.gg/classic-fresh/articles/news/wipefest-naxxramas).
 
-## Limits and verification
-
-A player with exactly zero recorded output, casts, interrupts and dispels has no execution rank, rather than receiving 100 for passive survival. This is a factual participation guard, not a rotation or activity-window score. A player can still contribute very little after one cast. The two-input score therefore must not be advertised as an AFK-proof overall "best raider" grade. Output is deliberately prominent; the reader still interprets assignments and encounter context.
-
-Regression checks cover the exact death examples, early-death gaming, resurrection/Feign Death, zero opportunities, unknown rule state, mandatory tank intake, duplicated events/ticks, missing imports, raw-output independence, role changes, partial attendance, aggregation and bounded scores. Labelled synthetic fixtures exercise all ten S2 encounters and four raid difficulties; they are not a substitute for live coverage on every class/boss combination.
-
-Real acceptance reports are `6fjJxRFC21YHdTXB` and `LfhZ47qyPY8FRQH6`. Completed older links remain immutable snapshots. Reanalysis explicitly creates a new result using the new model; model versions are never mixed in one standings calculation.
+Focused tests cover the published formula, all six tank profiles, late-death censoring, persistent death costs after battle resurrection, same-time/post-stop deaths, pending windows, ambiguity, fixed family budgets, duration weighting, attendance, manual API validation and wipe pagination. Acceptance reports remain6fjJxRFC21YHdTXB andLfhZ47qyPY8FRQH6. Synthetic fixtures are labelled and cannot substitute for real verification. Previous links remain unchanged snapshots and require explicit reanalysis to adopt this model.

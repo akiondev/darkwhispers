@@ -28,6 +28,8 @@ export type Report = {
   fights: Fight[];
   zone: string;
   warnings: string[];
+  /** Earliest recorded wipecalled timestamp per fight, in report milliseconds. */
+  wipeCalls?: Record<number, number>;
 };
 export type Evidence = {
   fightId: number;
@@ -93,6 +95,8 @@ export type ActivityFacts = {
   eligibleWindows: number;
 };
 export type MechanicResult = {
+  requiredForScore?: boolean;
+  missedWhileDead?: number;
   scoreEligible?: boolean;
   excludedReason?: string;
   ruleId: string;
@@ -117,7 +121,7 @@ export type MechanicResult = {
   }[];
   events: {
     timestamp: number;
-    outcome: 'passed' | 'failed' | 'observed' | 'unknown';
+    outcome: 'passed' | 'failed' | 'observed' | 'unknown' | 'missed-dead';
     detail: string;
     url: string | null;
   }[];
@@ -204,6 +208,7 @@ export type TankReview = {
   grade: TankGrade;
 };
 export type PullData = {
+  window?: AssessmentWindow;
   fight: Fight;
   metrics: Metric[];
   complete: boolean;
@@ -214,11 +219,18 @@ export type PullData = {
   evaluation?: { endTime: number; reason: 'raid-collapse' | 'boss-enrage'; excludedMs: number };
 };
 export type Selection = {
+  /** Explicit shared manual stop offsets in milliseconds from each wipe's start. */
+  wipeStops?: Record<string, number>;
   encounterId: number | null;
   difficulty: number | null;
   mode: Mode;
   fightIds: number[] | null;
   excludeWipeTail: boolean;
+};
+export type AssessmentWindow = {
+  endTime: number;
+  source: 'kill' | 'logged' | 'manual' | 'unconfirmed';
+  confirmed: boolean;
 };
 export type CategoryScore = {
   score: number | null;
@@ -358,7 +370,14 @@ export type PlayerFacts = {
   }[];
   enchantsObserved?: { slot: number; itemId: number; enchantId: number }[];
   gemsObserved?: { slot: number; itemId: number; gemId: number }[];
-  lifeEvents: { timestamp: number; type: 'death' | 'resurrect' }[];
+  lifeEvents: {
+    timestamp: number;
+    type: 'death' | 'resurrect';
+    abilityId?: number;
+    sourceId?: number;
+    abilityName?: string;
+    combatRes?: boolean;
+  }[];
   casts: number;
 };
 export type ExecutionAssessment = {
@@ -368,6 +387,10 @@ export type ExecutionAssessment = {
   alivePercent: number;
   baseScore: number | null;
   capped: boolean;
+  deathPenalty?: number;
+  deaths?: number;
+  missedWhileDead?: number;
+  weightMs?: number;
   passedChecks: number;
   failedChecks: number;
   checkedMechanics: number;
@@ -383,6 +406,7 @@ export type ExecutionMechanic = {
   exclusion?: string;
   passed: number;
   failed: number;
+  missedWhileDead?: number;
   opportunities: number;
   observed: number;
   detail: string;
@@ -391,6 +415,7 @@ export type ExecutionMechanic = {
   events: MechanicResult['events'];
 };
 export type ExecutionPullReview = {
+  window?: AssessmentWindow;
   fightId: number;
   role: Role;
   execution: ExecutionAssessment;
@@ -412,6 +437,7 @@ export type ExecutionBossScore = {
   execution: ExecutionAssessment;
 };
 export type RankedPlayer = Player & {
+  rankingReason?: string;
   rowKey: string;
   rank: number | null;
   roleRank: number | null;
@@ -441,7 +467,12 @@ export type RankedPlayer = Player & {
 export type Analysis = {
   version: string;
   generatedAt: string;
-  model: { id: string; name: string; mechanicsWeight: 70; survivalWeight: 30; cappedByAlive: true };
+  model: {
+    id: string;
+    name: string;
+    deathPenalty: 5;
+    formula: 'mechanics-times-alive-minus-deaths';
+  };
   report: Report;
   selection: Selection;
   players: RankedPlayer[];

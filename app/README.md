@@ -1,80 +1,37 @@
-# DarkWhispers App · prototype 0.7.0
+# DarkWhispers App · prototype 0.8.0
 
-A concise Warcraft Logs raid review app. React 19, TypeScript, Vite 8, Fastify 5, PostgreSQL 16 and pg-boss. The API and analysis worker run separately. No paid services or generated player grades.
+A compact Warcraft Logs raid review app using React, TypeScript, Vite, Fastify, PostgreSQL16 and pg-boss. API and worker are isolated services. No paid services or generated grades.
 
-## Run locally
+## Run
 
-Node 22.12+ is required.
+Node22.12+ is required. Use npm ci, npm run build and npm start; npm run dev serves the frontend on127.0.0.1:8878. Development without PostgreSQL uses a disposable memory store and inline worker. The clearly labelled synthetic demo never replaces a real report.
 
-```sh
-npm ci
-npm run build
-npm start
-# In another terminal:
-npm run dev
-```
+Live imports require WCL_CLIENT_ID and WCL_CLIENT_SECRET on the backend only. Client Credentials uses /oauth/token and /api/v2/client; no callback is required. Credentials, private caches and raw audit data never belong in Git, frontend bundles or public reports.
 
-Open http://127.0.0.1:8878. Without PostgreSQL configuration, development uses a disposable in-memory store and an inline worker. The clearly labelled synthetic demo requires no credentials and never replaces a real log.
+## Score and UI
 
-Live reports require `WCL_CLIENT_ID` and `WCL_CLIENT_SECRET` **on the backend only**. Client Credentials uses WCL's `/oauth/token` and `/api/v2/client` endpoints; no callback or user login is required. Never prefix credentials with `VITE_`, commit them, place them in report URLs or include them in public bundles.
+The [execution model](docs/execution-model.md) uses max(0, mechanics * time alive /100 -5 * deaths) per pull. Each reviewed mechanic family has equal budget. Applicable checks remain uncredited while dead. A death's five-point deduction persists after battle resurrection. Required tank contact, uncertain assignments, DPS/HPS, intake, preparation and items have no automatic score weight.
 
-## Read the raid, then the score
+Wipes require a recorded wipe call or a clearly labelled manual shared stop. Without one, statistics remain available and the wipe is unscored. All post-stop events and unfinished checks are excluded. There are no inferred collapse thresholds, Unknown weights or neutral replacement points.
 
-The main view is a compact set of separate **DPS → Healers → Tanks** standings. Players have an inspectable 0–100 execution score, mechanic results, time alive, raw DPS/HPS and pull counts. A character who changes role receives distinct role results.
+DPS, healers and tanks have separate lists. Same-role characters who change role get independent rows. Duration-weighted pull scores are combined by boss/difficulty; partial attendance/evidence has a visible score without a misleading ordinal comparison. Details show short reasons, a pull selector, preparation/items and one expandable calculation/evidence section. This is not an overall skill or AFK-proof contribution score.
 
-The [execution model](docs/execution-model.md) replaces the older multi-factor role index. Its only scoring inputs are verified mechanic outcomes (70% base weight) and recorded time alive (30%). The result is capped by the percentage of the pull actually spent alive. There are no neutral midpoint points, historical-parse weights, activity estimates or class-defensive weights.
+## New reports and compatibility
 
-Raw output, intake, preparation and observed consumable use remain visible facts outside the score. Tank autoattacks and mandatory tank contacts are not generic failures. Missing or incomplete mechanic exposure cannot manufacture a pass, and zero opportunities cannot manufacture 100. A short reason replaces unavailable scores instead of displaying weighted Unknown categories.
+Report IDs, guilds, player names and raid-zone names are not allowlisted. Report metadata supplies encounters, roster, difficulty, times and per-pull specs. New logs for supported encounters need no code change. Unknown encounters still import factual output, survival and utility, but cannot invent mechanic grades. New mechanics, difficulty variants and specs require reviewed interpretation; a stable GraphQL schema alone does not establish their meaning.
 
-Every eligible pull is calculated first, then combined within boss/difficulty/role contexts. Attended bosses receive equal weight in the whole-report overview. At each aggregation, all attended contexts still contribute their recorded availability ceiling, even if they have no mechanic score; dying before the first check cannot disappear from the final cap. Unplayed bosses add neither zero nor 50; attendance and scored-pull counts remain visible. Full recorded encounter duration is used consistently rather than guessing the raid leader's wipe call.
+Up to150 completed boss pulls can be selected per analysis; larger reports can be reviewed in subsets. Individual timelines, pagination, queue capacity and API retries/budget are bounded. Ongoing pulls and trash are excluded. Private or archived reports need permissions beyond this public client feature.
 
-This is an **execution score**, not proof of total skill or responsibility for a wipe. Exactly zero output/casts/utility is unranked, but one cast does not establish meaningful participation. DPS/HPS must remain prominent and the app must not market two inputs as an AFK-proof overall raider grade. Exact method details are available on demand, rather than repeated throughout the player panel.
+## Performance, sharing and integrity
 
-The [S2 encounter inventory](docs/midnight-s2-rules.md) remains the source of verified mechanic identities and context. Its older 0.6 scoring/weight descriptions are historical; the execution model above defines current scoring. New event variants fail closed rather than becoming guessed player mistakes.
+Two pulls import concurrently, at most three upstream requests per process. OAuth refresh is single-flight. Completed pulls are independently cached with report revision, boundaries, ingestion version and exact assessment window. Reanalysis at a new manual stop cannot accidentally use full-pull statistics. Missing/invalid pages, tables or required evidence never become perfect scores.
 
-## New reports and future encounters
+Selections and manual stop provenance are frozen before enqueueing. Jobs are capped at12 active and expire after two hours. Saved results have immutable /?analysis=<uuid> links with seven-day retention. Reading a link does not enqueue work or query WCL. Older scoring snapshots remain unchanged and offer explicit reanalysis.
 
-Imports are independent of the two acceptance-report codes, guilds, player names and raid-zone names. Report metadata supplies the encounters, roster, fight boundaries, difficulty and actual per-pull specs. New reports for supported encounters use the existing model without adding their report IDs to the code.
+The recent feed contains minimal metadata only for completed public live reports, not demo/private/unlisted data. Anyone with a share link can read that saved result. Cloudflare-aware rate limits and fixed upstream origins prevent trusting arbitrary forwarding headers or user-supplied fetch hosts. See server/client-ip.ts.
 
-An encounter outside the mechanic catalogue still imports output, intake, recorded survival, utility and available preparation facts. It receives no invented mechanic checks or execution score. New boss mechanics, difficulty variants and specializations require verified interpretation before they can participate in comparable scoring; a stable GraphQL schema alone does not establish what a mechanic means.
+## Verification and deployment
 
-The current service accepts up to 150 selected completed boss pulls per analysis. Larger reports can be reviewed in selected subsets. It also bounds individual event timelines and API usage, and clearly rejects incomplete imports. Client Credentials can read only data accessible through WCL's public client API; private reports need a separate user-authorization feature. Ongoing pulls and trash are excluded. Breaking upstream API changes cannot be guaranteed compatible without maintenance.
+npm test runs focused scoring/API/ingestion/window regressions and small labelled synthetic benchmarks. npm run check validates types; npm run build builds production assets. npm run test:postgres needs an isolated TEST_DATABASE_URL and exercises persistence, immutable shares, feed privacy, admission and concurrent indexed reads.
 
-## Saved links and recent reports
-
-Each analysis has an opaque `/?analysis=<uuid>` link. Refreshes resume the same job; readers retrieve the stored result without enqueuing work or calling WCL. Completed snapshots are immutable and expire after seven days. Updating the scoring model requires explicit reanalysis and creates a new result/link.
-
-Anyone possessing a share link can read its report/player data. The front page shows only minimal metadata for completed **public live reports**, deduplicated by report. Demo, private and unlisted results are excluded. Clipboard fallback supports manually copying the selected link.
-
-## Performance and integrity
-
-Report metadata and ability identities are fetched once as needed. Two pulls can import concurrently, with at most three upstream requests per process. OAuth refresh is single-flight. Each completed pull is committed independently and reused across boss/mode selections. Versioned cache keys include report revision and fight boundaries; incompatible ingestion changes invalidate facts, while UI-only changes reuse them.
-
-Queries use fixed WCL origins, bounded retries, timeouts and budget-aware backoff. Event pagination follows `nextPageTimestamp`, including empty pages. Non-advancing cursors, invalid totals/events, partial GraphQL responses and incomplete imports stop the analysis. A user-supplied report URL never becomes an arbitrary upstream request.
-
-The chosen pull IDs are frozen before enqueueing. Queue admission is serialized in this app's database and capped at twelve active jobs; expired jobs fail explicitly. Progress cannot move backwards when parallel imports complete. Recent analyses use a small indexed table and the same seven-day expiry as their share snapshots. The compact interface has no chart-library dependency.
-
-Rate limiting distinguishes trusted Cloudflare forwarding from direct-origin headers; see `server/client-ip.ts`. Client credentials, raw audits and caches stay out of Git and public artifacts.
-
-## Validate and deploy
-
-```sh
-npm run check
-npm test
-npm run build
-npm audit --audit-level=moderate
-# With an isolated test database URL:
-npm run test:postgres
-```
-
-Synthetic benchmarks measure engine computation, not network latency. Real acceptance uses `6fjJxRFC21YHdTXB` and `LfhZ47qyPY8FRQH6`, covering whole reports, selected bosses/pulls and kills/wipes. Synthetic class/difficulty fixtures do not constitute live LFR/Normal validation.
-
-Build, validate, package and attest through `.github/workflows/app.yml`. `deploy/provision.py` manages only this app's database, unprivileged user, API/worker units and domain configuration, preserving other VPS services. The backend listens on loopback port 3210 behind Caddy HTTPS. Secrets live in the root-owned `/etc/darkwhispers-app.env`, never the served assets. The app does not install addons or update the launcher.
-
-Open source and GitHub attestations make the implementation and build origin auditable; they do not guarantee freedom from bugs.
-
-## API references
-
-- [Warcraft Logs OAuth and API](https://www.warcraftlogs.com/api/docs)
-- [Report schema and pagination](https://www.warcraftlogs.com/v2-api-docs/warcraft/report.doc.html)
-- [Combatant information](https://www.warcraftlogs.com/scripting-api-docs/warcraft/interfaces/RpgLogs.CombatantInfoEvent.html)
+Deploy only the archive built and attested by the GitHub app workflow. The VPS API and worker use their own OS user, database, loopback port and systemd units. Preserve all other services. Test real reports on the server with credentials kept there; raw audits remain private. Synthetic demo success alone is not live-report verification.

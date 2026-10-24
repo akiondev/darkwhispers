@@ -213,7 +213,9 @@ test('old inferred wipe-cutoff facts cannot reactivate retired shortened-window 
   assert.deepEqual(flagged.players, full.players);
   assert.equal(flagged.selection.excludeWipeTail, false);
   assert.ok(
-    flagged.players.every((p) => p.aliveMs === 60000 && p.durationMs === 300000 && p.score === 20),
+    flagged.players.every(
+      (p) => p.aliveMs === 60000 && p.durationMs === 300000 && p.score === null,
+    ),
   );
 });
 
@@ -246,7 +248,13 @@ test('150-pull / 20-player synthetic benchmark measures the current execution pi
       }));
     return p;
   });
-  const report = { ...demo.report, fights: pulls.map((p) => p.fight) },
+  const report = {
+      ...demo.report,
+      fights: pulls.map((p) => p.fight),
+      wipeCalls: Object.fromEntries(
+        pulls.filter((p) => !p.fight.kill).map((p) => [p.fight.id, p.window!.endTime]),
+      ),
+    },
     timings: number[] = [];
   for (let i = 0; i < 5; i++) {
     const started = performance.now(),

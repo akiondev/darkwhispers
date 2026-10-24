@@ -1,4 +1,12 @@
-import type { Evidence, Fight, Metric, PullData, Report } from '../shared/types.js';
+import type {
+  AssessmentWindow,
+  Evidence,
+  Fight,
+  Metric,
+  PullData,
+  Report,
+} from '../shared/types.js';
+import { assessmentWindow } from '../shared/windows.js';
 import { evidenceUrl } from '../shared/report-url.js';
 import { aliveTime, type LifeEvent } from '../shared/life.js';
 import { ApiError, finite, object, text, WclClient } from './wcl.js';
@@ -129,11 +137,26 @@ export async function ingestPull(
   fight: Fight,
   abilities: Map<number, string>,
   step: (message: string) => Promise<void>,
+  requestedWindow?: AssessmentWindow,
 ): Promise<PullData> {
+  const originalFight = fight;
+  const window =
+    requestedWindow ??
+    assessmentWindow(report, fight, {
+      encounterId: null,
+      difficulty: null,
+      mode: 'all',
+      fightIds: null,
+      excludeWipeTail: false,
+    });
+  if (window.endTime <= fight.startTime || window.endTime > fight.endTime)
+    throw new Error('Invalid assessment window.');
+  fight = { ...fight, endTime: window.endTime };
   const duration = fight.endTime - fight.startTime;
   const metrics = new Map(fight.friendlyPlayers.map((id) => [id, baseMetric(id, duration)]));
   const recorder = factRecorder(fight, fight.friendlyPlayers, abilities);
   const life = new Map<number, LifeEvent[]>();
+  const lifeDetails = new Map<string, NonNullable<Metric['facts']>['lifeEvents'][number]>();
   const tables = await client.tables(report.code, fight);
   for (const [key, field] of [
     ['damage', 'damage'],
@@ -203,6 +226,12 @@ export async function ingestPull(
     fight,
     'All',
     (events) => {
+      events = events.filter(
+        (event) =>
+          event.timestamp < fight.endTime &&
+          (event.timestamp >= fight.startTime ||
+            (event.type === 'combatantinfo' && event.timestamp >= fight.startTime - 1)),
+      );
       recorder.observe(events);
       for (const event of events) {
         if (typeof event.timestamp !== 'number' || !Number.isFinite(event.timestamp))
@@ -210,7 +239,7 @@ export async function ingestPull(
             'WCL_INVALID_EVENTS',
             'The event timeline contained an invalid timestamp.',
           );
-        if (event.timestamp < fight.startTime || event.timestamp > fight.endTime) continue;
+        if (event.timestamp < fight.startTime || event.timestamp >= fight.endTime) continue;
         const lifeKind = recordedLifeEvent(event);
         if (event.type === 'death' && !lifeKind) continue;
         if (encounterClauses.length) {
@@ -246,6 +275,24 @@ export async function ingestPull(
         if (lifeKind && target) {
           const stream = life.get(target.actorId) ?? [];
           stream.push({ timestamp: event.timestamp, type: lifeKind });
+          const resurrectionNames: Record<number, string> = {
+            20484: 'Rebirth',
+            61999: 'Raise Ally',
+            391054: 'Intercession',
+            95750: 'Soulstone Resurrection',
+          };
+          const abilityName = abilities.get(id);
+          lifeDetails.set(`${target.actorId}:${event.timestamp}:${lifeKind}`, {
+            timestamp: event.timestamp,
+            type: lifeKind,
+            ...(id ? { abilityId: id, abilityName } : {}),
+            ...(typeof event.sourceID === 'number' ? { sourceId: event.sourceID } : {}),
+            ...(lifeKind === 'resurrect' &&
+            !!resurrectionNames[id] &&
+            resurrectionNames[id] === abilityName
+              ? { combatRes: true }
+              : {}),
+          });
           life.set(target.actorId, stream);
           if (lifeKind === 'death') lifeEvidence.push({ actor: target.actorId, event });
         } else if (event.type === 'cast' && source) {
@@ -302,10 +349,13 @@ export async function ingestPull(
     metric.aliveMs = aliveTime(fight, stream);
     metric.deaths = stream.filter((e) => e.type === 'death').length;
     metric.facts = recorder.facts.get(id)!;
-    metric.facts.lifeEvents = stream.map((e) => ({
-      timestamp: e.timestamp,
-      type: e.type as 'death' | 'resurrect',
-    }));
+    metric.facts.lifeEvents = stream.map(
+      (e) =>
+        lifeDetails.get(`${id}:${e.timestamp}:${e.type}`) ?? {
+          timestamp: e.timestamp,
+          type: e.type as 'death' | 'resurrect',
+        },
+    );
   }
   for (const { actor, event } of lifeEvidence) {
     if (!life.get(actor)?.some((e) => e.type === 'death' && e.timestamp === event.timestamp))
@@ -328,13 +378,14 @@ export async function ingestPull(
     ? evaluateEncounter(report, fight, metrics, encounterEvents, life, abilities)
     : { rule: null, warnings: [] };
   return {
-    fight,
+    fight: originalFight,
+    window,
     metrics: [...metrics.values()],
     complete: true,
     warnings: mechanic.warnings,
     mechanicRule: mechanic.rule,
     mechanicScope: mechanic.rule ? 'partial' : undefined,
-    wipeTailMs: null,
+    wipeTailMs: originalFight.endTime - window.endTime,
   };
 }
 export function resolvePlayerSource(id: number, owners: Record<number, number>): number {

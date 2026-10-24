@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-re
 import type { Analysis, ExecutionMechanic, RankedPlayer } from '../shared/types.js';
 import { difficultyName } from '../shared/report-url.js';
 import { duration, RoleIcon, Score } from './presentation.js';
+import { windowLabel } from '../shared/windows.js';
 const number = new Intl.NumberFormat('en', { maximumFractionDigits: 0 });
 const output = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 export default function CompactPlayerDetails({
@@ -77,6 +78,8 @@ export default function CompactPlayerDetails({
         else {
           prior.passed += m.scored ? m.passed : 0;
           prior.failed += m.scored ? m.failed : 0;
+          prior.missedWhileDead =
+            (prior.missedWhileDead ?? 0) + (m.scored ? (m.missedWhileDead ?? 0) : 0);
           prior.opportunities += m.scored ? m.opportunities : 0;
           prior.observed += m.observed;
           prior.scored ||= m.scored;
@@ -122,6 +125,9 @@ export default function CompactPlayerDetails({
           <li key={reason}>{reason}</li>
         ))}
       </ul>
+      {player.rankingReason && player.score !== null && (
+        <p className="small muted">{player.rankingReason}</p>
+      )}
       <section className="compact-player-pulls" aria-label="Player review by pull">
         <div className="pull-navigation">
           <button
@@ -156,6 +162,12 @@ export default function CompactPlayerDetails({
             <ChevronRight size={18} />
           </button>
         </div>
+        {selected?.window && (
+          <p className="window-caption">
+            {windowLabel(selected.window)} · assessment {duration(selected.durationMs)}
+            {!selected.window.confirmed && ' · statistics only'}
+          </p>
+        )}
         <div className="execution-stats">
           <div>
             <span>Mechanics</span>
@@ -163,7 +175,8 @@ export default function CompactPlayerDetails({
               {assessment.passedChecks} / {assessment.checkedMechanics}
             </strong>
             <small className={assessment.failedChecks ? 'failed-text' : ''}>
-              {assessment.failedChecks} failed
+              {assessment.failedChecks} failed · {assessment.missedWhileDead ?? 0} not credited
+              while dead
             </small>
           </div>
           <div>
@@ -248,25 +261,30 @@ export default function CompactPlayerDetails({
               <b>
                 {assessment.mechanicsScore === null ? '—' : assessment.mechanicsScore.toFixed(1)}
               </b>{' '}
-              {selected && '× 70%'}
+              {selected && '×'}
             </span>
             <span>
-              Time alive <b>{assessment.alivePercent.toFixed(1)}</b> {selected && '× 30%'}
+              Time alive <b>{assessment.alivePercent.toFixed(1)}%</b> {selected && '/ 100'}
             </span>
             <span>
               {selected ? 'Base' : 'Base average'}{' '}
               <b>{assessment.baseScore === null ? '—' : assessment.baseScore.toFixed(1)}</b>
             </span>
+            <span>
+              {selected ? 'Death deduction' : 'Weighted death deduction'}{' '}
+              <b>−{(assessment.deathPenalty ?? 0).toFixed(1)}</b>
+            </span>
           </div>
           <p className="small muted">
-            Final score is capped by time alive{assessment.capped ? ' (cap applied)' : ''}.{' '}
-            {assessment.scoredPulls} of {assessment.totalPulls} attended pulls have comparable
-            checks. Raw output, preparation and consumables carry no score weight.
+            Each recorded assessed death deducts five points before averaging. Battle resurrection
+            does not erase it. {assessment.scoredPulls} of {assessment.totalPulls} attended pulls
+            have comparable checks. Raw output, preparation and consumables carry no score weight.
           </p>
           {!selected && (
             <p className="small muted">
-              Pull scores and alive-time caps are calculated first, then averaged by difficulty and
-              boss. These aggregate inputs do not directly reproduce the final score.
+              Pull scores use assessed duration weights within each boss/difficulty. Bosses and
+              difficulty contexts then have equal weight. These average inputs do not directly
+              reproduce the final score. Raw statistics also include unscored pulls.
             </p>
           )}
           {!selected && (
@@ -295,7 +313,7 @@ export default function CompactPlayerDetails({
                     <b>{m.name}</b>
                     <small>
                       {m.scored
-                        ? `${m.passed} passed · ${m.failed} failed · ${m.opportunities} checks`
+                        ? `${m.passed} passed · ${m.failed} failed · ${m.missedWhileDead ?? 0} not credited while dead · ${m.opportunities} checks`
                         : `Observed only · ${m.observed} records`}
                     </small>
                     {m.scored && <small>{m.detail}</small>}
@@ -323,7 +341,11 @@ export default function CompactPlayerDetails({
                     <span>
                       Pull {e.fightId} · {duration(e.timestamp - f.startTime)}
                     </span>
-                    {e.type === 'death' ? 'Died' : 'Resurrected'}
+                    {e.type === 'death'
+                      ? 'Died'
+                      : e.combatRes
+                        ? `Combat resurrection${e.abilityName ? ` · ${e.abilityName}` : ''}`
+                        : 'Recorded resurrection'}
                   </p>
                 );
               })}
