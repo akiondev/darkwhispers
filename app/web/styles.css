@@ -2218,3 +2218,291 @@ footer a {
     white-space: nowrap;
   }
 }
+
+/* Composite score: evidence stays readable without turning the ranking into a dashboard. */
+.ranking-role-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 0 26px 14px;
+}
+.ranking-role-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  background: #18121d;
+  border: 1px solid #443045;
+  border-radius: 7px;
+  color: #bda9be;
+  font-size: 12px;
+}
+.ranking-role-tabs button.selected {
+  color: #f4dce9;
+  background: #372135;
+  border-color: #b2608e;
+}
+.ranking-role-tabs small {
+  color: #ae94aa;
+}
+.ranking-benchmark {
+  color: #ad9caf;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 0 26px 15px;
+  margin: 0;
+}
+.composite-ranking .output-column strong,
+.composite-ranking .mechanic-column strong {
+  font-weight: 600;
+  color: #e6d8e7;
+}
+.score-range {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: nowrap;
+  color: #c1b4cc;
+}
+.score-range > span {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.7px;
+  line-height: 1.15;
+}
+.score-range > small {
+  font-size: 10px;
+  letter-spacing: 0.1px;
+  font-weight: 400;
+  color: #b09cb9;
+}
+.player-score .score-range > span {
+  font-size: 34px;
+}
+.player-score .score-range > small {
+  text-align: right;
+}
+.role-scores .score-range > span {
+  font-size: 16px;
+}
+.role-scores .score-range > small {
+  font-size: 9px;
+}
+.composite-breakdown {
+  margin: 24px 0 22px;
+}
+.composite-breakdown h4,
+.mechanic-review h4 {
+  margin: 0;
+  font-size: 14px;
+}
+.component-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 13px;
+}
+.component-card {
+  border: 1px solid #493047;
+  border-radius: 9px;
+  background: #1b1220;
+  padding: 15px;
+  min-width: 0;
+}
+.component-card > span {
+  display: block;
+  color: #c4adc4;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.component-card > strong {
+  display: block;
+  font-size: 24px;
+  color: #f0e2ed;
+  line-height: 1.2;
+  font-weight: 600;
+}
+.component-card > strong > small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #b39bb2;
+}
+.component-card > p {
+  color: #bba8bb;
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+.component-track {
+  height: 3px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: #38263b;
+  margin-top: 12px;
+}
+.component-track > i {
+  display: block;
+  height: 100%;
+  background: #ad5e90;
+}
+.component-output .component-track > i {
+  background: #7c9bd0;
+}
+.component-survival .component-track > i {
+  background: #7eb6a6;
+}
+.component-preparation .component-track > i {
+  background: #baa36d;
+}
+.composite-equation {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+  color: #c4afc3;
+  font-size: 13px;
+  padding: 12px 0 0;
+  margin: 0;
+}
+.composite-equation b {
+  font-weight: 400;
+  color: #997f9b;
+}
+.composite-equation .score {
+  font-size: 22px;
+  margin-left: 4px;
+}
+.composite-equation .score-range {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  margin-left: 4px;
+}
+.composite-equation .score-range > span {
+  font-size: 20px;
+}
+.mechanic-review {
+  border-top: 1px solid #453046;
+  padding-top: 20px;
+  margin-bottom: 24px;
+}
+.mechanic-review .section-heading {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mechanic-checks {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #c6b2c5;
+}
+.mechanic-checks > summary {
+  cursor: pointer;
+  padding: 9px 0;
+}
+.mechanic-checks > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  border-bottom: 1px solid #38273a;
+  padding: 9px 0;
+}
+.mechanic-checks > div > span:last-child {
+  white-space: nowrap;
+  color: #b5a1b7;
+}
+.method-weights {
+  width: 100%;
+  font-size: 12px;
+  margin: 0 0 20px;
+}
+.method-weights th,
+.method-weights td {
+  padding: 9px 10px;
+}
+@media (max-width: 600px) {
+  .ranking-role-tabs {
+    padding: 0 16px 12px;
+    gap: 6px;
+  }
+  .ranking-role-tabs button {
+    padding: 7px 9px;
+    font-size: 11px;
+  }
+  .ranking-role-tabs .role-icon {
+    width: 14px;
+    height: 14px;
+  }
+  .ranking-benchmark {
+    padding: 0 16px 13px;
+    font-size: 10px;
+  }
+  .composite-ranking table {
+    min-width: 690px;
+    display: table;
+  }
+  .composite-ranking thead {
+    display: table-header-group;
+  }
+  .composite-ranking tbody {
+    display: table-row-group;
+  }
+  .composite-ranking tr {
+    display: table-row;
+  }
+  .composite-ranking th,
+  .composite-ranking td {
+    display: table-cell;
+    padding: 12px 9px;
+    vertical-align: middle;
+  }
+  .composite-ranking .detail-column,
+  .composite-ranking .dead-column {
+    display: table-cell;
+  }
+  .composite-ranking .player-button > span:last-child {
+    min-width: 125px;
+  }
+  .composite-ranking .score {
+    font-size: 22px;
+  }
+  .composite-ranking .score-range > span {
+    font-size: 20px;
+  }
+  .composite-ranking .cell-sub {
+    font-size: 10px;
+  }
+  .composite-ranking .role-group th {
+    padding: 13px 16px;
+  }
+  .composite-ranking .table-scroll {
+    overscroll-behavior-x: contain;
+  }
+  .component-grid {
+    gap: 8px;
+  }
+  .component-card {
+    padding: 12px;
+  }
+  .component-card > strong {
+    font-size: 21px;
+  }
+  .component-card > p {
+    font-size: 10px;
+  }
+  .composite-breakdown > .section-heading {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .composite-breakdown h4,
+  .mechanic-review h4 {
+    font-size: 13px;
+  }
+  .player-score .score-range > span {
+    font-size: 26px;
+  }
+  .mechanic-checks > div {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}

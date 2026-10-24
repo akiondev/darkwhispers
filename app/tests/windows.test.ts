@@ -194,9 +194,21 @@ test('full ingestion reads one event stream and preserves every terminal death w
   const a = analyze(report, [p], selection);
   assert.ok(
     a.players.every(
-      (p) => p.score !== null && p.scoredPulls === 1 && p.execution.deathPenalty === 0,
+      (p) => p.score === null && p.scoredPulls === 0 && p.execution.deathPenalty === 0,
     ),
   );
+  for (const player of a.players) {
+    const measured = p.metrics.find((m) => m.actorId === player.id)!;
+    assert.equal(player.aliveMs, measured.aliveMs);
+    assert.equal(player.deaths, measured.deaths);
+    assert.ok(
+      Math.abs(
+        player.execution.composite!.components.survival.score! - (100 * measured.aliveMs) / 300000,
+      ) < 1e-9,
+    );
+    assert.equal(player.execution.composite!.components.mechanics.score, null);
+    assert.ok(player.execution.composite!.upper > player.execution.composite!.lower);
+  }
   assert.ok(!('boundaryLife' in a.pulls[0]));
   const before = pullCacheKey(report, fight, p.window!);
   assert.equal(before, pullCacheKey(report, fight, assessmentWindow(report, fight, selection)));

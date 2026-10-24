@@ -1,4 +1,4 @@
-# DarkWhispers App · 0.10.0
+# DarkWhispers App · 0.11.0
 
 A compact Warcraft Logs raid review app using React, TypeScript, Vite, Fastify, PostgreSQL 16 and pg-boss. API and worker are isolated services. No paid services or generated grades.
 
@@ -10,18 +10,13 @@ Live imports require `WCL_CLIENT_ID` and `WCL_CLIENT_SECRET` on the backend only
 
 ## Score and UI
 
-The survival score is `100 * recorded alive time / full attended encounter time`. Every measured second has equal weight. Full kills and wipes are retained; no manual stops, inferred wipe trimming, mechanic multipliers or flat death deductions. Actual death count and dead time remain visible after resurrection.
+The fixed composite combines reviewed mechanics, report-relative DPS/HPS, full-encounter survival and verified flask/food preparation. Weights are DPS 45/30/20/5, healer 45/20/30/5 and tank 55/10/30/5. No generic damage-taken penalty. Output compares same-role peers in the same pull for both kills and wipes; it is not a spec-normalized global parse. See [the model](docs/execution-model.md) for exact formula and limitations.
 
-DPS, healers and tanks have separate standings using the same formula. A player changing role receives a separate row and score for each role. Partial attendance is labelled. Incomplete required life evidence or no recorded combat contribution produces an explained unscored row instead of assumed perfection.
-
-The player view explains the score and links to recorded events in Warcraft Logs. Output, intake, utility, items and mechanic observations are context outside the score. Character profile links use known identity. This is a survival measurement, not proof of total skill or fault for a wipe. Intentional wipe deaths are included and require human interpretation.
-
-See the [model](docs/execution-model.md) for formula, evidence rules, examples of limitations and primary API references. There are no Unknown-weight categories or manual wipe-time controls. Explicit repair redirects can resolve known broken links to newly analysed results while keeping original stored snapshots intact; normal share reads never enqueue work.
+DPS, healer and tank have separate standings. Role changes produce separate rows. Missing evidence retains fixed-weight bounds and a preliminary interval, never an invented midpoint, perfect grade or survival-only replacement. Partial attendance is labelled. Player details show component contributions, observed mistakes/deaths and Warcraft Logs links. Correct full death/resurrection intervals are preserved, including intentional wipe deaths.
 
 ## New reports and compatibility
 
-Report IDs, guilds, player names and raid-zone names are not allowlisted. Report metadata supplies encounters, roster, difficulty, times and per-pull specs. The survival formula is independent of boss and class rules. Unknown encounters can be scored when their standard life facts are complete. New mechanic meanings cannot be invented from a stable GraphQL format.
-
+Report IDs, guilds and player names are not allowlisted. Standard output and survival facts work across supported API reports. Verified mechanics require versioned encounter rules; future unknown bosses cannot receive fabricated mechanical grades. Preparation uses positive verified snapshot evidence; an unknown buff does not prove missing preparation.
 Up to 150 completed boss pulls can be selected per analysis; larger reports can be reviewed in subsets. Individual timelines, pagination, queue capacity and API retries/budget are bounded. Ongoing pulls and trash are excluded. Private or archived reports need permissions beyond this public client feature.
 
 ## Performance, sharing and integrity

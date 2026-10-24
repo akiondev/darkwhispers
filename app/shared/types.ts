@@ -371,6 +371,11 @@ export type LegacyAnalysis = {
   };
 };
 export type PlayerFacts = {
+  preparation?: {
+    flask: 'present' | 'absent' | 'unknown';
+    food: 'present' | 'absent' | 'unknown';
+    basis: string;
+  };
   snapshot: boolean;
   activeAtPull: {
     id: number;
@@ -396,7 +401,9 @@ export type PlayerFacts = {
   casts: number;
 };
 export type ExecutionAssessment = {
+  composite?: CompositeAssessment;
   scoreBasis?:
+    | 'composite'
     | 'recorded-survival'
     | 'mechanics-and-survival'
     | 'survival-only'
@@ -419,6 +426,26 @@ export type ExecutionAssessment = {
   scoredPulls: number;
   totalPulls: number;
   reasons: string[];
+};
+export type CompositeKey = 'mechanics' | 'output' | 'survival' | 'preparation';
+export type CompositeComponent = {
+  score: number | null;
+  weight: number;
+  /** Verified earned points, equal to lower. Never an inferred midpoint. */
+  points: number;
+  /** Weighted points, not component percentages. */
+  lower: number;
+  upper: number;
+  coverage: number;
+  reason: string;
+  basis?: string;
+};
+export type CompositeAssessment = {
+  lower: number;
+  upper: number;
+  coverage: number;
+  complete: boolean;
+  components: Record<CompositeKey, CompositeComponent>;
 };
 export type ExecutionMechanic = {
   ruleId: string;
@@ -501,7 +528,10 @@ export type Analysis = {
     name: string;
     deathPenalty: number;
     deathPolicy: 'kills-and-recorded-calls' | 'full-encounter-time';
-    formula: 'mechanics-times-alive-minus-deaths' | 'alive-time-over-encounter-time';
+    formula:
+      | 'mechanics-times-alive-minus-deaths'
+      | 'alive-time-over-encounter-time'
+      | 'weighted-composite';
   };
   report: Report;
   selection: Selection;

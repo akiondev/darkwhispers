@@ -5,8 +5,25 @@ import { scoreSurvival } from '../shared/execution.js';
 import { summarizeLife } from '../shared/life.js';
 import { assessmentWindow } from '../shared/windows.js';
 import { TANK_PROFILES } from '../shared/tanks.js';
-import { fixture, selection, check } from './execution-fixtures.js';
+import { fixture as baseFixture, selection, check } from './execution-fixtures.js';
+import { measuredComponent, scoreComposite } from '../shared/composite.js';
 const close = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
+
+function fixture(options: Parameters<typeof baseFixture>[0] = {}) {
+  const result = baseFixture({
+    roles: ['tank', 'healer', 'dps', 'dps', 'tank', 'healer'],
+    ...options,
+  });
+  for (const m of result.metrics) {
+    m.facts!.snapshot = true;
+    m.facts!.preparation = {
+      flask: 'present',
+      food: 'present',
+      basis: 'Synthetic verified preparation fixture.',
+    };
+  }
+  return result;
+}
 
 test('survival formula reproduces full-time examples without a flat death charge', () => {
   for (const [alive, total, expected] of [
@@ -46,7 +63,7 @@ test('2,000 seeded scenarios enforce monotonicity, bounds and duration-unit inva
   }
 });
 
-test('mechanic counts and arbitrary weights are observations, never survival score inputs', () => {
+test('verified mechanics alter composite points without altering the survival measurement', () => {
   const { report, pull } = fixture();
   for (const m of pull.metrics) {
     m.aliveMs = 240000;
@@ -58,12 +75,16 @@ test('mechanic counts and arbitrary weights are observations, never survival sco
   }
   pull.metrics[2].mechanics![1].unknown = 1;
   const a = analyze(report, [pull], selection);
-  assert.equal(a.model.id, 'survival/v1');
+  assert.equal(a.model.id, 'composite/v1');
   assert.equal(a.model.deathPenalty, 0);
-  assert.ok(a.players.every((p) => p.score === 80 && p.execution.mechanicsScore === null));
-  assert.ok(
-    a.players.every((p) => p.pullReviews.every((r) => r.mechanics.every((m) => !m.scored))),
-  );
+  assert.ok(a.players.every((p) => p.execution.alivePercent === 80));
+  const uncertain = a.players.find((p) => p.id === 3)!;
+  assert.equal(uncertain.score, null);
+  assert.ok(uncertain.execution.composite!.upper > uncertain.execution.composite!.lower);
+  for (const p of a.players.filter((p) => p.id !== 3)) {
+    assert.ok(p.execution.composite!.components.mechanics.score! < 1);
+    assert.ok(p.pullReviews[0].mechanics.some((m) => m.scored && m.failed === 1));
+  }
 });
 
 test('resurrection stops the dead interval and keeps both its duration and death count', () => {
@@ -77,7 +98,8 @@ test('resurrection stops the dead interval and keeps both its duration and death
   m.deaths = m.life.deaths;
   m.aliveMs = m.life.aliveMs;
   const p = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
-  assert.equal(p.score, 98);
+  assert.equal(p.execution.alivePercent, 98);
+  close(p.score!, 99.4);
   assert.equal(p.deaths, 1);
   assert.equal(p.durationMs - p.aliveMs, 6000);
   assert.equal(p.execution.deathPenalty, 0);
@@ -90,10 +112,16 @@ test('deaths remain factual counts without arbitrary score deductions when dead 
   pull.metrics[0].deaths = 1;
   pull.metrics[1].deaths = 6;
   const a = analyze(report, [pull], selection);
-  assert.equal(a.players.find((p) => p.id === 1)!.score, 80);
-  assert.equal(a.players.find((p) => p.id === 2)!.score, 80);
+  assert.equal(a.players.find((p) => p.id === 1)!.execution.alivePercent, 80);
+  assert.equal(a.players.find((p) => p.id === 2)!.execution.alivePercent, 80);
   assert.equal(a.players.find((p) => p.id === 1)!.deaths, 1);
   assert.equal(a.players.find((p) => p.id === 2)!.deaths, 6);
+  const previousScore = a.players.find((p) => p.id === 1)!.score;
+  pull.metrics[0].deaths = 6;
+  assert.equal(
+    analyze(report, [pull], selection).players.find((p) => p.id === 1)!.score,
+    previousScore,
+  );
 });
 
 test('simultaneous first deaths stay tied factual observations across role lists', () => {
@@ -129,7 +157,9 @@ test('kills, logged wipe calls and unmarked wipes all retain the full encounter'
       assert.equal(assessmentWindow(report, fight, manual).endTime, fight.endTime);
       assert.equal(a.pulls[0].window!.source, kill ? 'kill' : 'full');
       assert.ok(
-        a.players.every((p) => p.score === 20 && p.deaths === 1 && p.durationMs === 300000),
+        a.players.every(
+          (p) => p.execution.alivePercent === 20 && p.deaths === 1 && p.durationMs === 300000,
+        ),
       );
     }
   }
@@ -185,8 +215,17 @@ test('boss identity, difficulty and specialization do not alter identical surviv
   pull.fight.playerSpecs![3] = 'Frost';
   const after = analyze(report, [pull], selection);
   for (const p of after.players) {
-    assert.equal(p.score, 70);
-    assert.equal(p.score, before.players.find((v) => v.id === p.id)!.score);
+    assert.equal(p.execution.alivePercent, 70);
+    assert.equal(
+      p.execution.alivePercent,
+      before.players.find((v) => v.id === p.id)!.execution.alivePercent,
+    );
+    assert.equal(
+      p.score,
+      null,
+      'An unknown boss without verified mechanics cannot earn a complete composite',
+    );
+    assert.equal(p.execution.composite!.components.mechanics.score, null);
   }
 });
 
@@ -209,11 +248,13 @@ test('long and short fights have proportional time weight even across different 
   });
   report.fights = [short.fight, pull.fight];
   const a = analyze(report, [short, pull], selection);
-  a.players.forEach((p) => close(p.score!, (100 * 130000) / 310000));
+  a.players.forEach((p) => close(p.execution.alivePercent, (100 * 130000) / 310000));
 });
 
 test('partial attendance keeps a visible score without a misleading full-selection ordinal', () => {
-  const { report, pull } = fixture();
+  const { report, pull } = fixture({
+    roles: ['tank', 'healer', 'dps', 'dps', 'tank', 'healer', 'dps'],
+  });
   const other = structuredClone(pull);
   other.fight = { ...other.fight, id: 2 };
   other.fight.friendlyPlayers = other.fight.friendlyPlayers.filter((id) => id !== 3);
@@ -227,7 +268,7 @@ test('partial attendance keeps a visible score without a misleading full-selecti
   assert.equal(a.players.find((p) => p.id === 4)!.roleRank, 1);
 });
 
-test('all six tank classes have identical survival formulas without intake or mitigation penalties', () => {
+test('all six tank classes use identical composite rules without intake or mitigation penalties', () => {
   for (const profile of TANK_PROFILES) {
     const { report, pull } = fixture();
     report.players[0].class = profile.class;
@@ -238,12 +279,14 @@ test('all six tank classes have identical survival formulas without intake or mi
     pull.metrics[0].aliveMs = 240000;
     pull.metrics[0].damageTaken = 1e15;
     const tank = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
-    close(tank.score!, 80);
+    close(tank.execution.alivePercent, 80);
+    close(tank.execution.composite!.components.mechanics.score!, 80);
+    close(tank.score!, 83);
     assert.equal(tank.role, 'tank');
   }
 });
 
-test('the same survival inputs receive the same score while role lists remain separate', () => {
+test('identical survival is measured equally but contributes the approved role-specific weights', () => {
   const { report, pull } = fixture();
   pull.metrics.forEach((m) => {
     m.aliveMs = 240000;
@@ -251,9 +294,12 @@ test('the same survival inputs receive the same score while role lists remain se
   });
   const a = analyze(report, [pull], selection);
   assert.deepEqual(new Set(a.players.map((p) => p.role)), new Set(['tank', 'healer', 'dps']));
-  assert.ok(a.players.every((p) => p.score === 80 && p.roleRank === 1));
-  assert.equal(a.players.find((p) => p.role === 'tank')!.rolePeers, 1);
-  assert.equal(a.players.find((p) => p.role === 'healer')!.rolePeers, 1);
+  assert.ok(a.players.every((p) => p.execution.alivePercent === 80 && p.roleRank === 1));
+  assert.equal(a.players.find((p) => p.role === 'tank')!.score, 94);
+  assert.equal(a.players.find((p) => p.role === 'healer')!.score, 94);
+  assert.equal(a.players.find((p) => p.role === 'dps')!.score, 96);
+  assert.equal(a.players.find((p) => p.role === 'tank')!.rolePeers, 2);
+  assert.equal(a.players.find((p) => p.role === 'healer')!.rolePeers, 2);
   assert.equal(a.players.find((p) => p.role === 'dps')!.rolePeers, 2);
 });
 
@@ -289,4 +335,106 @@ test('no recorded contribution is unscored rather than perfect or an invented ze
   assert.equal(p.score, null);
   assert.equal(p.rank, null);
   assert.match(p.execution.reasons.join(' '), /No recorded combat contribution/i);
+});
+
+test('approved composite example reconciles four fixed contributions to 88.5 points', () => {
+  const result = scoreComposite('dps', {
+    mechanics: measuredComponent(90, 'Synthetic checked mechanics'),
+    output: measuredComponent(80, 'Synthetic report contribution'),
+    survival: measuredComponent(95, 'Synthetic verified life interval'),
+    preparation: measuredComponent(100, 'Synthetic verified preparation'),
+  });
+  close(result.lower, 88.5);
+  close(result.upper, 88.5);
+  close(result.components.mechanics.points, 40.5);
+  close(result.components.output.points, 24);
+  close(result.components.survival.points, 19);
+  close(result.components.preparation.points, 5);
+  assert.equal(result.complete, true);
+});
+
+test('DPS, effective healing and tank damage each affect their own output-weighted score', () => {
+  for (const [actorId, expectedScore, kind] of [
+    [3, 85, 'damage'],
+    [2, 90, 'healing'],
+    [1, 95, 'damage'],
+  ] as const) {
+    const { report, pull } = fixture();
+    const before = analyze(report, [pull], selection).players.find((p) => p.id === actorId)!;
+    pull.metrics.find((m) => m.actorId === actorId)![kind] /= 2;
+    const after = analyze(report, [pull], selection).players.find((p) => p.id === actorId)!;
+    close(before.score!, 100);
+    close(after.score!, expectedScore);
+    close(after.execution.composite!.components.output.score!, 50);
+    assert.equal(after.execution.alivePercent, before.execution.alivePercent);
+    assert.equal(
+      after.execution.composite!.components.output.basis,
+      'report-relative contribution',
+    );
+  }
+});
+
+test('output peers come from the actual role in the same pull on both kills and wipes', () => {
+  const { report, pull } = fixture();
+  pull.metrics[2].damage /= 2;
+  pull.metrics[1].damage = 1e15;
+  const kill = analyze(report, [pull], selection).players.find((p) => p.id === 3)!;
+  assert.equal(kill.execution.composite!.components.output.score, 50);
+  pull.fight.kill = false;
+  pull.metrics[2].outputPercentile = 100;
+  const wipe = analyze(report, [pull], selection).players.find((p) => p.id === 3)!;
+  assert.equal(wipe.score, kill.score, 'A kill-only parse is never substituted on a wipe');
+  assert.equal(wipe.execution.composite!.components.output.score, 50);
+});
+
+test('verified mechanic failures reduce total score while raw intake and unassigned utility do not', () => {
+  const { report, pull } = fixture();
+  const actor = () => analyze(report, [pull], selection).players.find((p) => p.id === 3)!;
+  assert.equal(actor().score, 100);
+  pull.metrics[2].mechanics = [check(10, 2)];
+  const failed = actor();
+  close(failed.score!, 91);
+  close(failed.execution.composite!.components.mechanics.score!, 80);
+  pull.metrics[2].damageTaken = 1e20;
+  pull.metrics[2].defensives = 100000;
+  pull.metrics[2].interrupts = 100000;
+  pull.metrics[2].dispels = 100000;
+  assert.equal(actor().score, failed.score);
+});
+
+test('unverified mechanics and preparation retain their own score interval without reallocating weight', () => {
+  const { report, pull } = fixture();
+  const m = pull.metrics[2];
+  m.mechanics = [];
+  m.facts!.preparation = {
+    flask: 'present',
+    food: 'unknown',
+    basis: 'Synthetic partial snapshot',
+  };
+  const p = analyze(report, [pull], selection).players.find((p) => p.id === 3)!;
+  const c = p.execution.composite!;
+  assert.equal(p.score, null);
+  assert.equal(p.roleRank, null);
+  close(c.lower, 52.5);
+  close(c.upper, 100);
+  close(c.components.mechanics.lower, 0);
+  close(c.components.mechanics.upper, 45);
+  close(c.components.survival.points, 20);
+  close(c.components.preparation.lower, 2.5);
+  close(c.components.preparation.upper, 5);
+  assert.equal(c.complete, false);
+});
+
+test('a lone participant in a role cannot become their own perfect output reference', () => {
+  const { report, pull } = fixture({ roles: ['dps', 'healer', 'tank'] });
+  for (const p of analyze(report, [pull], selection).players) {
+    const c = p.execution.composite!;
+    assert.equal(c.components.output.score, null);
+    assert.equal(p.score, null);
+    assert.equal(p.roleRank, null);
+    assert.equal(c.components.mechanics.score, 100);
+    assert.equal(c.components.survival.score, 100);
+    assert.equal(c.components.preparation.score, 100);
+    close(c.upper - c.lower, c.components.output.weight * 100);
+  }
 });

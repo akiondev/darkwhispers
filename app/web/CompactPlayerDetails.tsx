@@ -3,7 +3,8 @@ import { ChevronLeft, ChevronRight, ExternalLink, Skull } from 'lucide-react';
 import type { Analysis, RankedPlayer } from '../shared/types.js';
 import { characterLinks } from '../shared/profile-links.js';
 import { difficultyName, evidenceUrl } from '../shared/report-url.js';
-import { duration, RoleIcon, Score } from './presentation.js';
+import { duration, RoleIcon } from './presentation.js';
+import { CompositeScore, ScoreBreakdown } from './CompositeScore.js';
 
 const output = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const numeric = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
@@ -103,6 +104,16 @@ export default function CompactPlayerDetails({
   const observations = player.evidence.filter(
     (e) => e.kind !== 'death' && (pullId === 'all' || String(e.fightId) === pullId),
   );
+  const scoredMechanics = rows.flatMap((r) =>
+    r.mechanics.filter((m) => m.scored).map((m) => ({ ...m, fightId: r.fightId })),
+  );
+  const mechanicFailures = scoredMechanics
+    .flatMap((m) =>
+      m.events
+        .filter((e) => e.outcome === 'failed')
+        .map((e) => ({ ...e, fightId: m.fightId, name: m.name })),
+    )
+    .sort((a, b) => a.timestamp - b.timestamp);
   const snapshots = rows.filter((r) => r.facts.snapshot);
   const atPull = (category: 'flask' | 'food' | 'combat-potion') =>
     snapshots.length
@@ -132,8 +143,8 @@ export default function CompactPlayerDetails({
           <h3>{player.name}</h3>
         </div>
         <div className="player-score">
-          <span>Survival score</span>
-          <Score value={assessment.score} />
+          <span>Composite score</span>
+          <CompositeScore assessment={assessment} />
         </div>
       </div>
       <div className="profile-links" aria-label="Character profiles">
@@ -173,7 +184,7 @@ export default function CompactPlayerDetails({
               >
                 <RoleIcon role={p.role} />
                 {roleLabel(p.role)}
-                <Score value={p.score} />
+                <CompositeScore assessment={p.execution} />
               </button>
             ))}
           </div>
@@ -213,6 +224,67 @@ export default function CompactPlayerDetails({
           <ChevronRight size={18} />
         </button>
       </div>
+      <ScoreBreakdown assessment={assessment} />
+      <section className="mechanic-review" aria-label="Mechanic evidence">
+        <div className="section-heading">
+          <h4>Mechanics to review</h4>
+          <span className="small muted">
+            {assessment.passedChecks} passed · {assessment.failedChecks} failed ·{' '}
+            {assessment.checkedMechanics} checks
+          </span>
+        </div>
+        {!scoredMechanics.length ? (
+          <p className="small muted">
+            No verified individual mechanic checks are available for this selection. This does not
+            earn a perfect mechanics score.
+          </p>
+        ) : !mechanicFailures.length ? (
+          <p className="small muted">
+            No recorded failures among the verified mechanic checks in this selection.
+          </p>
+        ) : (
+          mechanicFailures.slice(0, eventLimit).map((event, i) => (
+            <article className="death-event" key={`${event.fightId}:${event.timestamp}:${i}`}>
+              <div>
+                <strong>{event.name}</strong>
+                <small>
+                  Pull #{event.fightId} · {event.detail}
+                </small>
+              </div>
+              {event.url ? (
+                <a className="evidence-link" href={event.url} target="_blank" rel="noreferrer">
+                  View event <ExternalLink size={13} />
+                </a>
+              ) : (
+                <span className="small muted">Synthetic event</span>
+              )}
+            </article>
+          ))
+        )}
+        {mechanicFailures.length > eventLimit && (
+          <button className="text-button" onClick={() => setEventLimit((n) => n + 12)}>
+            Show {Math.min(12, mechanicFailures.length - eventLimit)} more mechanic events{' '}
+            <ChevronRight size={14} />
+          </button>
+        )}
+        {scoredMechanics.length > 0 && (
+          <details className="mechanic-checks">
+            <summary>Verified checks by mechanic</summary>
+            {[...new Map(scoredMechanics.map((m) => [m.ruleId, m])).values()].map((m) => {
+              const matches = scoredMechanics.filter((v) => v.ruleId === m.ruleId);
+              return (
+                <div key={m.ruleId}>
+                  <span>{m.name}</span>
+                  <span>
+                    {matches.reduce((n, v) => n + v.passed, 0)} passed ·{' '}
+                    {matches.reduce((n, v) => n + v.failed, 0)} failed
+                  </span>
+                </div>
+              );
+            })}
+          </details>
+        )}
+      </section>
       <div className="survival-summary" aria-label="Score explanation">
         {lifeReliable ? (
           <p>
@@ -228,22 +300,10 @@ export default function CompactPlayerDetails({
             complete alive/dead sequence.
           </p>
         )}
-        {assessment.score === null ? (
-          <p className="small muted">
-            {assessment.reasons[0] ?? 'A reliable score is not available for this selection.'}
-          </p>
-        ) : (
-          <p
-            className="formula-visible"
-            title="Calculated using unrounded milliseconds; displayed seconds are rounded."
-          >
-            100 × {numeric.format(totals.alive / 1000)}s alive ÷{' '}
-            {numeric.format(totals.duration / 1000)}s full time = <Score value={assessment.score} />
-          </p>
-        )}
         <p className="small muted">
-          Includes every recorded death through pull end, including wipes. This measures survival,
-          not responsibility for a wipe.
+          All recorded deaths through pull end remain included, including wipes. Resurrection ends
+          dead time without erasing the death. These events alone do not establish wipe
+          responsibility.
         </p>
       </div>
       {player.rankingReason && <p className="ranking-note">{player.rankingReason}</p>}
@@ -330,7 +390,7 @@ export default function CompactPlayerDetails({
       </section>
       <details className="context-details">
         <summary>
-          Output, preparation & observations <span>Context only</span>
+          Output, preparation & observations <span>Measured facts</span>
         </summary>
         <div className="raw-summary">
           <span>
@@ -347,8 +407,8 @@ export default function CompactPlayerDetails({
           </span>
         </div>
         <p className="small muted">
-          These values have no score weight. Assignments, class abilities and intentional damage
-          cannot be judged uniformly.
+          Output and verified preparation contribute as shown above. Damage taken, raw cast counts
+          and unverified observations do not create extra penalties.
         </p>
         <div className="preparation-summary">
           <h4>
@@ -427,7 +487,7 @@ export default function CompactPlayerDetails({
                     {difficultyName(b.difficulty)} · {b.pulls} pulls as {roleLabel(player.role)}
                   </small>
                 </span>
-                <Score value={b.score} />
+                <CompositeScore assessment={b.execution} />
               </div>
             ))}
           </div>

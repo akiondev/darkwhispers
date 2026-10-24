@@ -188,10 +188,18 @@ test('synthetic future-zone reports import raw facts and all roles without inven
       assert.equal(player.durationMs, 100000);
       assert.equal(
         player.score,
-        player.execution.alivePercent,
-        'Unknown mechanics use labelled measured survival, not assumed mechanic points',
+        null,
+        'Unknown mechanics cannot become a complete survival-only composite',
       );
-      assert.equal(player.execution.scoreBasis, 'recorded-survival');
+      assert.equal(player.execution.scoreBasis, 'composite');
+      const composite = player.execution.composite!;
+      assert.equal(composite.components.survival.score, player.execution.alivePercent);
+      assert.equal(composite.components.mechanics.score, null);
+      assert.equal(composite.components.output.score, null, 'Each role has only one participant');
+      assert.equal(composite.components.preparation.score, null);
+      assert.equal(composite.lower, composite.components.survival.points);
+      assert.ok(composite.upper > composite.lower);
+      assert.equal(player.roleRank, null);
       assert.equal(player.execution.mechanicsScore, null);
       assert.equal(player.execution.checkedMechanics, 0);
       assert.equal(player.pullReviews[0].facts.casts, 1);
@@ -609,12 +617,27 @@ test('an endpoint continuation page retains the death at exact encounter end', a
   let calls = 0;
   const c = new WclClient('synthetic', 'synthetic', async (input, init) => {
     if (String(input).includes('/oauth/')) return response({ access_token: 'T', expires_in: 3600 });
-    const {variables} = JSON.parse(String(init?.body));
+    const { variables } = JSON.parse(String(init?.body));
     calls++;
     assert.equal(variables.start, calls === 1 ? 100 : 200);
-    return response({data:{reportData:{report:{events:calls === 1 ? {data:[],nextPageTimestamp:200} : {data:[{type:'death',timestamp:200,targetID:1}],nextPageTimestamp:null}}}}});
+    return response({
+      data: {
+        reportData: {
+          report: {
+            events:
+              calls === 1
+                ? { data: [], nextPageTimestamp: 200 }
+                : {
+                    data: [{ type: 'death', timestamp: 200, targetID: 1 }],
+                    nextPageTimestamp: null,
+                  },
+          },
+        },
+      },
+    });
   });
-  const found: unknown[]=[];
-  await c.events('6fjJxRFC21YHdTXB',fight,'All',page=>found.push(...page));
-  assert.equal(calls,2);assert.equal(found.length,1);
+  const found: unknown[] = [];
+  await c.events('6fjJxRFC21YHdTXB', fight, 'All', (page) => found.push(...page));
+  assert.equal(calls, 2);
+  assert.equal(found.length, 1);
 });

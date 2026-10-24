@@ -138,6 +138,7 @@ export function demoData(): { report: Report; pulls: PullData[] } {
               kind: 'avoid',
               weight: 1,
               scoreEligible: true,
+              requiredForScore: true,
               opportunities,
               failures,
               unknown: 0,
@@ -157,8 +158,18 @@ export function demoData(): { report: Report; pulls: PullData[] } {
             },
           ],
           facts: {
-            snapshot: false,
-            activeAtPull: [],
+            snapshot: true,
+            preparation: {
+              flask: 'present',
+              food: index > 17 ? 'absent' : 'present',
+              basis: 'Explicit synthetic preparation states for the labelled demo only.',
+            },
+            activeAtPull: [
+              { id: 990201, name: 'Synthetic training flask', category: 'flask' as const },
+              ...(index > 17
+                ? []
+                : [{ id: 990202, name: 'Synthetic training food', category: 'food' as const }]),
+            ],
             consumables: [],
             casts: 20,
             lifeEvents: dies ? [{ timestamp: fight.endTime - deadMs, type: 'death' as const }] : [],

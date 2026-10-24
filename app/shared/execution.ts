@@ -1,8 +1,8 @@
 import type {
   Analysis,
+  CompositeAssessment,
   ExecutionAssessment,
   ExecutionBossScore,
-  ExecutionMechanic,
   ExecutionPullReview,
   Fight,
   Metric,
@@ -18,8 +18,18 @@ import { selectFights } from './report-url.js';
 import { roleFromSpec } from './players.js';
 import { VERSION } from './version.js';
 import { assessmentWindow } from './windows.js';
+import {
+  COMPOSITE_VERSION,
+  combineComposites,
+  mechanicsComponent,
+  measuredComponent,
+  outputComponent,
+  preparationComponent,
+  scoreComposite,
+  unknownComponent,
+} from './composite.js';
 
-export const EXECUTION_MODEL_VERSION = 'survival/v1';
+export const EXECUTION_MODEL_VERSION = COMPOSITE_VERSION;
 export const DEATH_PENALTY = 0;
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 const order: Record<Role, number> = { dps: 0, healer: 1, tank: 2, unknown: 3 };
@@ -56,16 +66,18 @@ function assessment(
   pulls: number,
   scoredPulls: number,
   issues: string[] = [],
+  composite?: CompositeAssessment,
 ): ExecutionAssessment {
   const alivePercent = scoreSurvival(aliveMs, durationMs);
-  const score = issues.length || scoredPulls !== pulls ? null : alivePercent;
+  const score = issues.length || !composite?.complete ? null : composite.lower;
   return {
     version: EXECUTION_MODEL_VERSION,
+    composite,
     score,
     baseScore: score,
     alivePercent,
-    mechanicsScore: null,
-    scoreBasis: 'recorded-survival',
+    mechanicsScore: composite?.components.mechanics.score ?? null,
+    scoreBasis: 'composite',
     capped: false,
     deathPenalty: 0,
     deaths,
@@ -82,12 +94,14 @@ function assessment(
             ...new Set(
               issues.length
                 ? issues
-                : ['Some survival measurements are incomplete; no score was inferred.'],
+                : [
+                    'Some components are incomplete. The range retains their original weight; no midpoint was inferred.',
+                  ],
             ),
           ]
         : [
-            `${time(durationMs - aliveMs)} dead of ${time(durationMs)} recorded encounter time � ${deaths} deaths.`,
-            `Score = time alive � encounter time � 100. All selected kills and wipes are included.`,
+            `${time(durationMs - aliveMs)} dead of ${time(durationMs)} recorded encounter time · ${deaths} deaths.`,
+            'Score combines reviewed mechanics, report-relative output, recorded survival and verified preparation. All selected kills and wipes are included.',
           ],
   };
 }
@@ -95,17 +109,31 @@ export function combineExecutions(
   values: ExecutionAssessment[],
   _mode: 'duration' | 'equal' = 'duration',
 ): ExecutionAssessment {
-  if (!values.length) throw Error('No survival measurements to combine.');
+  if (!values.length || values.some((v) => !v.composite))
+    throw Error('No composite measurements to combine.');
   const duration = sum(values.map((v) => v.weightMs ?? 0));
   const alive = sum(values.map((v) => (v.alivePercent * (v.weightMs ?? 0)) / 100));
-  return assessment(
+  const result = assessment(
     alive,
     duration,
     sum(values.map((v) => v.deaths ?? 0)),
     sum(values.map((v) => v.totalPulls)),
     sum(values.map((v) => v.scoredPulls)),
-    values.filter((v) => v.score === null).flatMap((v) => v.reasons),
+    [
+      ...new Set(
+        values
+          .filter((v) => v.score === null)
+          .flatMap((v) => v.reasons)
+          .filter((reason) => !reason.startsWith('Some components are incomplete.')),
+      ),
+    ],
+    combineComposites(values.map((v) => ({ composite: v.composite!, durationMs: v.weightMs! }))),
   );
+  result.passedChecks = sum(values.map((v) => v.passedChecks));
+  result.failedChecks = sum(values.map((v) => v.failedChecks));
+  result.checkedMechanics = sum(values.map((v) => v.checkedMechanics));
+  result.missedWhileDead = sum(values.map((v) => v.missedWhileDead ?? 0));
+  return result;
 }
 function validatePull(pull: PullData, fight: Fight) {
   const duration = fight.endTime - fight.startTime;
@@ -159,28 +187,6 @@ function validatePull(pull: PullData, fight: Fight) {
     )
       throw Error('Life timeline does not reconcile with player measurements.');
   }
-}
-function observations(m: Metric): ExecutionMechanic[] {
-  return (m.mechanics ?? [])
-    .filter((r) => r.observed > 0 || r.events.some((e) => e.outcome === 'failed'))
-    .map((r) => ({
-      ruleId: r.ruleId,
-      name: r.name,
-      kind: r.kind,
-      scored: false,
-      exclusion: 'Context only. No universal mistake or assignment is inferred.',
-      passed: 0,
-      failed: 0,
-      missedWhileDead: 0,
-      opportunities: 0,
-      observed: r.observed,
-      detail: r.detail,
-      source: r.source,
-      breakdown: r.breakdown,
-      events: r.events
-        .filter((e) => ['failed', 'observed'].includes(e.outcome))
-        .map((e) => ({ ...e, outcome: 'observed' as const })),
-    }));
 }
 export function analyzeExecution(
   report: Report,
@@ -251,14 +257,44 @@ export function analyzeExecution(
             ...issues,
             'No recorded combat contribution; survival alone cannot establish participation.',
           ];
+      const mechanical = mechanicsComponent(m);
+      const mechanicsAvailable = activity && !issues.length;
+      const peerMetrics = p.metrics.filter((peer) => {
+        const peerPlayer = metadata.get(peer.actorId);
+        return peerPlayer && roleFor(peerPlayer, f) === role;
+      });
+      const component = scoreComposite(role, {
+        mechanics: mechanicsAvailable
+          ? mechanical.observation
+          : unknownComponent(
+              'Participation or the life timeline is incomplete; mechanic exposure cannot be verified.',
+            ),
+        output: activity
+          ? outputComponent(m, role, peerMetrics)
+          : unknownComponent('No recorded combat contribution.'),
+        survival:
+          activity && !issues.length
+            ? measuredComponent(
+                scoreSurvival(m.aliveMs, duration),
+                `${time(duration - m.aliveMs)} dead of ${time(duration)} recorded encounter time. Resurrection does not erase a death.`,
+                'full encounter timeline',
+              )
+            : unknownComponent(reasons.join(' '), 'full encounter timeline'),
+        preparation: preparationComponent(facts),
+      });
       const execution = assessment(
         m.aliveMs,
         duration,
         m.deaths,
         1,
-        reasons.length ? 0 : 1,
+        component.complete && !reasons.length ? 1 : 0,
         reasons,
+        component,
       );
+      execution.passedChecks = mechanicsAvailable ? mechanical.passed : 0;
+      execution.failedChecks = mechanicsAvailable ? mechanical.failed : 0;
+      execution.checkedMechanics = mechanicsAvailable ? mechanical.opportunities : 0;
+      execution.missedWhileDead = mechanicsAvailable ? mechanical.missed : 0;
       row.pulls.push(p);
       row.metrics.push(m);
       row.reviews.push({
@@ -272,7 +308,19 @@ export function analyzeExecution(
         damage: m.damage,
         healing: m.healing,
         damageTaken: m.damageTaken,
-        mechanics: observations(m),
+        mechanics: mechanicsAvailable
+          ? mechanical.reviews
+          : mechanical.reviews.map((r) => ({
+              ...r,
+              scored: false,
+              passed: 0,
+              failed: 0,
+              opportunities: 0,
+              missedWhileDead: 0,
+              exclusion:
+                'Participation or the life timeline is incomplete; mechanic exposure cannot be verified.',
+              events: r.events.map((e) => ({ ...e, outcome: 'observed' as const })),
+            })),
         facts,
         deadIntervals: m.life?.intervals,
         firstDeath: facts.lifeEvents.some((e) => e.type === 'death' && e.timestamp === first),
@@ -283,6 +331,7 @@ export function analyzeExecution(
     }
   }
   const players: RankedPlayer[] = [];
+  const fullAttendance = new Set<string>();
   for (const [rowKey, row] of rows) {
     const { player, role, metrics, reviews } = row;
     const ownSum = (
@@ -297,18 +346,12 @@ export function analyzeExecution(
         | 'defensives',
     ) => sum(metrics.map((m) => m[key]));
     const durationMs = sum(reviews.map((r) => r.durationMs));
-    const execution = assessment(
-      ownSum('aliveMs'),
-      durationMs,
-      ownSum('deaths'),
-      reviews.length,
-      reviews.filter((r) => r.execution.score !== null).length,
-      reviews.filter((r) => r.execution.score === null).flatMap((r) => r.execution.reasons),
-    );
+    const execution = combineExecutions(reviews.map((r) => r.execution));
     const expected = pulls.filter((p) => rolesByFight.get(p.fight.id)!.has(role)).length;
+    if (reviews.length === expected) fullAttendance.add(rowKey);
     const rankingReason =
       execution.score === null
-        ? 'Incomplete evidence; no survival score was inferred.'
+        ? `Preliminary composite range; incomplete components keep their fixed weight.${reviews.length < expected ? ' Partial role attendance; compare the listed pulls.' : ''}`
         : reviews.length < expected
           ? 'Partial role attendance; compare the listed pulls before judging this score.'
           : undefined;
@@ -323,14 +366,7 @@ export function analyzeExecution(
     }
     for (const group of contexts.values()) {
       const f = fightMap.get(group[0].fightId)!;
-      const grade = assessment(
-        sum(group.map((r) => r.aliveMs)),
-        sum(group.map((r) => r.durationMs)),
-        sum(group.map((r) => r.deaths)),
-        group.length,
-        group.filter((r) => r.execution.score !== null).length,
-        group.filter((r) => r.execution.score === null).flatMap((r) => r.execution.reasons),
-      );
+      const grade = combineExecutions(group.map((r) => r.execution));
       perBoss.push({
         encounterId: f.encounterId,
         name: f.name,
@@ -340,15 +376,20 @@ export function analyzeExecution(
         execution: grade,
       });
     }
+    const scoredRules = new Set(
+      reviews.flatMap((r) =>
+        r.mechanics.filter((m) => m.scored).map((m) => `${r.fightId}:${m.ruleId}`),
+      ),
+    );
     const evidence = metrics
       .flatMap((m) => m.evidence)
       .map((e) =>
-        e.kind === 'mechanic'
+        e.kind === 'mechanic' && !scoredRules.has(`${e.fightId}:${e.ruleId}`)
           ? {
               ...e,
               kind: 'mechanic-observed' as const,
               description:
-                'Recorded encounter contact; review its context in Warcraft Logs. Not part of the survival score.',
+                'Recorded encounter contact; individual scoring applicability could not be verified. Review its context in Warcraft Logs.',
             }
           : e,
       );
@@ -367,7 +408,7 @@ export function analyzeExecution(
       rolePeers: 0,
       rankingReason,
       score: execution.score,
-      provisional: false,
+      provisional: !execution.composite?.complete,
       execution,
       pulls: reviews.length,
       bosses: new Set(row.pulls.map((p) => p.fight.encounterId)).size,
@@ -381,8 +422,8 @@ export function analyzeExecution(
       interrupts: ownSum('interrupts'),
       dispels: ownSum('dispels'),
       defensives: ownSum('defensives'),
-      mechanicFailures: 0,
-      mechanicOpportunities: 0,
+      mechanicFailures: execution.failedChecks,
+      mechanicOpportunities: execution.checkedMechanics,
       perBoss,
       pullReviews: reviews,
       evidence,
@@ -394,8 +435,9 @@ export function analyzeExecution(
   players.sort(
     (a, b) =>
       order[a.role] - order[b.role] ||
-      Number(!!a.rankingReason) - Number(!!b.rankingReason) ||
-      (b.score ?? -1) - (a.score ?? -1) ||
+      Number(fullAttendance.has(b.rowKey)) - Number(fullAttendance.has(a.rowKey)) ||
+      (b.score ?? b.execution.composite?.lower ?? -1) -
+        (a.score ?? a.execution.composite?.lower ?? -1) ||
       a.name.localeCompare(b.name) ||
       a.id - b.id,
   );
@@ -416,10 +458,10 @@ export function analyzeExecution(
     generatedAt: new Date().toISOString(),
     model: {
       id: EXECUTION_MODEL_VERSION,
-      name: 'Survival score',
+      name: 'Composite raid score',
       deathPenalty: 0,
       deathPolicy: 'full-encounter-time',
-      formula: 'alive-time-over-encounter-time',
+      formula: 'weighted-composite',
     },
     report,
     selection: { ...selection, wipeStops: undefined, excludeWipeTail: false },
@@ -445,14 +487,16 @@ export function analyzeExecution(
     },
     methodology: {
       formula:
-        'Score = 100 � recorded time alive � full attended encounter time, separately for each role.',
+        'DPS: 45% mechanics + 30% output + 20% survival + 5% preparation. Healer: 45/20/30/5. Tank: 55/10/30/5. Output is report-relative contribution, not a global parse.',
       aggregation:
-        'Sum milliseconds across the selected pulls in this role. Every recorded second has equal weight. No wipe cutoff, boss weights or fixed death penalties.',
+        'Calculate each component per pull, then weight by full attended encounter duration within each role. Missing components retain their weight as a range; no wipe cutoff or fixed death penalties.',
       limitations: [
-        'This is survival, not total player skill or proof of who caused a wipe.',
+        'This is a transparent composite of measured contribution and reviewed mechanics, not proof of total player skill or who caused a wipe.',
         'All deaths during the encounter are included, including intentional wipe deaths. Voice calls cannot be inferred.',
         'Resurrection ends dead time but never removes the death. A death at encounter end adds a death with zero remaining dead time.',
-        'DPS/HPS, damage taken, mechanics and preparation are context only; no universal mistake is inferred.',
+        'Output is relative to the highest recorded same-role total in each pull. It is not adjusted for spec, gear, phase assignments or external support. WCL kill percentiles are not applied to wipes.',
+        'Mechanics use only reviewed opportunities. Checks while dead are bounded as unavailable, not invented successes or failures. Tank intake and unassigned utility never receive generic penalties.',
+        'Preparation rewards verified flask and food snapshots. Missing or unrecognized buffs remain unresolved. Healthstone, potion, defensive and enchant counts are context, not automatic grades.',
         'Partial role attendance is labelled. Inconsistent life events or no recorded participation cannot earn an assumed perfect score.',
       ],
     },

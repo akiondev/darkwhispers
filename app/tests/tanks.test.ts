@@ -206,7 +206,7 @@ test('a stack removal without a remaining stack count leaves protection unknown'
   assert.equal(metrics.get(1)!.tank!.unknownMeleeEvents, 1);
 });
 
-test('all tank classes use the same recorded survival formula while mechanics and defensive facts remain unscored', () => {
+test('all tank classes score reviewed mechanics without rewarding unsupported defensive counts or a lone output reference', () => {
   for (const profile of TANK_PROFILES) {
     const { report, pull } = executionFixture({ roles: ['tank', 'dps'] });
     report.players[0] = { ...report.players[0], class: profile.class, spec: profile.spec };
@@ -214,7 +214,12 @@ test('all tank classes use the same recorded survival formula while mechanics an
     pull.metrics[0].mechanics = [check(10, 2)];
     const before = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
     assert.equal(before.role, 'tank');
-    assert.equal(before.score, 100);
+    assert.equal(before.score, null);
+    assert.equal(before.execution.alivePercent, 100);
+    assert.equal(before.execution.composite!.components.mechanics.score, 80);
+    assert.equal(before.execution.composite!.components.output.score, null);
+    assert.equal(before.execution.composite!.lower, 74);
+    assert.equal(before.execution.composite!.upper, 89);
     const m = pull.metrics[0];
     m.damage = 1e14;
     m.damageTaken = 1e14;
@@ -255,6 +260,7 @@ test('all tank classes use the same recorded survival formula while mechanics an
     };
     const after = analyze(report, [pull], selection).players.find((p) => p.id === 1)!;
     assert.equal(after.score, before.score, profile.id);
+    assert.deepEqual(after.execution.composite, before.execution.composite, profile.id);
     assert.ok(!('tankReview' in after));
     assert.ok(!('assessment' in after));
     assert.equal(after.damageTaken, 1e14);
@@ -271,6 +277,16 @@ test('a tank who changes to damage has separate role entries rather than one unk
   const rows = analyze(report, [pull, next], selection).players;
   assert.equal(rows.length, 2);
   assert.deepEqual(new Set(rows.map((p) => p.role)), new Set(['tank', 'dps']));
-  assert.ok(rows.every((p) => p.score === 100 && p.pulls === 1));
+  assert.ok(rows.every((p) => p.score === null && p.pulls === 1));
+  assert.ok(rows.every((p) => p.execution.alivePercent === 100));
+  assert.ok(rows.every((p) => p.execution.composite!.components.output.score === null));
+  assert.equal(
+    rows.find((p) => p.role === 'tank')!.execution.composite!.components.mechanics.weight,
+    0.55,
+  );
+  assert.equal(
+    rows.find((p) => p.role === 'dps')!.execution.composite!.components.mechanics.weight,
+    0.45,
+  );
   assert.equal(new Set(rows.map((p) => p.rowKey)).size, 2);
 });

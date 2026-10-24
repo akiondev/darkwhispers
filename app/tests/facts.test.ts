@@ -41,6 +41,11 @@ test('pull preparation records verified positive observations, enchants and actu
   ]);
   assert.deepEqual(recorder.facts.get(1), {
     snapshot: true,
+    preparation: {
+      flask: 'present',
+      food: 'present',
+      basis: 'Verified pull-start buff ID and name. Unmatched preparation remains unverified.',
+    },
     activeAtPull: [
       { id: 1235111, name: 'Flask of the Shattered Sun', category: 'flask' },
       { id: 1294727, name: 'Well Fed', category: 'food' },
@@ -85,6 +90,8 @@ test('invalid snapshots and ambiguous ability names never establish preparation'
   assert.equal(recorder.facts.get(1)?.snapshot, false);
   assert.deepEqual(recorder.facts.get(2)?.activeAtPull, []);
   assert.equal(recorder.facts.get(2)?.snapshot, true);
+  assert.equal(recorder.facts.get(2)?.preparation?.flask, 'unknown');
+  assert.equal(recorder.facts.get(2)?.preparation?.food, 'unknown');
   assert.equal(
     recorder.facts.get(2)?.gemsObserved,
     undefined,
@@ -95,6 +102,46 @@ test('invalid snapshots and ambiguous ability names never establish preparation'
     undefined,
     'Absent gear is not an empty enchant inventory',
   );
+});
+
+test('missing, empty and unmatched starting auras never fabricate a preparation failure', () => {
+  const recorder = factRecorder(fight, [1, 2, 3, 4], abilities);
+  recorder.observe([
+    { type: 'combatantinfo', timestamp: 10000, sourceID: 1, auras: [] },
+    { type: 'combatantinfo', timestamp: 10000, sourceID: 2, auras: [{ ability: 999999 }] },
+    {
+      type: 'combatantinfo',
+      timestamp: 10000,
+      sourceID: 3,
+      auras: [{ ability: 1235111 }, { ability: 999999 }],
+    },
+    { type: 'combatantinfo', timestamp: 10000, sourceID: 4, auras: null },
+  ]);
+  for (const id of [1, 2]) {
+    assert.equal(recorder.facts.get(id)?.preparation?.flask, 'unknown');
+    assert.equal(recorder.facts.get(id)?.preparation?.food, 'unknown');
+  }
+  assert.equal(recorder.facts.get(3)?.preparation?.flask, 'present');
+  assert.equal(recorder.facts.get(3)?.preparation?.food, 'unknown');
+  assert.equal(recorder.facts.get(4)?.snapshot, false);
+  assert.equal(recorder.facts.get(4)?.preparation, undefined);
+});
+
+test('later item casts and duplicated combatant snapshots do not create pull-start preparation credit', () => {
+  const recorder = factRecorder(fight, [1], abilities);
+  recorder.observe([
+    { type: 'combatantinfo', timestamp: 10000, sourceID: 1, auras: [] },
+    { type: 'cast', timestamp: 11000, sourceID: 1, abilityGameID: 1235111 },
+    {
+      type: 'combatantinfo',
+      timestamp: 11000,
+      sourceID: 1,
+      auras: [{ ability: 1235111 }, { ability: 1294727 }],
+    },
+  ]);
+  assert.equal(recorder.facts.get(1)?.preparation?.flask, 'unknown');
+  assert.equal(recorder.facts.get(1)?.preparation?.food, 'unknown');
+  assert.deepEqual(recorder.facts.get(1)?.activeAtPull, []);
 });
 
 test('consumables count actual in-fight casts, deduplicate pages and exclude crafting recipes', () => {

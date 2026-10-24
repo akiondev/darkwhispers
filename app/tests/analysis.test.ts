@@ -7,7 +7,20 @@ import { parseReportCode, selectFights } from '../shared/report-url.js';
 import { scoreBand, scoreLabel } from '../shared/score.js';
 import { aliveTime } from '../shared/life.js';
 import { roleFromSpec, summarizeSpecs } from '../shared/players.js';
-import { fixture, selection, check } from './execution-fixtures.js';
+import { fixture as baseFixture, selection, check } from './execution-fixtures.js';
+
+function fixture(...args: Parameters<typeof baseFixture>) {
+  const result = baseFixture(...args);
+  for (const m of result.metrics) {
+    m.facts!.snapshot = true;
+    m.facts!.preparation = {
+      flask: 'present',
+      food: 'present',
+      basis: 'Synthetic verified preparation fixture.',
+    };
+  }
+  return result;
+}
 
 test('selection covers a whole report, boss, wipes, kills and explicitly selected pulls', () => {
   const { report } = demoData();
@@ -37,14 +50,14 @@ test('report parser never accepts user-chosen upstream hosts or credentials', ()
     assert.throws(() => parseReportCode(url));
 });
 
-test('the labelled demo uses the current survival model without pretending to be a real log', () => {
+test('the labelled demo uses the composite model without pretending to be a real log', () => {
   const { report, pulls } = demoData();
   const result = analyze(report, pulls, selection);
   assert.equal(result.report.source, 'demo');
   assert.equal(result.players.length, 20);
   assert.ok(result.warnings.some((w) => /synthetic|demo/i.test(w)));
-  assert.equal(result.model.id, 'survival/v1');
-  assert.ok(result.players.every((p) => p.execution.version === 'survival/v1'));
+  assert.equal(result.model.id, 'composite/v1');
+  assert.ok(result.players.every((p) => p.execution.version === 'composite/v1'));
   assert.ok(result.players.every((p) => p.evidence.every((e) => e.url === null)));
   assert.ok(
     result.pulls.every((p) => !('metrics' in p)),
@@ -64,7 +77,10 @@ test('ranking is deterministic and separates role ordinals instead of comparing 
   );
   assert.equal(new Set(first.players.map((p) => p.rowKey)).size, 4);
   assert.ok(first.players.every((p) => p.rank === p.roleRank));
-  assert.equal(first.players.find((p) => p.role === 'tank')!.score, 100);
+  const tank = first.players.find((p) => p.role === 'tank')!;
+  assert.equal(tank.execution.composite!.components.survival.score, 100);
+  assert.equal(tank.execution.composite!.components.output.score, null);
+  assert.equal(tank.score, null, 'A single tank is not its own perfect output benchmark');
   const peers = first.players.filter((p) => p.role === 'dps');
   assert.ok(peers.every((p) => p.roleRank === 1 && p.rolePeers === 2));
 });
@@ -95,7 +111,7 @@ test('input page/actor order cannot change player scores or within-role ranks', 
   assert.deepEqual(comparable(after), comparable(before));
 });
 
-test('changing raw output, intake, casts, defensive counts and old parse metadata never manufactures survival points', () => {
+test('equal output scaling preserves relative contribution and unrelated counts never manufacture points', () => {
   const { report, pull } = fixture();
   const before = analyze(report, [pull], selection);
   for (const m of pull.metrics) {
@@ -174,8 +190,13 @@ test('actual per-pull roles produce independent rows for a character who changes
   assert.deepEqual(new Set(rows.map((p) => p.role)), new Set(['dps', 'healer']));
   assert.deepEqual(new Set(rows.map((p) => p.rowKey)), new Set(['3:dps', '3:healer']));
   assert.ok(rows.every((p) => p.pulls === 1 && p.pullReviews.length === 1));
-  assert.equal(rows.find((p) => p.role === 'dps')!.score, 100);
-  assert.equal(rows.find((p) => p.role === 'healer')!.score, 50);
+  const damage = rows.find((p) => p.role === 'dps')!;
+  const healing = rows.find((p) => p.role === 'healer')!;
+  assert.equal(damage.execution.alivePercent, 100);
+  assert.equal(healing.execution.alivePercent, 50);
+  assert.equal(damage.execution.composite!.components.output.weight, 0.3);
+  assert.equal(healing.execution.composite!.components.output.weight, 0.2);
+  assert.notEqual(damage.score, healing.score);
   const result = analyze(report, [pull, other], selection);
   assert.equal(result.summary.players, 4, 'A role switch does not invent another character');
   assert.equal(result.summary.rankedEntries, 5, 'The actual role rows are reported separately');
@@ -218,13 +239,17 @@ test('old inferred wipe-cutoff facts cannot reactivate retired shortened-window 
   assert.deepEqual(flagged.players, full.players);
   assert.equal(flagged.selection.excludeWipeTail, false);
   assert.ok(
-    flagged.players.every((p) => p.aliveMs === 60000 && p.durationMs === 300000 && p.score === 20),
+    flagged.players.every(
+      (p) => p.aliveMs === 60000 && p.durationMs === 300000 && p.execution.alivePercent === 20,
+    ),
   );
 });
 
-test('full recorded survival has the correct colour, and score rounding never creates false 100', () => {
+test('complete composite has the correct colour, and score rounding never creates false 100', () => {
   const { report, pull } = fixture();
-  assert.ok(analyze(report, [pull], selection).players.every((p) => p.score === 100));
+  const result = analyze(report, [pull], selection);
+  assert.ok(result.players.filter((p) => p.role === 'dps').every((p) => p.score === 100));
+  assert.ok(result.players.filter((p) => p.role !== 'dps').every((p) => p.score === null));
   assert.equal(scoreBand(100, false), 'perfect');
   assert.equal(scoreBand(100, true), 'provisional');
   assert.equal(scoreBand(99.999), 'pink');
@@ -234,7 +259,7 @@ test('full recorded survival has the correct colour, and score rounding never cr
   assert.equal(scoreBand(69), 'green');
 });
 
-test('150-pull / 20-player synthetic benchmark measures the current survival pipeline', () => {
+test('150-pull / 20-player synthetic benchmark measures the composite pipeline', () => {
   const demo = demoData();
   const pulls = Array.from({ length: 150 }, (_, i) => {
     const p = structuredClone(demo.pulls[i % demo.pulls.length]);
@@ -273,7 +298,7 @@ test('150-pull / 20-player synthetic benchmark measures the current survival pip
   timings.sort((a, b) => a - b);
   console.log(
     JSON.stringify({
-      benchmark: 'synthetic-survival-engine',
+      benchmark: 'synthetic-composite-engine',
       pulls: 150,
       players: 20,
       evidence: 90000,

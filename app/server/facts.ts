@@ -90,6 +90,16 @@ export function factRecorder(fight: Fight, actors: number[], abilities: Map<numb
         if (!Array.isArray(e.auras)) continue;
         snapshotActors.add(e.sourceID);
         fact.snapshot = true;
+        // The API describes a set of starting auras, not a guaranteed complete
+        // inventory of every present/future consumable. An empty array or a new
+        // unrecognised spell cannot prove that food/flask was absent. Keep the
+        // two checks explicit so composite scoring can retain the unverified
+        // portion of its fixed preparation weight instead of awarding it.
+        fact.preparation = {
+          flask: 'unknown',
+          food: 'unknown',
+          basis: 'Verified pull-start buff ID and name. Unmatched preparation remains unverified.',
+        };
         const seen = new Set<number>();
         for (const raw of e.auras) {
           if (!raw || typeof raw !== 'object') continue;
@@ -104,7 +114,10 @@ export function factRecorder(fight: Fight, actors: number[], abilities: Map<numb
           if (FOOD.has(id) && /^(hearty )?well fed$/i.test(name)) category = 'food';
           if (potion?.kind === 'combat-potion' && nameMatches(abilities, id, potion.name))
             category = 'combat-potion';
-          if (category) fact.activeAtPull.push({ id, name, category });
+          if (category) {
+            fact.activeAtPull.push({ id, name, category });
+            if (category === 'flask' || category === 'food') fact.preparation[category] = 'present';
+          }
         }
         if (Array.isArray(e.gear)) {
           const enchants: NonNullable<PlayerFacts['enchantsObserved']> = [];

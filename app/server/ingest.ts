@@ -130,7 +130,10 @@ function tableEntries(table: unknown): Record<string, any>[] {
   }
   return entries;
 }
-/** Full-pull facts: no inferred cutoff, class-response/activity grade or kill percentile. */
+/** Full-pull facts for composite scoring: life, native table totals, reviewed
+ * mechanics and verified preparation. No inferred cutoff or kill-only percentile
+ * is substituted for wipe output. Healing total already includes credited absorbs;
+ * overhealing remains separate and must never be added to this total. */
 export async function ingestPull(
   client: WclClient,
   report: Report,

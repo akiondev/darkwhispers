@@ -30,7 +30,8 @@ import { analysisLink, sharedAnalysisId } from '../shared/share.js';
 import ShareLink from './ShareLink.js';
 import RecentAnalyses from './RecentAnalyses.js';
 import CompactPlayerDetails from './CompactPlayerDetails.js';
-import { duration, RoleIcon, Score } from './presentation.js';
+import { CompositeScore, points } from './CompositeScore.js';
+import { duration, RoleIcon } from './presentation.js';
 
 type SavedAnalysis = Analysis | LegacyAnalysis;
 type SavedJob = Omit<Job, 'result'> & { result?: SavedAnalysis };
@@ -44,8 +45,9 @@ const defaults: Selection = {
 const roles: Role[] = ['dps', 'healer', 'tank', 'unknown'];
 const roleName = (role: Role) =>
   ({ dps: 'DPS', healer: 'Healers', tank: 'Tanks', unknown: 'Role not recorded' })[role];
+const formatOutput = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 export const currentModel = (analysis: SavedAnalysis): analysis is Analysis =>
-  'model' in analysis && analysis.model?.id === 'survival/v1';
+  'model' in analysis && analysis.model?.id === 'composite/v1';
 async function api<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -116,8 +118,8 @@ function LegacyResults({ analysis }: { analysis: LegacyAnalysis }) {
     <section className="panel legacy-results" aria-label="Previous model results">
       <h3>Saved results</h3>
       <p className="muted">
-        These saved scores use the previous model. Reanalyze to include the full recorded death
-        timeline.
+        These saved scores use a previous model. Reanalyze to use the weighted mechanics, output,
+        survival and preparation score.
       </p>
       <div className="table-scroll">
         <table>
@@ -271,18 +273,10 @@ export default function App() {
   );
   const fresh = analysis && currentModel(analysis) ? analysis : null;
   const shown =
-    fresh?.players
-      .filter(
-        (p) =>
-          (role === 'all' || p.role === role) && p.name.toLowerCase().includes(query.toLowerCase()),
-      )
-      .sort(
-        (a, b) =>
-          roles.indexOf(a.role) - roles.indexOf(b.role) ||
-          Number(!!a.rankingReason) - Number(!!b.rankingReason) ||
-          (b.score ?? -1) - (a.score ?? -1) ||
-          a.name.localeCompare(b.name),
-      ) ?? [];
+    fresh?.players.filter(
+      (p) =>
+        (role === 'all' || p.role === role) && p.name.toLowerCase().includes(query.toLowerCase()),
+    ) ?? [];
   const change = (patch: Partial<Selection>) => {
     clearAnalysisLocation();
     setSelection((s) => ({ ...s, ...patch }));
@@ -403,7 +397,7 @@ export default function App() {
               </>
             )}
           </h1>
-          {!report && <p className="lead">Recorded deaths. Time alive. A clearer raid review.</p>}
+          {!report && <p className="lead">Mechanics. Output. Survival. Your raid, in context.</p>}
           <form
             className="report-form"
             onSubmit={(e) => {
@@ -668,8 +662,8 @@ export default function App() {
                 <div>
                   <strong>Saved with the earlier scoring model</strong>
                   <p>
-                    This older snapshot may omit deaths near the end of wipes. Update it to use
-                    full-pull survival measurements.
+                    Update this snapshot to the composite score, with full-pull death statistics and
+                    a separate calculation for each role.
                   </p>
                   <button className="primary" disabled={busy} onClick={() => void start()}>
                     Update analysis
@@ -699,12 +693,15 @@ export default function App() {
               </div>
             </div>
             {fresh ? (
-              <section className="panel ranking" aria-label="Separate role rankings">
+              <section
+                className="panel ranking composite-ranking"
+                aria-label="Separate role rankings"
+              >
                 <div className="section-heading">
                   <div>
-                    <h3>Survival rankings</h3>
+                    <h3>Player rankings</h3>
                     <p className="ranking-caption">
-                      Score = time alive ÷ full pull time. Separate scores for each role.
+                      Mechanics, output, survival and preparation. Compared within each role.
                     </p>
                   </div>
                   <div className="table-controls">
@@ -717,19 +714,33 @@ export default function App() {
                         placeholder="Find player"
                       />
                     </label>
-                    <select
-                      aria-label="Filter role"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                    >
-                      <option value="all">All roles</option>
-                      <option value="dps">DPS</option>
-                      <option value="healer">Healers</option>
-                      <option value="tank">Tanks</option>
-                      <option value="unknown">Role not recorded</option>
-                    </select>
                   </div>
                 </div>
+                <div className="ranking-role-tabs" aria-label="Filter role">
+                  {(
+                    [
+                      'all',
+                      ...roles.filter((r) => fresh.players.some((p) => p.role === r)),
+                    ] as const
+                  ).map((r) => (
+                    <button
+                      key={r}
+                      className={role === r ? 'selected' : ''}
+                      aria-pressed={role === r}
+                      onClick={() => setRole(r)}
+                    >
+                      {r !== 'all' && <RoleIcon role={r} />}
+                      {r === 'all' ? 'All role lists' : roleName(r)}
+                      <small>
+                        {fresh.players.filter((p) => r === 'all' || p.role === r).length}
+                      </small>
+                    </button>
+                  ))}
+                </div>
+                <p className="ranking-benchmark">
+                  Output compares contributions within the same role and pull. It is not a global
+                  parse or a spec/gear-adjusted rating.
+                </p>
                 <div className="table-scroll">
                   <table>
                     <thead>
@@ -737,7 +748,8 @@ export default function App() {
                         <th>#</th>
                         <th>Player</th>
                         <th>Score</th>
-                        <th>Deaths</th>
+                        <th className="mechanic-column">Mechanics</th>
+                        <th className="output-column">Output</th>
                         <th className="dead-column">Time dead</th>
                         <th className="detail-column">Pulls</th>
                       </tr>
@@ -747,7 +759,7 @@ export default function App() {
                         <Fragment key={p.rowKey}>
                           {(index === 0 || shown[index - 1].role !== p.role) && (
                             <tr className="role-group">
-                              <th colSpan={6}>
+                              <th colSpan={7}>
                                 <RoleIcon role={p.role} />
                                 {roleName(p.role)}
                                 <small>Compared within this role</small>
@@ -778,7 +790,7 @@ export default function App() {
                                     {p.rankingReason && (
                                       <span className="cell-sub" title={p.rankingReason}>
                                         {p.score === null
-                                          ? 'Check data details'
+                                          ? 'Preliminary · view evidence'
                                           : 'Partial selection · unranked'}
                                       </span>
                                     )}
@@ -787,10 +799,29 @@ export default function App() {
                               </button>
                             </td>
                             <td>
-                              <Score value={p.score} />
+                              <CompositeScore assessment={p.execution} />
                             </td>
-                            <td className="death-count">
-                              <strong>{p.deaths}</strong>
+                            <td className="mechanic-column">
+                              <strong>
+                                {p.execution.mechanicsScore === null
+                                  ? '—'
+                                  : `${points(p.execution.mechanicsScore)}%`}
+                              </strong>
+                              <small className="cell-sub">
+                                {p.execution.failedChecks} failed · {p.execution.checkedMechanics}{' '}
+                                checks
+                              </small>
+                            </td>
+                            <td className="output-column">
+                              <strong>
+                                {formatOutput.format(
+                                  (p.role === 'healer' ? p.healing : p.damage) /
+                                    Math.max(1, p.durationMs / 1000),
+                                )}
+                              </strong>
+                              <small className="cell-sub">
+                                {p.role === 'healer' ? 'HPS' : 'DPS'}
+                              </small>
                             </td>
                             <td
                               className="dead-column"
@@ -805,6 +836,9 @@ export default function App() {
                                 : p.durationMs - p.aliveMs > 0 && p.durationMs - p.aliveMs < 1000
                                   ? '< 1s'
                                   : duration(Math.max(0, p.durationMs - p.aliveMs))}
+                              <small className="cell-sub">
+                                {p.deaths} {p.deaths === 1 ? 'death' : 'deaths'}
+                              </small>
                             </td>
                             <td className="detail-column">
                               {p.pulls}
@@ -883,12 +917,47 @@ export default function App() {
       {method && fresh && (
         <Modal title="How scoring works" onClose={() => setMethod(false)}>
           <div className="method-simple">
-            <div className="method-equation">Score = 100 × time alive ÷ full pull time</div>
-            <p>
-              We add the recorded time across every selected pull you attended in the same role.
-              Deaths remain counted after resurrection. A resurrection ends that period of dead
-              time.
-            </p>
+            <div className="method-equation">
+              Score = mechanics + output + survival + preparation points
+            </div>
+            <table className="method-weights">
+              <thead>
+                <tr>
+                  <th>Weight</th>
+                  <th>DPS</th>
+                  <th>Healer</th>
+                  <th>Tank</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Mechanics</td>
+                  <td>45%</td>
+                  <td>45%</td>
+                  <td>55%</td>
+                </tr>
+                <tr>
+                  <td>Output</td>
+                  <td>30%</td>
+                  <td>20%</td>
+                  <td>10%</td>
+                </tr>
+                <tr>
+                  <td>Survival</td>
+                  <td>20%</td>
+                  <td>30%</td>
+                  <td>30%</td>
+                </tr>
+                <tr>
+                  <td>Preparation</td>
+                  <td>5%</td>
+                  <td>5%</td>
+                  <td>5%</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>{fresh.methodology.formula}</p>
+            <p>{fresh.methodology.aggregation}</p>
             <p>
               Kills and wipes use their full duration. No guessed wipe call can remove your deaths.
               A voice call or an intentional death cannot be established from these measurements.
@@ -899,10 +968,10 @@ export default function App() {
               shown so different selections can be reviewed in context.
             </p>
             <p>
-              <b>100 means no recorded time dead.</b> It does not mean perfect mechanics or prove
-              who caused a wipe. Output, damage taken and item usage are context, not score inputs.
-              Incomplete life data or no recorded contribution is flagged instead of receiving an
-              assumed score.
+              <b>100 requires full points in every measured component.</b> It is not a guarantee of
+              perfect play or proof of responsibility for a wipe. Total damage taken and raw
+              defensive-cast counts are not penalties. Missing required evidence produces a
+              preliminary range; its weight is never reassigned to survival.
             </p>
             <details>
               <summary>Data & references</summary>

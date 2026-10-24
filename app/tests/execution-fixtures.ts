@@ -31,6 +31,7 @@ export function check(
     unknown: 0,
     observed: opportunities,
     scoreEligible: true,
+    requiredForScore: true,
     detail: 'Synthetic, complete denominator; not a live boss claim.',
     source: 'https://www.warcraftlogs.com/help/pins',
     abilityIds: [990000],
